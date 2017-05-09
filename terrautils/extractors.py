@@ -35,14 +35,22 @@ def get_output_directory(rootdir, datasetname):
     return os.path.join(rootdir, datestamp, timestamp)
 
 
-def get_output_filename(datasetname, outextension,lvl="lv1", site="uamac", opts=[]):
+def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts=[]):
     """Determine output filename given input information.
 
     sensor_level_datetime_site_a_b_c.extension
         a = what product?
         left/right/top/bottom - position
     """
-    pass
+    if datasetname.find(" - ") > -1:
+        # 2017-05-04__10-31-34-536
+        sensorname = datasetname.split(" - ")[0]
+        timestamp = datasetname.split(" - ")[1]
+    else:
+        sensorname = datasetname
+        timestamp = "2017"
+
+    return "_".join([sensorname, lvl, timestamp, site]+opts)+".%s" % outextension
 
 
 def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
@@ -139,6 +147,7 @@ def calculate_geometry(metadata, stereo=True):
         gps_bounds = _get_bounding_box_with_formula(center_position, fix_fov)
 
         return (gps_bounds)
+
 
 def _get_bounding_box_with_formula(center_position, fov):
     # Scanalyzer -> MAC formula @ https://terraref.gitbooks.io/terraref-documentation/content/user/geospatial-information.html
