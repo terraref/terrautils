@@ -53,40 +53,29 @@ def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts
     return "_".join([sensorname, lvl, timestamp, site]+opts)+".%s" % outextension
 
 
-def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
-    """Send extractor job detail summary to InfluxDB instance.
+def is_latest_file(resource):
+    """Check whether the extractor-triggering file is the latest file in the dataset.
 
-    starttime - example format "2017-02-10T16:09:57+00:00"
-    endtime - example format "2017-02-10T16:09:57+00:00"
+    This simple check should be used in dataset extractors to avoid collisions between 2+ instances of the same
+    extractor trying to process the same dataset simultaneously by triggering off of 2 different uploaded files.
+
+    Note that in the resource dictionary, "latest_file" is the file that triggered the extraction (i.e. latest file
+    at the time of message generation), not necessarily the newest file in the dataset.
     """
+    if resource['latest_file']:
+        latest_file = ""
+        latest_time = "Sun Jan 01 00:00:01 CDT 1920"
 
-    # Convert timestamps to seconds from epoch
-    f_completed_ts = int(parse(endtime).strftime('%s'))
-    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))
+        for f in resource['files']:
+            create_time = datetime.datetime.strptime(f['date-created'].replace(" CDT",""), "%c")
+            if create_time > datetime.datetime.strptime(latest_time.replace(" CDT",""), "%c"):
+                latest_time = f['date-created']
+                latest_file = f['filename']
 
-    # Check
-    influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
-    influx_port = os.getenv("INFLUX_PORT", 8086)
-    influx_db = os.getenv("INFLUX_DB", "extractor_db")
-    influx_user = os.getenv("INFLUX_USER", "terra")
-    influx_pass = os.getenv("INFLUX_PASS", "")
-
-    client = InfluxDBClient(influx_host, influx_port, influx_user, influx_pass, influx_db)
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": f_duration}
-    }], tags={"extractor": extractorname, "type": "duration"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(filecount)}
-    }], tags={"extractor": extractorname, "type": "filecount"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(bytecount)}
-    }], tags={"extractor": extractorname, "type": "bytes"})
+        if latest_file != resource['latest_file']:
+            return False
+        else:
+            return True
 
 
 def calculate_geometry(metadata, stereo=True):
@@ -183,3 +172,44 @@ def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extr
     for ds in dslist:
         submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
 
+
+def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
+    """Send extractor job detail summary to InfluxDB instance.
+
+    starttime - example format "2017-02-10T16:09:57+00:00"
+    endtime - example format "2017-02-10T16:09:57+00:00"
+    """
+
+    # Convert timestamps to seconds from epoch
+    f_completed_ts = int(parse(endtime).strftime('%s'))
+    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))
+
+    # Check
+    influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
+    influx_port = os.getenv("INFLUX_PORT", 8086)
+    influx_db = os.getenv("INFLUX_DB", "extractor_db")
+    influx_user = os.getenv("INFLUX_USER", "terra")
+    influx_pass = os.getenv("INFLUX_PASS", "")
+
+    client = InfluxDBClient(influx_host, influx_port, influx_user, influx_pass, influx_db)
+    client.write_points([{
+        "measurement": "file_processed",
+        "time": f_completed_ts,
+        "fields": {"value": f_duration}
+    }], tags={"extractor": extractorname, "type": "duration"})
+    client.write_points([{
+        "measurement": "file_processed",
+        "time": f_completed_ts,
+        "fields": {"value": int(filecount)}
+    }], tags={"extractor": extractorname, "type": "filecount"})
+    client.write_points([{
+        "measurement": "file_processed",
+        "time": f_completed_ts,
+        "fields": {"value": int(bytecount)}
+    }], tags={"extractor": extractorname, "type": "bytes"})
+
+
+def error_notification(msg):
+    """Send an error message notification, e.g. to Slack.
+    """
+    pass
