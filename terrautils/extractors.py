@@ -181,8 +181,8 @@ def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
     """
 
     # Convert timestamps to seconds from epoch
-    f_completed_ts = int(parse(endtime).strftime('%s'))
-    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))
+    f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
+    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
 
     # Check
     influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
