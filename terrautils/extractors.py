@@ -363,6 +363,147 @@ def create_geotiff_with_temperature(np_arr, temp_arr, gps_bounds, out_file_path)
 
     return
 
+# GEOM STUFF FROM SENSORPOSITION
+def main():
+    # Pull positional information from metadata
+    gantry_x, gantry_y, loc_cambox_x, loc_cambox_y, fov_x, fov_y, ctime = fetch_md_parts(resource['metadata'])
+
+    # Convert positional information into FOV polygon -----------------------------------------------------
+    # GANTRY GEOM (LAT-LONG) ##############
+    # NW: 33d 04.592m N , -111d 58.505m W #
+    # NE: 33d 04.591m N , -111d 58.487m W #
+    # SW: 33d 04.474m N , -111d 58.505m W #
+    # SE: 33d 04.470m N , -111d 58.485m W #
+    #######################################
+    SE_latlon = (33.0745, -111.97475)
+    SE_utm = utm.from_latlon(SE_latlon[0], SE_latlon[1])
+
+    # GANTRY GEOM (GANTRY CRS) ############
+    #			      N(x)                #
+    #			      ^                   #
+    #			      |                   #
+    #			      |                   #
+    #			      |                   #
+    #      W(y)<------SE                  #
+    #                                     #
+    # NW: (207.3,	22.135,	5.5)          #
+    # SE: (3.8,	0.0,	0.0)              #
+    #######################################
+    SE_offset_x = 3.8
+    SE_offset_y = 0
+
+    # Determine sensor position relative to origin and get lat/lon
+    gantry_utm_x = SE_utm[0] - (gantry_y - SE_offset_y)
+    gantry_utm_y = SE_utm[1] + (gantry_x - SE_offset_x)
+    sensor_utm_x = gantry_utm_x - loc_cambox_y
+    sensor_utm_y = gantry_utm_y + loc_cambox_x
+    sensor_latlon = utm.to_latlon(sensor_utm_x, sensor_utm_y, SE_utm[2], SE_utm[3])
+    logging.info("sensor lat/lon: %s" % str(sensor_latlon))
+
+    # Determine field of view (assumes F.O.V. X&Y are based on center of sensor)
+    fov_NW_utm_x = sensor_utm_x - fov_y/2
+    fov_NW_utm_y = sensor_utm_y + fov_x/2
+    fov_SE_utm_x = sensor_utm_x + fov_y/2
+    fov_SE_utm_y = sensor_utm_y - fov_x/2
+    fov_nw_latlon = utm.to_latlon(fov_NW_utm_x, fov_NW_utm_y, SE_utm[2],SE_utm[3])
+    fov_se_latlon = utm.to_latlon(fov_SE_utm_x, fov_SE_utm_y, SE_utm[2], SE_utm[3])
+    logging.debug("F.O.V. NW lat/lon: %s" % str(fov_nw_latlon))
+    logging.debug("F.O.V. SE lat/lon: %s" % str(fov_se_latlon))
+
+    metadata = {
+        "sources": host+resource['type']+"s/"+resource['id'],
+        "file_ids": ",".join(fileIdList),
+        "centroid": {
+            "type": "Point",
+            "coordinates": [sensor_latlon[1], sensor_latlon[0]]
+        },
+        "fov": {
+            "type": "Polygon",
+            "coordinates": [[[fov_nw_latlon[1], fov_nw_latlon[0], 0],
+                             [fov_nw_latlon[1], fov_se_latlon[0], 0],
+                             [fov_se_latlon[1], fov_se_latlon[0], 0],
+                             [fov_se_latlon[1], fov_nw_latlon[0], 0],
+                             [fov_nw_latlon[1], fov_nw_latlon[0], 0] ]]
+        }
+    }
+def fetch_md_parts(metadata):
+    gantry_x, gantry_y = None, None
+    loc_cambox_x, loc_cambox_y = None, None
+    fov_x, fov_y = None, None
+    ctime = None
+
+    """
+        Due to observed differences in metadata field names over time, this method is
+        flexible with respect to finding fields. By default each entry for each field
+        is checked with both a lowercase and uppercase leading character.
+    """
+
+    if 'lemnatec_measurement_metadata' in metadata:
+        lem_md = metadata['lemnatec_measurement_metadata']
+        if 'gantry_system_variable_metadata' in lem_md and 'sensor_fixed_metadata' in lem_md:
+            gantry_meta = lem_md['gantry_system_variable_metadata']
+            sensor_meta = lem_md['sensor_fixed_metadata']
+
+            # X and Y position of gantry
+            x_positions = ['position x [m]', 'position X [m]']
+            for variant in x_positions:
+                val = check_field_variants(gantry_meta, variant)
+                if val:
+                    gantry_x = parse_as_float(val)
+                    break
+            y_positions = ['position y [m]', 'position Y [m]']
+            for variant in y_positions:
+                val = check_field_variants(gantry_meta, variant)
+                if val:
+                    gantry_y = parse_as_float(val)
+                    break
+
+            # Sensor location within camera box
+            cbx_locations = ['location in camera box x [m]', 'location in camera box X [m]']
+            for variant in cbx_locations:
+                val = check_field_variants(sensor_meta, variant)
+                if val:
+                    loc_cambox_x = parse_as_float(val)
+                    break
+            cby_locations = ['location in camera box y [m]', 'location in camera box Y [m]']
+            for variant in cby_locations:
+                val = check_field_variants(sensor_meta, variant)
+                if val:
+                    loc_cambox_y = parse_as_float(val)
+                    break
+
+            # Field of view
+            x_fovs = ['field of view x [m]', 'field of view X [m]']
+            for variant in x_fovs:
+                val = check_field_variants(sensor_meta, variant)
+                if val:
+                    fov_x = parse_as_float(val)
+                    break
+            y_fovs = ['field of view y [m]', 'field of view Y [m]']
+            for variant in y_fovs:
+                val = check_field_variants(sensor_meta, variant)
+                if val:
+                    fov_y = parse_as_float(val)
+                    break
+            if not (fov_x and fov_y):
+                val = check_field_variants(sensor_meta, 'field of view at 2m in X- Y- direction [m]')
+                if val:
+                    vals = val.replace('[','').replace(']','').split(' ')
+                    if not fov_x:
+                        fov_x = parse_as_float(vals[0])
+                    if not fov_y:
+                        fov_y = parse_as_float(vals[1])
+
+            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
+            val = check_field_variants(gantry_meta, 'time')
+            if val:
+                ctime = val.encode("utf-8")
+            else:
+                ctime = "unknown"
+
+    return gantry_x, gantry_y, loc_cambox_x, loc_cambox_y, fov_x, fov_y, ctime
+
+
 # PNG STUFF FROM PSII - SHOULD THERE BE GEOTIFF COMPONENT HERE?
 def load_PSII_data(file_path, height, width, out_file):
 
