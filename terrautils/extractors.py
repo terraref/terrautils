@@ -7,12 +7,17 @@ import os
 import utm
 import datetime
 from math import cos, pi
+
 from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
+from matplotlib import cm, pyplot as plt
+from PIL import Image
+
 from pyclowder.collections import get_datasets
 from pyclowder.datasets import submit_extraction
 
 
+# Basic extractor functions
 def get_output_directory(rootdir, datasetname):
     """Determine output directory path given root path and dataset name.
 
@@ -78,14 +83,123 @@ def is_latest_file(resource):
         else:
             return True
 
+# Conversion-related functions
+def calculate_geometry(metadata, sensor="stereoTop"):
+    """Extract bounding box geometry, depending on sensor type.
 
-def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extractor):
-    """Manually trigger an extraction on all datasets in a collection.
+        Gets geometry from metadata for center position and FOV, applies some
+        sensor-specific transformations to those values, then uses them in formula
+        to determine bounding box of image.
+
+        Returns:
+            tuple of GeoTIFF coordinates, each one as:
+            (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
-    dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
-    print("submitting %s datasets" % len(dslist))
-    for ds in dslist:
-        submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
+    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y, scan_time = _geom_from_metadata(metadata)
+
+    center_position = ( float(gantry_x) + float(cambox_x),
+                        float(gantry_y) + float(cambox_y),
+                        float(gantry_z) + float(cambox_z) )
+    camHeight = center_position[2]
+
+    if sensor=="stereoTop":
+        # TODO: Hard-coded overrides for fov_x, fov_y, HEIGHT_MAGIC_NUMBER, PREDICT_MAGIC_SLOPE, STEREO_OFFSET
+        HEIGHT_MAGIC_NUMBER = 1.64 # gantry rails are at 2m
+        PREDICT_MAGIC_SLOPE = 0.574
+        predict_plant_height = PREDICT_MAGIC_SLOPE * camHeight
+        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER - predict_plant_height
+        fov_x = float(1.015 * (camH_fix/2))
+        fov_y = float(0.749 * (camH_fix/2))
+
+        # NOTE: This STEREO_OFFSET is an experimentally determined value.
+        STEREO_OFFSET = .17 # distance from center_position to each of the stereo cameras (left = +, right = -)
+        left_position = [center_position[0]+STEREO_OFFSET, center_position[1], center_position[2]]
+        right_position = [center_position[0]-STEREO_OFFSET, center_position[1], center_position[2]]
+        left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
+        right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
+        return (left_gps_bounds, right_gps_bounds)
+    else:
+        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
+
+
+def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
+    """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
+
+        Keyword arguments:
+        pixels -- numpy array of pixel values.
+                    if 2-dimensional array, a single-band GeoTIFF will be created.
+                    if 3-dimensional array, a band will be created for each Z dimension.
+        gps_bounds -- tuple of GeoTIFF coordinates as ( lat (y) min, lat (y) max,
+                                                        long (x) min, long (x) max)
+        out_path -- path to GeoTIFF to be created
+        nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
+    """
+    dimensions = np.shape(pixels)
+    if len(dimensions) == 2:
+        nrows, ncols = dimensions
+        channels = 1
+    else:
+        nrows, ncols, channels = dimensions
+
+    geotransform = (
+        gps_bounds[2], # upper-left x
+        (gps_bounds[3] - gps_bounds[2])/float(ncols), # W-E pixel resolution
+        0, # rotation (0 = North is up)
+        gps_bounds[1], # upper-left y
+        0, # rotation (0 = North is up)
+        -((gps_bounds[1] - gps_bounds[0])/float(nrows)) # N-S pixel resolution
+    )
+
+    # Create output GeoTIFF and set coordinates & projection
+    output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
+    output_raster.SetGeoTransform(geotransform)
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326) # google mercator
+    output_raster.SetProjection( srs.ExportToWkt() )
+
+    if channels > 1:
+        # typically 3 channels = RGB channels
+        # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
+        for chan in range(channels):
+            band = chan + 1
+            output_raster.GetRasterBand(band).WriteArray(pixels[:,:,chan].astype('uint8')) # write red channel to raster file
+            output_raster.GetRasterBand(band).FlushCache()
+            if nodata:
+                output_raster.GetRasterBand(band).SetNoDataValue(nodata)
+    else:
+        # single channel image, e.g. temperature
+        output_raster.GetRasterBand(1).WriteArray(pixels)
+        output_raster.GetRasterBand(1).FlushCache()
+        if nodata:
+            output_raster.GetRasterBand(1).SetNoDataValue(nodata)
+
+    output_raster = None
+    return
+
+
+def create_png(pixels, out_path, scaled=False):
+    """Generate output PNG file given an input BIN file.
+
+            Keyword arguments:
+            pixels -- 2-dimensional numpy array of pixel values
+            out_path -- path to GeoTIFF to be created
+            scaled -- whether to scale PNG output values based on pixels min/max
+        """
+    if scaled:
+        # e.g. flirIrCamera
+        Gmin = pixels.min()
+        Gmax = pixels.max()
+        scaled_px = (pixels-Gmin)/(Gmax - Gmin)
+        plt.imsave(out_path, cm.get_cmap('jet')(scaled_px))
+    else:
+        # e.g. PSII
+        Image.fromarray(pixels).save(out_path)
+
+# Logging/notify/message bus operations
+def error_notification(msg):
+    """Send an error message notification, e.g. to Slack.
+    """
+    pass
 
 
 def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
@@ -124,392 +238,165 @@ def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
     }], tags={"extractor": extractorname, "type": "bytes"})
 
 
-def error_notification(msg):
-    """Send an error message notification, e.g. to Slack.
+def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extractor):
+    """Manually trigger an extraction on all datasets in a collection.
+
+        This will iterate through all datasets in the given collection and submit them to
+        the provided extractor. Does not operate recursively if there are nested collections.
     """
-    pass
+    dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
+    print("submitting %s datasets" % len(dslist))
+    for ds in dslist:
+        submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
 
 
-# GEOM STUFF FROM stereoRGB (*~~~~~*BLESSED*~~~~~*)
-def calculate_geometry(metadata, stereo=True):
-    """Determine geoJSON of dataset given input metadata.
+# Private functions -------------------------------------
+def _geom_from_metadata(metadata):
+    """Parse location elements from metadata.
+
+        Returns:
+        tuple of location information: (
+            location of scannerbox x, y, z
+            location offset of sensor in scannerbox in x, y, z
+            field-of-view of camera in x, y dimensions
+            scan time
+        )
     """
+    gantry_x, gantry_y, gantry_z = None, None, None
+    cambox_x, cambox_y, cambox_z = None, None, None
+    fov_x, fov_y, scan_time = None, None, None
 
-    # bin2tif.get_position(metadata) ------------------------
-    gantry_meta = metadata['lemnatec_measurement_metadata']['gantry_system_variable_metadata']
-    gantry_x = gantry_meta["position x [m]"]
-    gantry_y = gantry_meta["position y [m]"]
-    gantry_z = gantry_meta["position z [m]"]
+    # TODO: Replace these with GETs from Clowder fixed metadata for each sensor
+    if 'lemnatec_measurement_metadata' in metadata:
+        lem_md = metadata['lemnatec_measurement_metadata']
+        if 'gantry_system_variable_metadata' in lem_md:
+            gantry_meta = lem_md['gantry_system_variable_metadata']
 
-    cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-    cam_x = cam_meta["location in camera box x [m]"]
-    cam_y = cam_meta["location in camera box y [m]"]
-    if "location in camera box z [m]" in cam_meta: # this may not be in older data
-        cam_z = cam_meta["location in camera box z [m]"]
-    else:
-        cam_z = 0.578
+            # (x,y,z) position of gantry
+            x_positions = ['position x [m]', 'position X [m]']
+            y_positions = ['position y [m]', 'position Y [m]']
+            z_positions = ['position z [m]', 'position Z [m]']
+            gantry_x = _search_for_key(gantry_meta, x_positions)
+            gantry_y = _search_for_key(gantry_meta, y_positions)
+            gantry_z = _search_for_key(gantry_meta, z_positions)
 
-    x = float(gantry_x) + float(cam_x)
-    y = float(gantry_y) + float(cam_y)
-    z = float(gantry_z) + float(cam_z)# + HEIGHT_MAGIC_NUMBER # gantry rails are at 2m
+            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
+            scan_time = _search_for_key(gantry_meta, ["time"])
 
-    center_position = (x, y, z)
-    camHeight = center_position[2]
+        if 'sensor_fixed_metadata' in lem_md:
+            sensor_meta = lem_md['sensor_fixed_metadata']
+
+            # sensor location within camera box
+            x_positions = ['location in camera box x [m]', 'location in camera box X [m]']
+            y_positions = ['location in camera box y [m]', 'location in camera box Y [m]']
+            z_positions = ['location in camera box z [m]', 'location in camera box Z [m]']
+            cambox_x = _search_for_key(sensor_meta, x_positions)
+            cambox_y = _search_for_key(sensor_meta, y_positions)
+            cambox_z = _search_for_key(sensor_meta, z_positions)
+
+            # sensor field-of-view
+            x_fovs = ['field of view x [m]', 'field of view X [m]']
+            y_fovs = ['field of view y [m]', 'field of view Y [m]']
+            fov_x = _search_for_key(sensor_meta, x_fovs)
+            fov_y = _search_for_key(sensor_meta, y_fovs)
+            if not (fov_x and fov_y):
+                fovs = _search_for_key(sensor_meta, ['field of view at 2m in X- Y- direction [m]'])
+                if fovs:
+                    fovs = fovs.replace('[','').replace(']','').split(' ')
+                    try:
+                        fov_x = float(fovs[0].encode("utf-8"))
+                        fov_y = float(fovs[1].encode("utf-8"))
+                    except AttributeError:
+                        fov_x = fovs[0]
+                        fov_y = fovs[1]
+
+    # TODO: Hard-coded overrides
+    if sensor=="stereoTop":
+        cambox_z = 0.578
+    elif not cambox_z:
+        cambox_z = 0
+
+    return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y, scan_time)
 
 
-    # bin2tif.get_fov(metadata, camHeight, shape) ------------------------
-    cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-    fov = cam_meta["field of view at 2m in x- y- direction [m]"]
-
-    # TODO: These are likely specific to stereoTop
-    fov_x = 1.015 #float(fov_list[0])
-    fov_y = 0.749 #float(fov_list[1])
-
-    HEIGHT_MAGIC_NUMBER = 1.64
-    PREDICT_MAGIC_SLOPE = 0.574
-    predict_plant_height = PREDICT_MAGIC_SLOPE * camHeight
-    camH_fix = camHeight + HEIGHT_MAGIC_NUMBER - predict_plant_height
-    fix_fov_x = fov_x*(camH_fix/2)
-    fix_fov_y = fov_y*(camH_fix/2)
-
-    fix_fov = (fix_fov_x, fix_fov_y)
-
-    if stereo:
-        # NOTE: This STEREO_OFFSET is an experimentally determined value.
-        STEREO_OFFSET = .17 # distance from center_position to each of the stereo cameras (left = +, right = -)
-        left_position = [center_position[0]+STEREO_OFFSET, center_position[1], center_position[2]]
-        right_position = [center_position[0]-STEREO_OFFSET, center_position[1], center_position[2]]
-
-        left_gps_bounds = _get_bounding_box_with_formula(left_position, fix_fov) # (lat_max, lat_min, lng_max, lng_min) in decimal degrees
-        right_gps_bounds = _get_bounding_box_with_formula(right_position, fix_fov)
-
-        return (left_gps_bounds, right_gps_bounds)
-
-    else:
-        gps_bounds = _get_bounding_box_with_formula(center_position, fix_fov)
-
-        return (gps_bounds)
 def _get_bounding_box_with_formula(center_position, fov):
-    # Scanalyzer -> MAC formula @ https://terraref.gitbooks.io/terraref-documentation/content/user/geospatial-information.html
-    SE_latlon = (33.07451869,-111.97477775)
+    """Convert scannerbox center position & sensor field-of-view to actual bounding box
+
+        Linear transformation formula adapted from:
+        https://terraref.gitbooks.io/terraref-documentation/content/user/geospatial-information.html
+
+        Returns:
+            tuple of coordinates as: (  lat (y) min, lat (y) max,
+                                        long (x) min, long (x) max )
+    """
+
+    # Get UTM information from southeast corner of field
+    SE_utm = utm.from_latlon(33.07451869, -111.97477775)
+    utm_zone = SE_utm[2]
+    utm_num  = SE_utm[3]
+
+    # Linear transformation coefficients
     ay = 3659974.971; by = 1.0002; cy = 0.0078;
     ax = 409012.2032; bx = 0.009; cx = - 0.9986;
     lon_shift = 0.000020308287
     lat_shift = 0.000015258894
-    SE_utm = utm.from_latlon(SE_latlon[0], SE_latlon[1])
 
+    # min/max bounding box x,y values
     y_w = center_position[1] + fov[1]/2
     y_e = center_position[1] - fov[1]/2
     x_n = center_position[0] + fov[0]/2
     x_s = center_position[0] - fov[0]/2
-
+    # coordinates of northwest bounding box vertex
     Mx_nw = ax + bx * x_n + cx * y_w
     My_nw = ay + by * x_n + cy * y_w
-
+    # coordinates if southeast bounding box vertex
     Mx_se = ax + bx * x_s + cx * y_e
     My_se = ay + by * x_s + cy * y_e
+    # bounding box vertex coordinates
+    bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
+    bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
 
-    fov_nw_latlon = utm.to_latlon(Mx_nw, My_nw, SE_utm[2],SE_utm[3])
-    fov_se_latlon = utm.to_latlon(Mx_se, My_se, SE_utm[2],SE_utm[3])
+    """TODO: flirIrCamera used this transformation, any good? x/y swapped?
 
-    return (fov_se_latlon[0] - lat_shift, fov_nw_latlon[0] - lat_shift, fov_nw_latlon[1] + lon_shift, fov_se_latlon[1] + lon_shift)
-def create_geotiff(which_im, np_arr, gps_bounds, out_file_path):
-    try:
-        nrows,ncols,nz = np.shape(np_arr)
-        # gps_bounds: (lat_min, lat_max, lng_min, lng_max)
-        xres = (gps_bounds[3] - gps_bounds[2])/float(ncols)
-        yres = (gps_bounds[1] - gps_bounds[0])/float(nrows)
-        geotransform = (gps_bounds[2],xres,0,gps_bounds[1],0,-yres) #(top left x, w-e pixel resolution, rotation (0 if North is up), top left y, rotation (0 if North is up), n-s pixel resolution)
-
-        output_raster = gdal.GetDriverByName('GTiff').Create(out_file_path, ncols, nrows, nz, gdal.GDT_Byte)
-
-        output_raster.SetGeoTransform(geotransform) # specify coordinates
-        srs = osr.SpatialReference() # establish coordinate encoding
-        srs.ImportFromEPSG(4326) # specifically, google mercator
-        output_raster.SetProjection( srs.ExportToWkt() ) # export coordinate system to file
-
-        # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
-        output_raster.GetRasterBand(1).WriteArray(np_arr[:,:,0].astype('uint8')) # write red channel to raster file
-        output_raster.GetRasterBand(1).FlushCache()
-        output_raster.GetRasterBand(1).SetNoDataValue(-99)
-
-        output_raster.GetRasterBand(2).WriteArray(np_arr[:,:,1].astype('uint8')) # write green channel to raster file
-        output_raster.GetRasterBand(2).FlushCache()
-        output_raster.GetRasterBand(2).SetNoDataValue(-99)
-
-        output_raster.GetRasterBand(3).WriteArray(np_arr[:,:,2].astype('uint8')) # write blue channel to raster file
-        output_raster.GetRasterBand(3).FlushCache()
-        output_raster.GetRasterBand(3).SetNoDataValue(-99)
-
-        output_raster = None
-    except Exception as ex:
-        fail('Error creating GeoTIFF: ' + str(ex))
-
-# GEOM STUFF FROM FLIR
-def main(metadata):
-    center_position, scan_time, fov = parse_metadata(metadata)
-    gps_bounds = get_bounding_box_flir(center_position, fov) # get bounding box using gantry position and fov of camera
-
-    raw_data = load_flir_data(binfile) # get raw data from bin file
-    tc = rawData_to_temperature(raw_data, scan_time, metadata)
-    im_color = create_png(raw_data, out_png) # create png
-    create_geotiff_with_temperature(im_color, tc, gps_bounds, tif_path) # create geotiff
-def create_png(im, outfile_path):
-
-    Gmin = im.min()
-    Gmax = im.max()
-    At = (im-Gmin)/(Gmax - Gmin)
-
-    my_cmap = cm.get_cmap('jet')
-    color_array = my_cmap(At)
-
-    plt.imsave(outfile_path, color_array)
-
-    img_data = Image.open(outfile_path)
-
-    return np.array(img_data)
-def parse_metadata(metadata):
-
-    #gantry_meta = metadata['lemnatec_measurement_metadata']['gantry_system_variable_metadata']
-    #gantry_x = gantry_meta["position x [m]"]
-    #gantry_y = gantry_meta["position y [m]"]
-    #gantry_z = gantry_meta["position z [m]"]
-
-    scan_time = gantry_meta["time"]
-
-    #cam_meta = metadata['lemnatec_measurement_metadata']['sensor_fixed_metadata']
-    #cam_x = cam_meta["location in camera box x [m]"]
-    #cam_y = cam_meta["location in camera box y [m]"]
-    #if "location in camera box z [m]" in cam_meta: # this may not be in older data
-    #    cam_z = cam_meta["location in camera box z [m]"]
-    #else:
-    cam_z = 0
-
-    fov_x = cam_meta["field of view x [m]"]
-    fov_y = cam_meta["field of view y [m]"]
-
-    x = float(gantry_x) + float(cam_x)
-    y = float(gantry_y) + float(cam_y)
-    z = float(gantry_z) + float(cam_z)
-
-    center_position = (x, y, z)
-    fov = [float(fov_x), float(fov_y)]
-
-    return center_position, scan_time, fov
-
-def get_bounding_box_flir(center_position, fov):
-    # From Get_FLIR.py
-
-    # NOTE: ZERO_ZERO is the southeast corner of the field. Position values increase to the northwest (so +y-position = +latitude, or more north and +x-position = -longitude, or more west)
-    # We are also simplifying the conversion of meters to decimal degrees since we're not close to the poles and working with small distances.
-    ZERO_ZERO = (33.07451869,-111.97477775)
-
-    # NOTE: x --> latitude; y --> longitude
-    try:
         r = 6378137 # earth's radius
 
-        x_min = center_position[1] - fov[1]/2
-        x_max = center_position[1] + fov[1]/2
-        y_min = center_position[0] - fov[0]/2
-        y_max = center_position[0] + fov[0]/2
+        lat_min_offset = x_n/r * 180/pi
+        lat_max_offset = x_s/r * 180/pi
+        lng_min_offset = y_w/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
+        lng_max_offset = y_e/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
 
-        lat_min_offset = y_min/r* 180/pi
-        lat_max_offset = y_max/r * 180/pi
-        lng_min_offset = x_min/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
-        lng_max_offset = x_max/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
+        lat_min = SE_utm[0] + lat_min_offset
+        lat_max = SE_utm[0] + lat_max_offset
+        lng_min = SE_utm[1] - lng_min_offset
+        lng_max = SE_utm[1] - lng_max_offset
 
-        lat_min = ZERO_ZERO[0] + lat_min_offset
-        lat_max = ZERO_ZERO[0] + lat_max_offset
-        lng_min = ZERO_ZERO[1] - lng_min_offset
-        lng_max = ZERO_ZERO[1] - lng_max_offset
-
-    return (lat_min, lat_max, lng_max, lng_min)
-
-def create_geotiff_with_temperature(np_arr, temp_arr, gps_bounds, out_file_path):
-    try:
-        nrows, ncols, channels = np.shape(np_arr)
-        xres = (gps_bounds[3] - gps_bounds[2])/float(ncols)
-        yres = (gps_bounds[1] - gps_bounds[0])/float(nrows)
-        geotransform = (gps_bounds[2],xres,0,gps_bounds[1],0,-yres) #(top left x, w-e pixel resolution, rotation (0 if North is up), top left y, rotation (0 if North is up), n-s pixel resolution)
-
-        output_raster = gdal.GetDriverByName('GTiff').Create(out_file_path, ncols, nrows, 1, gdal.GDT_Byte)
-
-        output_raster.SetGeoTransform(geotransform) # specify coordinates
-        srs = osr.SpatialReference() # establish coordinate encoding
-        srs.ImportFromEPSG(4326) # specifically, google mercator
-        output_raster.SetProjection( srs.ExportToWkt() ) # export coordinate system to file
-
-        '''
-        # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
-        output_raster.GetRasterBand(1).WriteArray(np_arr[:,:,0].astype('uint8')) # write red channel to raster file
-        output_raster.GetRasterBand(1).FlushCache()
-        output_raster.GetRasterBand(1).SetNoDataValue(-99)
-
-        output_raster.GetRasterBand(2).WriteArray(np_arr[:,:,1].astype('uint8')) # write green channel to raster file
-        output_raster.GetRasterBand(2).FlushCache()
-        output_raster.GetRasterBand(2).SetNoDataValue(-99)
-
-        output_raster.GetRasterBand(3).WriteArray(np_arr[:,:,2].astype('uint8')) # write blue channel to raster file
-        output_raster.GetRasterBand(3).FlushCache()
-        output_raster.GetRasterBand(3).SetNoDataValue(-99)
-        '''
-
-        output_raster.GetRasterBand(1).WriteArray(temp_arr) # write temperature information to raster file
-        output_raster = None
-
-    except Exception as ex:
-        fail('Error creating GeoTIFF: ' + str(ex))
-
-
-    return
-
-# GEOM STUFF FROM SENSORPOSITION
-def main():
-    # Pull positional information from metadata
-    gantry_x, gantry_y, loc_cambox_x, loc_cambox_y, fov_x, fov_y, ctime = fetch_md_parts(resource['metadata'])
-
-    # Convert positional information into FOV polygon -----------------------------------------------------
-    # GANTRY GEOM (LAT-LONG) ##############
-    # NW: 33d 04.592m N , -111d 58.505m W #
-    # NE: 33d 04.591m N , -111d 58.487m W #
-    # SW: 33d 04.474m N , -111d 58.505m W #
-    # SE: 33d 04.470m N , -111d 58.485m W #
-    #######################################
-    SE_latlon = (33.0745, -111.97475)
-    SE_utm = utm.from_latlon(SE_latlon[0], SE_latlon[1])
-
-    # GANTRY GEOM (GANTRY CRS) ############
-    #			      N(x)                #
-    #			      ^                   #
-    #			      |                   #
-    #			      |                   #
-    #			      |                   #
-    #      W(y)<------SE                  #
-    #                                     #
-    # NW: (207.3,	22.135,	5.5)          #
-    # SE: (3.8,	0.0,	0.0)              #
-    #######################################
-    SE_offset_x = 3.8
-    SE_offset_y = 0
-
-    # Determine sensor position relative to origin and get lat/lon
-    gantry_utm_x = SE_utm[0] - (gantry_y - SE_offset_y)
-    gantry_utm_y = SE_utm[1] + (gantry_x - SE_offset_x)
-    sensor_utm_x = gantry_utm_x - loc_cambox_y
-    sensor_utm_y = gantry_utm_y + loc_cambox_x
-    sensor_latlon = utm.to_latlon(sensor_utm_x, sensor_utm_y, SE_utm[2], SE_utm[3])
-    logging.info("sensor lat/lon: %s" % str(sensor_latlon))
-
-    # Determine field of view (assumes F.O.V. X&Y are based on center of sensor)
-    fov_NW_utm_x = sensor_utm_x - fov_y/2
-    fov_NW_utm_y = sensor_utm_y + fov_x/2
-    fov_SE_utm_x = sensor_utm_x + fov_y/2
-    fov_SE_utm_y = sensor_utm_y - fov_x/2
-    fov_nw_latlon = utm.to_latlon(fov_NW_utm_x, fov_NW_utm_y, SE_utm[2],SE_utm[3])
-    fov_se_latlon = utm.to_latlon(fov_SE_utm_x, fov_SE_utm_y, SE_utm[2], SE_utm[3])
-    logging.debug("F.O.V. NW lat/lon: %s" % str(fov_nw_latlon))
-    logging.debug("F.O.V. SE lat/lon: %s" % str(fov_se_latlon))
-
-    metadata = {
-        "sources": host+resource['type']+"s/"+resource['id'],
-        "file_ids": ",".join(fileIdList),
-        "centroid": {
-            "type": "Point",
-            "coordinates": [sensor_latlon[1], sensor_latlon[0]]
-        },
-        "fov": {
-            "type": "Polygon",
-            "coordinates": [[[fov_nw_latlon[1], fov_nw_latlon[0], 0],
-                             [fov_nw_latlon[1], fov_se_latlon[0], 0],
-                             [fov_se_latlon[1], fov_se_latlon[0], 0],
-                             [fov_se_latlon[1], fov_nw_latlon[0], 0],
-                             [fov_nw_latlon[1], fov_nw_latlon[0], 0] ]]
-        }
-    }
-def fetch_md_parts(metadata):
-    gantry_x, gantry_y = None, None
-    loc_cambox_x, loc_cambox_y = None, None
-    fov_x, fov_y = None, None
-    ctime = None
-
-    """
-        Due to observed differences in metadata field names over time, this method is
-        flexible with respect to finding fields. By default each entry for each field
-        is checked with both a lowercase and uppercase leading character.
+        return (lat_min, lat_max, lng_max, lng_min)
     """
 
-    if 'lemnatec_measurement_metadata' in metadata:
-        lem_md = metadata['lemnatec_measurement_metadata']
-        if 'gantry_system_variable_metadata' in lem_md and 'sensor_fixed_metadata' in lem_md:
-            gantry_meta = lem_md['gantry_system_variable_metadata']
-            sensor_meta = lem_md['sensor_fixed_metadata']
-
-            # X and Y position of gantry
-            x_positions = ['position x [m]', 'position X [m]']
-            for variant in x_positions:
-                val = check_field_variants(gantry_meta, variant)
-                if val:
-                    gantry_x = parse_as_float(val)
-                    break
-            y_positions = ['position y [m]', 'position Y [m]']
-            for variant in y_positions:
-                val = check_field_variants(gantry_meta, variant)
-                if val:
-                    gantry_y = parse_as_float(val)
-                    break
-
-            # Sensor location within camera box
-            cbx_locations = ['location in camera box x [m]', 'location in camera box X [m]']
-            for variant in cbx_locations:
-                val = check_field_variants(sensor_meta, variant)
-                if val:
-                    loc_cambox_x = parse_as_float(val)
-                    break
-            cby_locations = ['location in camera box y [m]', 'location in camera box Y [m]']
-            for variant in cby_locations:
-                val = check_field_variants(sensor_meta, variant)
-                if val:
-                    loc_cambox_y = parse_as_float(val)
-                    break
-
-            # Field of view
-            x_fovs = ['field of view x [m]', 'field of view X [m]']
-            for variant in x_fovs:
-                val = check_field_variants(sensor_meta, variant)
-                if val:
-                    fov_x = parse_as_float(val)
-                    break
-            y_fovs = ['field of view y [m]', 'field of view Y [m]']
-            for variant in y_fovs:
-                val = check_field_variants(sensor_meta, variant)
-                if val:
-                    fov_y = parse_as_float(val)
-                    break
-            if not (fov_x and fov_y):
-                val = check_field_variants(sensor_meta, 'field of view at 2m in X- Y- direction [m]')
-                if val:
-                    vals = val.replace('[','').replace(']','').split(' ')
-                    if not fov_x:
-                        fov_x = parse_as_float(vals[0])
-                    if not fov_y:
-                        fov_y = parse_as_float(vals[1])
-
-            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
-            val = check_field_variants(gantry_meta, 'time')
-            if val:
-                ctime = val.encode("utf-8")
-            else:
-                ctime = "unknown"
-
-    return gantry_x, gantry_y, loc_cambox_x, loc_cambox_y, fov_x, fov_y, ctime
+    return ( bbox_se_latlon[0] - lat_shift,
+             bbox_nw_latlon[0] - lat_shift,
+             bbox_nw_latlon[1] + lon_shift,
+             bbox_se_latlon[1] + lon_shift )
 
 
-# PNG STUFF FROM PSII - SHOULD THERE BE GEOTIFF COMPONENT HERE?
-def load_PSII_data(file_path, height, width, out_file):
+def _search_for_key(metadata, key_variants):
+    """Check for presence of any key variants in metadata. Does basic capitalization check.
 
-    try:
-        im = np.fromfile(file_path, np.dtype('uint8')).reshape([height, width])
-        Image.fromarray(im).save(out_file)
-        return im.astype('u1')
-    except Exception as ex:
-        fail('Error processing image "%s": %s' % (file_path,str(ex)))
+        Returns:
+        value if found, or None
+    """
+    val = None
+    for variant in key_variants:
+        if variant in metadata:
+            val = metadata[variant]
+        elif variant.capitalize() in metadata:
+            val = metadata[variant.capitalize()]
+
+    # If a value was found, try to parse as float
+    if val:
+        try:
+            return float(val.encode("utf-8"))
+        except AttributeError:
+            return val
+    else:
+        return None
