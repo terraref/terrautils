@@ -17,7 +17,38 @@ from pyclowder.collections import get_datasets
 from pyclowder.datasets import submit_extraction
 
 
-# Basic extractor functions
+# BASIC UTILS -------------------------------------
+def build_metadata(clowderhost, extractorname, target_id, content, target_type='file', context=[]):
+    """Construct extractor metadata object ready for submission to a Clowder file/dataset.
+
+        clowderhost -- root URL of Clowder target instance (before /api)
+        extractorname -- name of extractor, in extractors usually self.extractor_info['name']
+        target_id -- UUID of file or dataset that metadata will be sent to
+        content -- actual JSON contents of metadata
+        target_type -- type of target resource, 'file' or 'dataset'
+        context -- (optional) list of JSON-LD contexts
+    """
+    if context == []:
+        context = ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"]
+
+    md = {
+        # TODO: Generate JSON-LD context for additional fields
+        "@context": context,
+        "content": content,
+        "agent": {
+            "@type": "cat:extractor",
+            "extractor_id": clowderhost + "/api/extractors/" + extractorname
+        }
+    }
+
+    if target_type == 'dataset':
+        md['dataset_id'] = target_id
+    else:
+        md['file_id'] = target_id
+
+    return md
+
+
 def get_output_directory(rootdir, datasetname):
     """Determine output directory path given root path and dataset name.
 
@@ -83,7 +114,7 @@ def is_latest_file(resource):
         else:
             return True
 
-# Conversion-related functions
+# FORMAT CONVERSION -------------------------------------
 def calculate_geometry(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
 
@@ -95,7 +126,7 @@ def calculate_geometry(metadata, sensor="stereoTop"):
             tuple of GeoTIFF coordinates, each one as:
             (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
-    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y, scan_time = _geom_from_metadata(metadata)
+    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = _geom_from_metadata(metadata)
 
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
@@ -120,6 +151,18 @@ def calculate_geometry(metadata, sensor="stereoTop"):
         return (left_gps_bounds, right_gps_bounds)
     else:
         return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
+
+
+def calculate_scan_time(metadata):
+    # TODO: Replace these with references to cleaned metadata
+    scan_time = None
+    if 'lemnatec_measurement_metadata' in metadata:
+        lem_md = metadata['lemnatec_measurement_metadata']
+        if 'gantry_system_variable_metadata' in lem_md:
+            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
+            scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time"])
+
+    return scan_time
 
 
 def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
@@ -195,7 +238,7 @@ def create_png(pixels, out_path, scaled=False):
         # e.g. PSII
         Image.fromarray(pixels).save(out_path)
 
-# Logging/notify/message bus operations
+# LOGGING -------------------------------------
 def error_notification(msg):
     """Send an error message notification, e.g. to Slack.
     """
@@ -250,7 +293,7 @@ def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extr
         submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
 
 
-# Private functions -------------------------------------
+# PRIVATE -------------------------------------
 def _geom_from_metadata(metadata):
     """Parse location elements from metadata.
 
@@ -264,7 +307,7 @@ def _geom_from_metadata(metadata):
     """
     gantry_x, gantry_y, gantry_z = None, None, None
     cambox_x, cambox_y, cambox_z = None, None, None
-    fov_x, fov_y, scan_time = None, None, None
+    fov_x, fov_y = None, None
 
     # TODO: Replace these with GETs from Clowder fixed metadata for each sensor
     if 'lemnatec_measurement_metadata' in metadata:
@@ -316,7 +359,7 @@ def _geom_from_metadata(metadata):
     elif not cambox_z:
         cambox_z = 0
 
-    return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y, scan_time)
+    return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 
 
 def _get_bounding_box_with_formula(center_position, fov):
