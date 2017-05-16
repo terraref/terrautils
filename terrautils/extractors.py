@@ -6,8 +6,8 @@ This module provides useful reference methods for extractors.
 import os
 import utm
 import datetime
-from math import cos, pi
 
+import gdal
 from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
 from matplotlib import cm, pyplot as plt
