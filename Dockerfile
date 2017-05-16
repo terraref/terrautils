@@ -1,8 +1,9 @@
 FROM clowder/pyclowder:2
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
-RUN apt-get -q -q update && apt-get install -y --no-install-recommends \
-        build-essential \
+RUN apt-get -q -y update \
+    && apt-get install -y --no-install-recommends build-essential \
+        software-properties-common \
         gcc \
         make \
         libpng-dev \
@@ -12,9 +13,12 @@ RUN apt-get -q -q update && apt-get install -y --no-install-recommends \
         libblas-dev \
         liblapack-dev \
         libatlas-base-dev \
+        libgdal-dev \
         python-dev \
         python-tk \
-        python-gdal \
+    && add-apt-repository ppa:ubuntugis/ubuntugis-unstable \
+    && apt-get -q -y update \
+    && apt-get install -y python-gdal \
     && rm -rf /var/lib/apt/lists/*
 
 COPY terrautils /tmp/terrautils/terrautils
