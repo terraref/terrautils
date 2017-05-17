@@ -49,6 +49,14 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
     return md
 
 
+def get_extractor_list():
+    # TODO: Placeholder. This should eventually go in metadata.py (?)
+    return [
+        "stereoTop",
+        "flirIrCamera"
+    ]
+
+
 def get_output_directory(rootdir, datasetname):
     """Determine output directory path given root path and dataset name.
 
@@ -115,7 +123,24 @@ def is_latest_file(resource):
             return True
 
 # FORMAT CONVERSION -------------------------------------
-def calculate_geometry(metadata, sensor="stereoTop"):
+def calculate_bounding_box(gps_bounds, z_value=0):
+    """Given a set of GPS boundaries, return arrau of 4 vertices representing the polygon.
+
+    gps_bounds -- (lat(y) min, lat(y) max, long(x) min, long(x) max)
+
+    Returns:
+        List of 4 polygon vertices [ul, ur, lr, ll] without z values.
+    """
+
+    return [
+        (gps_bounds[2], gps_bounds[1], z_value), # upper-left
+        (gps_bounds[3], gps_bounds[1], z_value), # upper-right
+        (gps_bounds[3], gps_bounds[0], z_value), # lower-right
+        (gps_bounds[2], gps_bounds[0], z_value)  # lower-left
+    ]
+
+
+def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
 
         Gets geometry from metadata for center position and FOV, applies some
@@ -126,7 +151,7 @@ def calculate_geometry(metadata, sensor="stereoTop"):
             tuple of GeoTIFF coordinates, each one as:
             (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
-    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = _geom_from_metadata(metadata)
+    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata)
 
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
@@ -160,7 +185,7 @@ def calculate_scan_time(metadata):
         lem_md = metadata['lemnatec_measurement_metadata']
         if 'gantry_system_variable_metadata' in lem_md:
             # timestamp, e.g. "2016-05-15T00:30:00-05:00"
-            scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time"])
+            scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time", "timestamp"])
 
     return scan_time
 
@@ -236,65 +261,11 @@ def create_png(pixels, out_path, scaled=False):
         plt.imsave(out_path, cm.get_cmap('jet')(scaled_px))
     else:
         # e.g. PSII
+        # TODO: Can we make these use same library?
         Image.fromarray(pixels).save(out_path)
 
-# LOGGING -------------------------------------
-def error_notification(msg):
-    """Send an error message notification, e.g. to Slack.
-    """
-    pass
 
-
-def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
-    """Send extractor job detail summary to InfluxDB instance.
-
-    starttime - example format "2017-02-10T16:09:57+00:00"
-    endtime - example format "2017-02-10T16:09:57+00:00"
-    """
-
-    # Convert timestamps to seconds from epoch
-    f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
-    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
-
-    # Check
-    influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
-    influx_port = os.getenv("INFLUX_PORT", 8086)
-    influx_db = os.getenv("INFLUX_DB", "extractor_db")
-    influx_user = os.getenv("INFLUX_USER", "terra")
-    influx_pass = os.getenv("INFLUX_PASS", "")
-
-    client = InfluxDBClient(influx_host, influx_port, influx_user, influx_pass, influx_db)
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": f_duration}
-    }], tags={"extractor": extractorname, "type": "duration"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(filecount)}
-    }], tags={"extractor": extractorname, "type": "filecount"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(bytecount)}
-    }], tags={"extractor": extractorname, "type": "bytes"})
-
-
-def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extractor):
-    """Manually trigger an extraction on all datasets in a collection.
-
-        This will iterate through all datasets in the given collection and submit them to
-        the provided extractor. Does not operate recursively if there are nested collections.
-    """
-    dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
-    print("submitting %s datasets" % len(dslist))
-    for ds in dslist:
-        submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
-
-
-# PRIVATE -------------------------------------
-def _geom_from_metadata(metadata):
+def geom_from_metadata(metadata):
     """Parse location elements from metadata.
 
         Returns:
@@ -362,6 +333,62 @@ def _geom_from_metadata(metadata):
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 
 
+# LOGGING -------------------------------------
+def error_notification(msg):
+    """Send an error message notification, e.g. to Slack.
+    """
+    pass
+
+
+def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
+    """Send extractor job detail summary to InfluxDB instance.
+
+    starttime - example format "2017-02-10T16:09:57+00:00"
+    endtime - example format "2017-02-10T16:09:57+00:00"
+    """
+
+    # Convert timestamps to seconds from epoch
+    f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
+    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
+
+    # Check
+    influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
+    influx_port = os.getenv("INFLUX_PORT", 8086)
+    influx_db = os.getenv("INFLUX_DB", "extractor_db")
+    influx_user = os.getenv("INFLUX_USER", "terra")
+    influx_pass = os.getenv("INFLUX_PASS", "")
+
+    client = InfluxDBClient(influx_host, influx_port, influx_user, influx_pass, influx_db)
+    client.write_points([{
+        "measurement": "file_processed",
+        "time": f_completed_ts,
+        "fields": {"value": f_duration}
+    }], tags={"extractor": extractorname, "type": "duration"})
+    client.write_points([{
+        "measurement": "file_processed",
+        "time": f_completed_ts,
+        "fields": {"value": int(filecount)}
+    }], tags={"extractor": extractorname, "type": "filecount"})
+    client.write_points([{
+        "measurement": "file_processed",
+        "time": f_completed_ts,
+        "fields": {"value": int(bytecount)}
+    }], tags={"extractor": extractorname, "type": "bytes"})
+
+
+def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extractor):
+    """Manually trigger an extraction on all datasets in a collection.
+
+        This will iterate through all datasets in the given collection and submit them to
+        the provided extractor. Does not operate recursively if there are nested collections.
+    """
+    dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
+    print("submitting %s datasets" % len(dslist))
+    for ds in dslist:
+        submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
+
+
+# PRIVATE -------------------------------------
 def _get_bounding_box_with_formula(center_position, fov):
     """Convert scannerbox center position & sensor field-of-view to actual bounding box
 
@@ -378,6 +405,7 @@ def _get_bounding_box_with_formula(center_position, fov):
     utm_zone = SE_utm[2]
     utm_num  = SE_utm[3]
 
+    # TODO: Hard-coded
     # Linear transformation coefficients
     ay = 3659974.971; by = 1.0002; cy = 0.0078;
     ax = 409012.2032; bx = 0.009; cx = - 0.9986;
