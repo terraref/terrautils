@@ -13,9 +13,14 @@ def clean_metadata(json):
     """
     pass
 
-def clean_fixed_metadata(json):
-    """Return cleaned fixed metadata json object with updated structure and names.
+def _validate(metadata):
+    """Validate metadata JSON object or notify of errors (e.g. via Slack).
     """
+
+def get_metadata(clowderhost, clowderkey, datasetid):
+    """Return Clowder metadata + fixed metadata + any other stuff
+    """
+    pass
 
 def get_preferred_synonym(variable):
     """Execute a thesaurus check to see if input variable has alternate preferred name.
