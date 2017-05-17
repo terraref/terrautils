@@ -1,0 +1,17 @@
+
+# Official sensor names
+SENSOR_CO2 = "co2Sensor"
+SENSOR_CROP_CIRCLE = "cropCircle"
+SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
+SENSOR_FLIR = "flirIrCamera"
+SENSOR_IRRIGATION = "irrigation"
+SENSOR_LIGHTNING = "lightning"
+SENSOR_NDVI = "ndviSensor"
+SENSOR_PAR = "parSensor"
+SENSOR_PRI = "priSensor"
+SENSOR_PS2_TOP = "ps2Top"
+SENSOR_SCANNER_3D_TOP = "scanner3DTop"
+SENSOR_STEREO_TOP = "stereoTop"
+SENSOR_SWIR = "SWIR"
+SENSOR_VNIR = "VNIR"
+SENSOR_WEATHER = "weather"
