@@ -44,8 +44,14 @@ def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitenam
     sess.auth = ("guestuser", "guestuser")
 
     betyurl = host + "/sites.json"
+    has_arg = False
     if city:
         betyurl += "?city=%s" % city
+        has_arg = True
+    # TODO: Enable when new API endpoint is deployed:
+    if contains and False:
+        betyurl += ("&" if has_arg else "?") + "contains=%s,%s" % (contains[0], contains[1])
+        has_arg = True
 
     r = sess.get(betyurl)
     r.raise_for_status()
@@ -72,6 +78,7 @@ def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitenam
                     continue
 
             # Reject sites that don't intersect contains, if provided
+            # TODO: Remove when above filter functionality is available
             elif contains and 'geometry' in currsite:
                 if currsite['geometry'] == None:
                     removed += 1
