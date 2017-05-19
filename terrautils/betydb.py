@@ -50,7 +50,7 @@ def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitenam
         has_arg = True
     # TODO: Enable when new API endpoint is deployed:
     if contains and False:
-        betyurl += ("&" if has_arg else "?") + "contains=%s,%s" % (contains[0], contains[1])
+        betyurl += ("&" if has_arg else "?") + "containing=%s,%s" % (contains[0], contains[1])
         has_arg = True
 
     r = sess.get(betyurl)
