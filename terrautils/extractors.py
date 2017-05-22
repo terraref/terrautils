@@ -494,7 +494,7 @@ def _search_for_key(metadata, key_variants):
     if val:
         try:
             return float(val.encode("utf-8"))
-        except AttributeError:
+        except:
             return val
     else:
         return None
