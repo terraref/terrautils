@@ -4,12 +4,12 @@ MAINTAINER Max Burnette <mburnet2@illinois.edu>
 RUN apt-get -q -y update \
     && apt-get install -y --no-install-recommends build-essential \
         software-properties-common \
-        gcc \
-        make \
+        gcc make wget byacc \
         libpng-dev \
         libjpeg8-dev \
         libfreetype6-dev \
         libnetcdf-dev \
+        libhdf5-dev \
         libblas-dev \
         liblapack-dev \
         libatlas-base-dev \
