@@ -272,8 +272,8 @@ def create_netcdf(pixels, out_path, scaled=False):
     out_nc.close()
 
 
-def create_png(pixels, out_path, scaled=False):
-    """Generate output PNG file given an input numpy pixel array.
+def create_image(pixels, out_path, scaled=False):
+    """Generate output JPG/PNG file given an input numpy pixel array.
 
             Keyword arguments:
             pixels -- 2-dimensional numpy array of pixel values
