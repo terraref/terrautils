@@ -365,25 +365,23 @@ def error_notification(msg):
     pass
 
 
-def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
+def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, bytecount):
     """Send extractor job detail summary to InfluxDB instance.
 
+    connparams -- connection parameter dictionary with {host, port, db, user, pass}
     starttime - example format "2017-02-10T16:09:57+00:00"
     endtime - example format "2017-02-10T16:09:57+00:00"
+    filecount -- int of # files added
+    bytecount -- int of # bytes added
     """
 
     # Convert timestamps to seconds from epoch
     f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
     f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
 
-    # Check
-    influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
-    influx_port = os.getenv("INFLUX_PORT", 8086)
-    influx_db = os.getenv("INFLUX_DB", "extractor_db")
-    influx_user = os.getenv("INFLUX_USER", "terra")
-    influx_pass = os.getenv("INFLUX_PASS", "")
+    client = InfluxDBClient(connparams["host"], connparams["port"],
+                            connparams["user"], connparams["pass"], connparams["db"])
 
-    client = InfluxDBClient(influx_host, influx_port, influx_user, influx_pass, influx_db)
     client.write_points([{
         "measurement": "file_processed",
         "time": f_completed_ts,
