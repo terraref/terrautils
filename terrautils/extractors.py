@@ -8,9 +8,11 @@ import utm
 import datetime
 
 import gdal
+import numpy
 from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
 from matplotlib import cm, pyplot as plt
+from netCDF4 import Dataset
 from PIL import Image
 
 from pyclowder.collections import get_datasets
@@ -202,7 +204,7 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
         out_path -- path to GeoTIFF to be created
         nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
     """
-    dimensions = np.shape(pixels)
+    dimensions = numpy.shape(pixels)
     if len(dimensions) == 2:
         nrows, ncols = dimensions
         channels = 1
@@ -242,11 +244,36 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
             output_raster.GetRasterBand(1).SetNoDataValue(nodata)
 
     output_raster = None
-    return
+
+
+def create_netcdf(pixels, out_path, scaled=False):
+    """Generate output netCDF file given an input numpy pixel array.
+
+            Keyword arguments:
+            pixels -- 2-dimensional numpy array of pixel values
+            out_path -- path to GeoTIFF to be created
+            scaled -- whether to scale PNG output values based on pixels min/max
+        """
+    dimensions = numpy.shape(pixels)
+    if len(dimensions) == 2:
+        nrows, ncols = dimensions
+        channels = 1
+    else:
+        nrows, ncols, channels = dimensions
+
+    out_nc = Dataset(out_path, "w", format="NETCDF4")
+    out_nc.createDimension('band',  channels) # only 1 band for mask
+    out_nc.createDimension('x', ncols)
+    out_nc.createDimension('y', nrows)
+
+    mask = out_nc.createVariable('soil_mask','f8',('band', 'x', 'y'))
+    mask[:] = pixels
+
+    out_nc.close()
 
 
 def create_png(pixels, out_path, scaled=False):
-    """Generate output PNG file given an input BIN file.
+    """Generate output PNG file given an input numpy pixel array.
 
             Keyword arguments:
             pixels -- 2-dimensional numpy array of pixel values
