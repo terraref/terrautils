@@ -13,6 +13,7 @@ from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
 from matplotlib import cm, pyplot as plt
 from netCDF4 import Dataset
+from osgeo import gdal, osr
 from PIL import Image
 
 from pyclowder.collections import get_datasets
@@ -292,7 +293,7 @@ def create_image(pixels, out_path, scaled=False):
         Image.fromarray(pixels).save(out_path)
 
 
-def geom_from_metadata(metadata):
+def geom_from_metadata(metadata, sensor="stereoTop"):
     """Parse location elements from metadata.
 
         Returns:
@@ -320,9 +321,6 @@ def geom_from_metadata(metadata):
             gantry_x = _search_for_key(gantry_meta, x_positions)
             gantry_y = _search_for_key(gantry_meta, y_positions)
             gantry_z = _search_for_key(gantry_meta, z_positions)
-
-            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
-            scan_time = _search_for_key(gantry_meta, ["time"])
 
         if 'sensor_fixed_metadata' in lem_md:
             sensor_meta = lem_md['sensor_fixed_metadata']
