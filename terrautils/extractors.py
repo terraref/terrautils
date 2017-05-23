@@ -3,9 +3,11 @@
 This module provides useful reference methods for extractors.
 """
 
+import datetime
+import logging
+import json
 import os
 import utm
-import datetime
 
 import gdal
 import numpy
@@ -98,6 +100,9 @@ def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts
         sensorname = datasetname
         timestamp = "2017"
 
+    # If extension included a period, remove it
+    outextension = outextension.replace('.', '')
+
     return "_".join([sensorname, lvl, timestamp, site]+opts)+".%s" % outextension
 
 
@@ -125,9 +130,21 @@ def is_latest_file(resource):
         else:
             return True
 
+
+def load_json_file(filepath):
+    """Load contents of a .json file on disk into a JSON object.
+    """
+    try:
+        with open(filepath, 'r') as jsonfile:
+            return json.load(jsonfile)
+    except:
+        logging.error('could not load .json file %s' % filepath)
+        return None
+
+
 # FORMAT CONVERSION -------------------------------------
 def calculate_bounding_box(gps_bounds, z_value=0):
-    """Given a set of GPS boundaries, return arrau of 4 vertices representing the polygon.
+    """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
 
     gps_bounds -- (lat(y) min, lat(y) max, long(x) min, long(x) max)
 
@@ -142,6 +159,20 @@ def calculate_bounding_box(gps_bounds, z_value=0):
         (gps_bounds[2], gps_bounds[0], z_value)  # lower-left
     ]
 
+
+def calculate_centroid(gps_bounds):
+    """Given a set of GPS boundaries, return lat/lon of centroid.
+
+    gps_bounds -- (lat(y) min, lat(y) max, long(x) min, long(x) max)
+
+    Returns:
+        Tuple of (lat, lon) representing centroid
+    """
+
+    return (
+        gps_bounds[0] + (gps_bounds[1] - gps_bounds[0]),
+        gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
+    )
 
 def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
@@ -406,7 +437,6 @@ def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extr
         the provided extractor. Does not operate recursively if there are nested collections.
     """
     dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
-    print("submitting %s datasets" % len(dslist))
     for ds in dslist:
         submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
 
