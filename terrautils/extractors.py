@@ -62,19 +62,25 @@ def get_extractor_list():
     ]
 
 
-def get_output_directory(rootdir, datasetname):
+def get_output_directory(rootdir, datasetname, include_sensor=False):
     """Determine output directory path given root path and dataset name.
 
-    Example dataset name:
-        stereoTop - 2017-05-04__10-31-34-536
-    Resulting output:
-        rootdir/2017-05-04/2017-05-04__10-31-34-536
+    include_sensor -- insert sensor name between root and first timestamp directory
+
+    Example dataset name:   stereoTop - 2017-05-04__10-31-34-536
+    Resulting output:       rootdir/2017-05-04/2017-05-04__10-31-34-536
+
+        * with include_sensor
+    Example dataset name:   ndviSensor - 2017-05-04__10-31-34-536
+    Resulting output:       rootdir/ndviSensor/2017-05-04/2017-05-04__10-31-34-536
     """
     if datasetname.find(" - ") > -1:
         # 2017-05-04__10-31-34-536
         timestamp = datasetname.split(" - ")[1]
+        sensorname = datasetname.split(" - ")[0]
     else:
         timestamp = datasetname
+        sensorname = ""
 
     if timestamp.find("__") > -1:
         # 2017-05-04
@@ -82,7 +88,10 @@ def get_output_directory(rootdir, datasetname):
     else:
         datestamp = ""
 
-    return os.path.join(rootdir, datestamp, timestamp)
+    if include_sensor and sensorname != "":
+        return os.path.join(rootdir, sensorname, datestamp, timestamp)
+    else:
+        return os.path.join(rootdir, datestamp, timestamp)
 
 
 def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts=[]):
