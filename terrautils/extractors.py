@@ -94,7 +94,7 @@ def get_output_directory(rootdir, datasetname, include_sensor=False):
         return os.path.join(rootdir, datestamp, timestamp)
 
 
-def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts=[]):
+def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", opts=[]):
     """Determine output filename given input information.
 
     sensor_level_datetime_site_a_b_c.extension
@@ -110,9 +110,10 @@ def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts
         timestamp = "2017"
 
     # If extension included a period, remove it
-    outextension = outextension.replace('.', '')
+    if outextension != '':
+        outextension = '.' + outextension.replace('.', '')
 
-    return "_".join([sensorname, lvl, timestamp, site]+opts)+".%s" % outextension
+    return "_".join([sensorname, lvl, timestamp, site]+opts) + outextension
 
 
 def is_latest_file(resource):
@@ -121,10 +122,10 @@ def is_latest_file(resource):
     This simple check should be used in dataset extractors to avoid collisions between 2+ instances of the same
     extractor trying to process the same dataset simultaneously by triggering off of 2 different uploaded files.
 
-    Note that in the resource dictionary, "latest_file" is the file that triggered the extraction (i.e. latest file
+    Note that in the resource dictionary, "triggering_file" is the file that triggered the extraction (i.e. latest file
     at the time of message generation), not necessarily the newest file in the dataset.
     """
-    if resource['latest_file']:
+    if resource['triggering_file']:
         latest_file = ""
         latest_time = "Sun Jan 01 00:00:01 CDT 1920"
 
@@ -134,7 +135,7 @@ def is_latest_file(resource):
                 latest_time = f['date-created']
                 latest_file = f['filename']
 
-        if latest_file != resource['latest_file']:
+        if latest_file != resource['triggering_file']:
             return False
         else:
             return True
