@@ -125,7 +125,13 @@ def is_latest_file(resource):
     Note that in the resource dictionary, "triggering_file" is the file that triggered the extraction (i.e. latest file
     at the time of message generation), not necessarily the newest file in the dataset.
     """
-    if resource['triggering_file']:
+    trig = None
+    if 'triggering_file' in resource:
+        trig = resource['triggering_file']
+    elif 'latest_file' in resource:
+        trig = resource['latest_file']
+
+    if trig:
         latest_file = ""
         latest_time = "Sun Jan 01 00:00:01 CDT 1920"
 
@@ -135,10 +141,12 @@ def is_latest_file(resource):
                 latest_time = f['date-created']
                 latest_file = f['filename']
 
-        if latest_file != resource['triggering_file']:
+        if latest_file != trig:
             return False
         else:
             return True
+    else:
+        return False
 
 
 def load_json_file(filepath):
