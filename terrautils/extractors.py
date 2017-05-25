@@ -94,8 +94,10 @@ def get_output_directory(rootdir, datasetname, include_sensor=False):
         return os.path.join(rootdir, datestamp, timestamp)
 
 
-def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", opts=[]):
+def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", opts=[], hms=False):
     """Determine output filename given input information.
+
+    hms -- "HH-MM-SS" override if not included in dataset name, e.g. for EnvironmentLogger
 
     sensor_level_datetime_site_a_b_c.extension
         a = what product?
@@ -112,6 +114,9 @@ def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", o
     # If extension included a period, remove it
     if outextension != '':
         outextension = '.' + outextension.replace('.', '')
+
+    if hms:
+        timestamp += "_" + hms
 
     return "_".join([sensorname, lvl, timestamp, site]+opts) + outextension
 
@@ -191,6 +196,7 @@ def calculate_centroid(gps_bounds):
         gps_bounds[0] + (gps_bounds[1] - gps_bounds[0]),
         gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
     )
+
 
 def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
