@@ -19,7 +19,8 @@ from osgeo import gdal, osr
 from PIL import Image
 
 from pyclowder.collections import get_datasets
-from pyclowder.datasets import submit_extraction
+from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
+from pyclowder.files import submit_extraction as submit_ext_file
 
 
 # BASIC UTILS -------------------------------------
@@ -454,7 +455,22 @@ def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, by
     }], tags={"extractor": extractorname, "type": "bytes"})
 
 
-def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extractor):
+def trigger_file_extractions_by_dataset(clowderhost, clowderkey, datasetid, extractor, ext=False):
+    """Manually trigger an extraction on all files in a dataset.
+
+        This will iterate through all files in the given dataset and submit them to
+        the provided extractor. Does not operate recursively if there are nested datasets.
+
+        ext -- extension to filter. e.g. 'tif' will only submit TIFF files for extraction.
+    """
+    flist = get_file_list(None, clowderhost, clowderkey, datasetid)
+    for f in flist:
+        if ext and not f['filename'].endswith(ext):
+            continue
+        submit_ext_file(None, clowderhost, clowderkey, f['id'], extractor)
+
+
+def trigger_dataset_extractions_by_collection(clowderhost, clowderkey, collectionid, extractor):
     """Manually trigger an extraction on all datasets in a collection.
 
         This will iterate through all datasets in the given collection and submit them to
@@ -462,7 +478,7 @@ def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extr
     """
     dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
     for ds in dslist:
-        submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
+        submit_ext_ds(None, clowderhost, clowderkey, ds['id'], extractor)
 
 
 # PRIVATE -------------------------------------
