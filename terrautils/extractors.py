@@ -249,7 +249,7 @@ def calculate_scan_time(metadata):
     return scan_time
 
 
-def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
+def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, float=False):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 
         Keyword arguments:
@@ -260,9 +260,9 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
                                                         long (x) min, long (x) max)
         out_path -- path to GeoTIFF to be created
         nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
+        float -- whether to use GDT_Float32 data type instead of GDT_Byte (e.g. for decimal numbers)
     """
     dimensions = numpy.shape(pixels)
-    logging.debug("creating geotiff from array w shape %s" % str(dimensions))
     if len(dimensions) == 2:
         nrows, ncols = dimensions
         channels = 1
@@ -279,7 +279,10 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
     )
 
     # Create output GeoTIFF and set coordinates & projection
-    output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
+    if float:
+        output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Float32)
+    else:
+        output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
     output_raster.SetGeoTransform(geotransform)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326) # google mercator
