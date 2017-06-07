@@ -238,6 +238,7 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         camH_fix = camHeight + HEIGHT_MAGIC_NUMBER
         fov_x = fov_x * (camH_fix/2)
         fov_y = fov_y * (camH_fix/2)
+        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
     else:
         return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
