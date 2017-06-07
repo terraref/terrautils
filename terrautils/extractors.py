@@ -233,6 +233,11 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
         return (left_gps_bounds, right_gps_bounds)
+    elif sensor=="flirIrCamera":
+        HEIGHT_MAGIC_NUMBER = 1.0
+        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER
+        fov_x = fov_x * (camH_fix/2)
+        fov_y = fov_y * (camH_fix/2)
     else:
         return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
@@ -249,7 +254,7 @@ def calculate_scan_time(metadata):
     return scan_time
 
 
-def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, float=False):
+def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 
         Keyword arguments:
@@ -279,7 +284,7 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, float=False):
     )
 
     # Create output GeoTIFF and set coordinates & projection
-    if float:
+    if asfloat:
         output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Float32)
     else:
         output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
@@ -523,23 +528,6 @@ def _get_bounding_box_with_formula(center_position, fov):
     # bounding box vertex coordinates
     bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
     bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
-
-    """TODO: flirIrCamera used this transformation, any good? x/y swapped?
-
-        r = 6378137 # earth's radius
-
-        lat_min_offset = x_n/r * 180/pi
-        lat_max_offset = x_s/r * 180/pi
-        lng_min_offset = y_w/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
-        lng_max_offset = y_e/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
-
-        lat_min = SE_utm[0] + lat_min_offset
-        lat_max = SE_utm[0] + lat_max_offset
-        lng_min = SE_utm[1] - lng_min_offset
-        lng_max = SE_utm[1] - lng_max_offset
-
-        return (lat_min, lat_max, lng_max, lng_min)
-    """
 
     return ( bbox_se_latlon[0] - lat_shift,
              bbox_nw_latlon[0] - lat_shift,
