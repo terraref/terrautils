@@ -262,7 +262,7 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
         nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
     """
     dimensions = numpy.shape(pixels)
-    logging.debug("creating geotiff from array w shape %s" % dimensions)
+    logging.debug("creating geotiff from array w shape %s" % str(dimensions))
     if len(dimensions) == 2:
         nrows, ncols = dimensions
         channels = 1
