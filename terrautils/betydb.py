@@ -5,7 +5,7 @@ This module provides wrappers to BETY API for getting and posting data.
 
 import logging
 import requests
-
+import json
 from osgeo import ogr
 
 
@@ -115,3 +115,33 @@ def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety
         logging.info("...CSV successfully uploaded to BETYdb.")
     else:
         logging.error("Error uploading CSV to BETYdb %s" % r.status_code)
+
+
+def get_sitename_boundary(sitename):
+    """
+    Retrieve the clip boundary dynamically from betyDB API given sitename
+    and turns the obtained json data into a geojson polygon.
+    """
+
+    api = 'lxPgymT3ULP2Y13qU02Zp7XjBMUPRICspc7cYbQX'
+
+    url = ('https://terraref.ncsa.illinois.edu/bety/sites.json' +
+           '?key={}&sitename={}').format(api, sitename)
+
+    r = requests.get(url, auth=('xawjx1996928', 'xawjx88932489'))
+    data = r.json()[0]['site']['geometry'][10:-2]
+    coords = data.split(',')
+
+    vertices = []
+    for coord in coords:
+        x_and_y = coord.split()[:2]
+        x_and_y[0] = float(x_and_y[0])
+        x_and_y[1] = float(x_and_y[1])
+        vertices.append(x_and_y)
+
+    boundary = {
+        'type': 'Polygon',
+        'coordinates': [vertices]
+    }
+
+    return json.dumps(boundary)
