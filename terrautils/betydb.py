@@ -24,24 +24,14 @@ def betydb_query(betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/b
         logging.error("Error querying data from BETYdb: %s" % api_response.status_code)
         return None
 
-def betydb_submit_traits(betykey, file, filetype='csv', betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits"):
+def betydb_submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
 
     request_payload = { 'key':betykey }
 
-    if filetype == 'csv':
-        content_type = 'text/csv'
-    elif filetype == 'json':
-        content_type = 'application/json'
-    elif filetype == 'xml':
-        content_type = 'application/xml'
-    else:
-        logging.error("Unsupported file type.")
-        return
-
-    api_response = request.post("%s.%s" % (betyurl, filetype),
+    api_response = request.post(betyurl,
                     params=request_payload,
                     data=file(file, 'rb').read(),
-                    headers={'Content-type': content_type})
+                    headers={'Content-type': 'text/csv'})
 
     if api_response.status_code == 200 or api_response.status_code == 201:
         logging.info("Data successfully submitted to BETYdb.")
