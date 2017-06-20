@@ -178,10 +178,9 @@ def clip_raster(rast_path, features_path, gt=None, nodata=-9999):
     return clip
 
 
-# TODO: rename to get_raster_extents
-# TODO: add comment
-def get_tif_info(fname):
-
+def get_raster_extents(fname):
+    """ Calculates the extent and the center of the given raster.
+    """
     src = gdal.Open(fname)
     ulx, xres, xskew, uly, yskew, yres = src.GetGeoTransform()
     lrx = ulx + (src.RasterXSize * xres)
