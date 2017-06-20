@@ -5,28 +5,64 @@ This module provides wrappers to BETY API for getting and posting data.
 
 import logging
 import requests
+import json
 
-from osgeo import ogr
+# from osgeo import ogr
 
+def betydb_query(betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta", endpoint="search", **kwargs):
 
+    request_payload = { 'key':betykey }
+    for key in kwargs:
+        request_payload.update({ key: kwargs[key] })
+
+    api_response = requests.get("%s/%s" % (betyurl, endpoint), params=request_payload)
+
+    if api_response.status_code == 200 or api_response.status_code == 201:
+        api_data = dict(api_response.json())
+        return api_data
+    else:
+        logging.error("Error querying data from BETYdb: %s" % api_response.status_code)
+        return None
+
+def betydb_submit_traits(betykey, file, filetype='csv', betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits"):
+
+    request_payload = { 'key':betykey }
+
+    if filetype == 'csv':
+        content_type = 'text/csv'
+    elif filetype == 'json':
+        content_type = 'application/json'
+    elif filetype == 'xml':
+        content_type = 'application/xml'
+    else:
+        logging.error("Unsupported file type.")
+        return
+
+    api_response = request.post("%s.%s" % (betyurl, filetype),
+                    params=request_payload,
+                    data=file(file, 'rb').read(),
+                    headers={'Content-type': content_type})
+
+    if api_response.status_code == 200 or api_response.status_code == 201:
+        logging.info("Data successfully submitted to BETYdb.")
+    else:
+        logging.error("Error submitting data to BETYdb: %s" % r.status_code)
+    
 
 def get_cultivar(plot):
     """
     """
     pass
 
-
 def get_experiment(date):
     """
     """
     pass
 
-
 def get_plot(bbox):
     """
     """
     pass
-
 
 def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitename=None, contains=None):
     """Get list of sites from BETYdb, filtered by city or sitename prefix if provided.
@@ -96,22 +132,3 @@ def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitenam
 
     else:
         return r.json()
-
-
-def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
-    """Submit a CSV containing traits to the BETYdb API.
-
-    csv -- CSV to submit
-    betykey -- API key for given BETYdb instance
-    betyurl -- URL (including /api portion) to submit CSV to
-    """
-    sess = requests.Session()
-
-    r = sess.post("%s?key=%s" % (betyurl, betykey),
-                  data=file(csv, 'rb').read(),
-                  headers={'Content-type': 'text/csv'})
-
-    if r.status_code == 200 or r.status_code == 201:
-        logging.info("...CSV successfully uploaded to BETYdb.")
-    else:
-        logging.error("Error uploading CSV to BETYdb %s" % r.status_code)
