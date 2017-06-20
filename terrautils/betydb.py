@@ -6,8 +6,11 @@ This module provides wrappers to BETY API for getting and posting data.
 import logging
 import requests
 import json
+import os
 from osgeo import ogr
 
+
+BETYDB_API="https://terraref.ncsa.illinois.edu/bety"
 
 
 def get_cultivar(plot):
@@ -28,17 +31,21 @@ def get_plot(bbox):
     pass
 
 
-def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitename=None, contains=None):
-    """Get list of sites from BETYdb, filtered by city or sitename prefix if provided.
+def get_sites(host=BETYDB_API, city=None, sitename=None, contains=None):
+    """ Gets list of stations from BETYdb, filtered by city or sitename prefix if provided.
 
         e.g.
             get_sites(city="Maricopa")
             get_sites(sitename="MAC Field Scanner Season 2")
+    Args:
+      host (str) -- URL of BETYdb instance to query
+      city (str) -- city parameter to pass to API
+      sitename (str) -- string to filter returned sites by sitename prefix
+      contains (tuple) -- (lat, lon); only sites that contain this point will be returned
 
-    host -- URL of BETYdb instance to query
-    city -- city parameter to pass to API
-    sitename -- string to filter returned sites by sitename prefix
-    contains -- (lat, lon) tuple; only sites that contain this point will be returned
+    Returns:
+      (json) -- the json including the list of stations obtained from BETYdb
+
     """
     sess = requests.Session()
     sess.auth = ("guestuser", "guestuser")
@@ -99,11 +106,13 @@ def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitenam
 
 
 def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
-    """Submit a CSV containing traits to the BETYdb API.
+    """ Submit a CSV containing traits to the BETYdb API.
 
-    csv -- CSV to submit
-    betykey -- API key for given BETYdb instance
-    betyurl -- URL (including /api portion) to submit CSV to
+    Args:
+      csv (str) -- CSV to submit
+      betykey (str) -- API key for given BETYdb instance
+      betyurl (str) -- URL (including /api portion) to submit CSV to
+
     """
     sess = requests.Session()
 
@@ -118,17 +127,29 @@ def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety
 
 
 def get_sitename_boundary(sitename):
-    """
-    Retrieve the clip boundary dynamically from betyDB API given sitename
+    """ Retrieve the clip boundary dynamically from betyDB API given sitename
     and turns the obtained json data into a geojson polygon.
     """
 
-    api = 'lxPgymT3ULP2Y13qU02Zp7XjBMUPRICspc7cYbQX'
+    betyurl = os.environ.get('BETYDB_URL', '')
+    if not betyurl:
+        raise RuntimeError("BETYDB_URL environmental variable not set.")
 
-    url = ('https://terraref.ncsa.illinois.edu/bety/sites.json' +
+    api = os.environ.get('API_KEY', '')
+    if not api:
+        raise RuntimeError("API_KEY environmental variable not set.")
+
+    url = (betyurl + "/sites.json" +
            '?key={}&sitename={}').format(api, sitename)
+    
+    username = os.environ.get('BETY_USER','')
+    password = os.environ.get('BETY_PASS','')
+    if (not username) or (not password):
+        raise RuntimeError("BETY_USER or BETY_PASS environmental variable" +
+                           "not set.")
 
-    r = requests.get(url, auth=('xawjx1996928', 'xawjx88932489'))
+    r = requests.get(url, auth=(username, password))
+
     data = r.json()[0]['site']['geometry'][10:-2]
     coords = data.split(',')
 

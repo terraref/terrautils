@@ -103,51 +103,84 @@ STATIONS = {
 
 
 def get_sensors(station):
+    """ Get all sensors for a given station.
+    """
     return STATIONS[station]['sensors'].keys()
 
 
 def get_sensor_filename(station, sensor, date, mode="full"):
-   if mode=='full':
-       return STATIONS[station]['sensors'][sensor]['full']
-   else: 
-       return STATIONS[station]['sensors'][sensor]['reduced']
+    """ Gets the filename for the image for the given date, sensor
+    and station from the database. If the mode is full, choose 
+    the full resolution image, otherwise the reduced resolution 
+    version.
+
+    Args:
+      station (str): the name of the station the sensor belongs to
+      sensor (str): the name of the sensor
+      date (str): the date when the image was taken
+      mode (str): determines whether we use the name of the full
+      resolution image or the reduced one
+
+    Returns:
+      (str) the name of the image for the given date, sensor and station
+
+    """
+    if mode=='full':
+        return STATIONS[station]['sensors'][sensor]['full']
+    else: 
+        return STATIONS[station]['sensors'][sensor]['reduced']
         
 
 
-def get_sitename(site, date, range_=None, column=None):
-    """ Return a full sitename given site, date, range and column """
+def get_sitename(station, date, range_=None, column=None):
+    """ Returns a full sitename for the plot (or fullfield image)
+    corresponding to the given station, date, range and column.
 
-    site = STATIONS[site]['sitename']
+    Args:
+      station (str): the name of the station
+      date (str): the date when the image was taken
+      range_ (str): the vertical index of the plot in the fullfield
+      column (str): the horizontal index of the plot in the fullfield
+
+    Returns:
+      (str): the full sitename for the plot (or the fullfield image)
+    """
+
+    site = STATIONS[station]['sitename']
     season = int(date[:4])-2013
     sitename = '{} Season {} Range {} Column {}'.\
               format(site, season, range_, column)
     return sitename
 
 
-def check_site(site):
-    """ check for valid site given the site name """
+def check_site(station):
+    """ Checks for valid station given the station name, and return its
+    path in the file system.
+    """
 
     terraref = os.environ.get('TERRAREF_BASE', TERRAREF_BASE)
     if not os.path.exists(terraref):
         raise InvalidUsage('Could not find TerraREF data, try setting '
                            'TERRAREF_BASE environmental variable')
 
-    sitepath = safe_join(terraref, 'sites', site)
+    sitepath = safe_join(terraref, 'sites', station)
     if not os.path.exists(sitepath):
-        raise InvalidUsage('unknown site', payload={'site': site})
+        raise InvalidUsage('unknown site', payload={'site': station})
 
     return sitepath
 
 
-def check_sensor(site, sensor, date=None):
-    """check for valid sensor with optional date """
+def check_sensor(station, sensor, date=None):
+    """ Checks for valid sensor with optional date, and return its path
+    in the file system.
+    """
 
-    sitepath = check_site(site)
+    sitepath = check_site(station)
 
     sensorpath = safe_join(sitepath, 'Level_1', sensor)
     if not os.path.exists(sensorpath):
         raise InvalidUsage('unknown sensor',
-                           payload={'site': site, 'sensor': sensor})
+                           payload={'site': station, 'sensor': sensor})
 
     if not date:
         return sensorpath
@@ -156,28 +189,31 @@ def check_sensor(site, sensor, date=None):
     print("datepath = {}".format(datepath))
     if not os.path.exists(datepath):
         raise InvalidUsage('sensor data not available for given date',
-                           payload={'site': site, 'sensor': sensor,
+                           payload={'site': station, 'sensor': sensor,
                                     'date': date})
 
     return datepath
 
 
 def get_sensor_product(site, sensor):
-    """Returns the downloadable product for each site-sensor pair"""
+    """ Returns the downloadable product for each site-sensor pair.
+    """
 
     # TODO do something much more intelligent
-    return "ff.txt"
+    return "ff.tif"
 
 
 def get_attachment_name(site, sensor, date, product):
-    """Encodes site, sensor, and date to create a unqiue attachment name"""
+    """ Encodes site, sensor, and date to create a unique attachment name.
+    """
 
     root, ext = os.path.splitext(product)
     return "{}-{}-{}.{}".format(site, sensor, date, ext)
 
 
 def plot_attachment_name(sitename, sensor, date, product):
-    """Encodes sitename, sensor, and date to create a unqiue attachment name"""
+    """ Encodes sitename, sensor, and date to create a unqiue attachment name.
+    """
 
     root, ext = os.path.splitext(product)
     return "{}-{}-{}.{}".format(sitename, sensor, date, ext) 
