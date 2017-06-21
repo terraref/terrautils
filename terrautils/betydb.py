@@ -6,10 +6,19 @@ This module provides wrappers to BETY API for getting and posting data.
 import logging
 import requests
 import json
+import os
 
 # from osgeo import ogr
 
-def betydb_query(betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta", endpoint="search", **kwargs):
+def get_bety_key():
+    keyfile_path = os.path.expanduser('~/.betykey')
+    if os.path.exists(keyfile_path):
+        keyfile = open(keyfile_path, "r")
+        return keyfile.readline().strip()
+    else:
+        logging.error("~/.betykey does not exist; use 'betykey' argument or set ~/.betykey")
+
+def betydb_query(betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta", endpoint="search", **kwargs):
 
     request_payload = { 'key':betykey }
     for key in kwargs:
@@ -19,12 +28,41 @@ def betydb_query(betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/b
 
     if api_response.status_code == 200 or api_response.status_code == 201:
         api_data = dict(api_response.json())
-        return api_data
+        return api_data['data']
     else:
         logging.error("Error querying data from BETYdb: %s" % api_response.status_code)
-        return None
 
-def betydb_submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
+def betydb_search(**kwargs):
+
+    query_data = betydb_query(**kwargs)
+    if query_data:
+        return [ view["traits_and_yields_view"] for view in query_data ]
+
+def betydb_traits(**kwargs):
+
+    query_data = betydb_query(endpoint="traits", **kwargs)
+    if query_data:
+        return [ trait["trait"] for trait in query_data ]
+
+def betydb_sites(**kwargs):
+
+    query_data = betydb_query(endpoint="sites", **kwargs)
+    if query_data:
+        return [ site["site"] for site in query_data ]
+
+def betydb_trait(trait_id):
+
+    query_data = betydb_traits(id=trait_id)
+    if query_data:
+        return query_data[0]
+
+def betydb_site(site_id):
+
+    query_data = betydb_sites(id=site_id)
+    if query_data:
+        return query_data[0]
+
+def betydb_submit_traits(csv, betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
 
     request_payload = { 'key':betykey }
 
