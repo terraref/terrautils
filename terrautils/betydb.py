@@ -7,8 +7,7 @@ import logging
 import requests
 import json
 import os
-
-# from osgeo import ogr
+from osgeo import ogr
 
 def get_bety_key():
     keyfile_path = os.path.expanduser('~/.betykey')
