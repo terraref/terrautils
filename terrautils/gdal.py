@@ -63,14 +63,25 @@ def clip_raster(rast_path, features_path, gt=None, nodata=-9999):
       4) more?
       
     """
-
+    n_chunks = 10
     # Since in the file what we have  is just a path instead of the file
     rast = gdal.Open(rast_path)
+    x_total, y_total = rast.RasterXSize, rast.RasterYSize
     # Can accept either a gdal.Dataset or numpy.array instance
+    print(x_total,y_total)
+    dataset = np.zeros((x_total,y_total))
     if not isinstance(rast, np.ndarray):
         gt = rast.GetGeoTransform()
-        rast = rast.ReadAsArray()
+        #rast = rast.ReadAsArray()
+        x_offsets=linspace(0,x_total,n_chunks).astype(int)
+        x_offsets=zip(x_offsets[:-1],x_offsets[1:])
+        y_offsets=linspace(0,y_total,n_chunks).astype(int)
+        y_offsets=zip(y_offsets[:-1],y_offsets[1:])
 
+        for x1,x2 in x_offsets:
+            for y1,y2 in y_offsets:
+                dataset[:,y1:y2,x1:x2]=ds.ReadAsArray(xoff=x1,yoff=y1,xsize=x2-x1, ysize=y2-y1)
+        rast = dataset
     # Create an OGR layer from a boundary shapefile
 
     """
