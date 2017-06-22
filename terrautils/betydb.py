@@ -19,7 +19,7 @@ def get_bety_key():
         logging.error("~/.betykey does not exist; use 'betykey' argument or set ~/.betykey")
 
 # General function for querying the BETYdb API, returns 'data' array from API JSON as an array of python dictionaries
-def betydb_query(betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta", endpoint="search", **kwargs):
+def query(betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta", endpoint="search", **kwargs):
 
     request_payload = { 'key':betykey }
     for key in kwargs:
@@ -34,37 +34,37 @@ def betydb_query(betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois
         logging.error("Error querying data from BETYdb: %s" % api_response.status_code)
 
 # Returns cleaned up array from betydb_query() for the search table
-def betydb_search(**kwargs):
+def search(**kwargs):
 
-    query_data = betydb_query(**kwargs)
+    query_data = query(**kwargs)
     if query_data:
         return [ view["traits_and_yields_view"] for view in query_data ]
 
 # Returns cleaned up array from betydb_query() for the traits table
-def betydb_traits(**kwargs):
+def traits(**kwargs):
 
-    query_data = betydb_query(endpoint="traits", **kwargs)
+    query_data = query(endpoint="traits", **kwargs)
     if query_data:
         return [ trait["trait"] for trait in query_data ]
 
 # Returns cleaned up array from betydb_query() for the sites table
-def betydb_sites(**kwargs):
+def sites(**kwargs):
 
-    query_data = betydb_query(endpoint="sites", **kwargs)
+    query_data = query(endpoint="sites", **kwargs)
     if query_data:
         return [ site["site"] for site in query_data ]
 
 # Returns python dictionary for a single trait
-def betydb_trait(trait_id):
+def trait(trait_id):
 
-    query_data = betydb_traits(id=trait_id)
+    query_data = traits(id=trait_id)
     if query_data:
         return query_data[0]
 
 # Returns python dictionary for a single site
-def betydb_site(site_id):
+def site(site_id):
 
-    query_data = betydb_sites(id=site_id)
+    query_data = sites(id=site_id)
     if query_data:
         return query_data[0]
 
@@ -83,21 +83,6 @@ def betydb_submit_traits(csv, betykey=get_bety_key(), betyurl="https://terraref.
     else:
         logging.error("Error submitting data to BETYdb: %s" % r.status_code)
     
-
-def get_cultivar(plot):
-    """
-    """
-    pass
-
-def get_experiment(date):
-    """
-    """
-    pass
-
-def get_plot(bbox):
-    """
-    """
-    pass
 
 def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitename=None, contains=None):
     """Get list of sites from BETYdb, filtered by city or sitename prefix if provided.
