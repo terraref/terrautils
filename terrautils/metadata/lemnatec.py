@@ -7,6 +7,7 @@ TODO:
   Add checks for expected fields
   Date/time standardization
   Add units to variables?
+  Logging
 
 '''
 

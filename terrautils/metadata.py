@@ -16,6 +16,7 @@ def get_sensor_fixed_metadata(sensor):
     
     datasetid = _get_dataset_id_for_sensor(sensor)
     jsonld = pyclowder.datasets.download_metadata(None, clowderhost, clowderkey, datasetid)
+    
     return jsonld
 
 def clean_metadata(json):
@@ -24,11 +25,12 @@ def clean_metadata(json):
     """
     if 'lemnatec_measurement_metadata' in json.keys():
         return metadata.lemnatec.clean(json)
-
-    pass
+    else:
+        return None
 
 def clean_fixed_metadata(json):
     """Return cleaned fixed metadata json object with updated structure and names.
+    TODO: This may not be needed, if we assume that the fixed metadata is authoritative.
     """
     pass
 
@@ -45,8 +47,10 @@ def _get_dataset_id_for_sensor(sensor):
 
 if __name__ == "__main__":
     fixed = get_sensor_fixed_metadata("co2Sensor")
-    print json.dumps(fixed, indent=4, sort_keys=True)
-    
+    print "\nFIXED METADATA"
+    print json.dumps(fixed[0]["content"], indent=4, sort_keys=True)
+
+    print "\nCLEANED METADATA"
     with open("/data/terraref/sites/ua-mac/raw_data/VNIR/2017-05-13/2017-05-13__12-29-21-202/cd2a45b6-4922-48b4-bc29-f2f95e6206ec_metadata.json") as file:
         json_data = json.load(file)
     cleaned = clean_metadata(json_data)
