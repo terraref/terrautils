@@ -6,6 +6,7 @@ Some metadata used for extractors
 TODO: 
   Add checks for expected fields
   Date/time standardization
+  Add units to variables?
 
 '''
 
