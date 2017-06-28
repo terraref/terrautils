@@ -1,15 +1,16 @@
 FROM clowder/pyclowder:2
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
+# TODO: Use non-dev versions
 RUN apt-get -q -y update \
     && apt-get install -y --no-install-recommends build-essential \
         software-properties-common \
-        gcc \
-        make \
+        gcc make wget byacc \
         libpng-dev \
         libjpeg8-dev \
         libfreetype6-dev \
         libnetcdf-dev \
+        libhdf5-dev \
         libblas-dev \
         liblapack-dev \
         libatlas-base-dev \
@@ -20,6 +21,8 @@ RUN apt-get -q -y update \
     && apt-get -q -y update \
     && apt-get install -y python-gdal \
     && rm -rf /var/lib/apt/lists/*
+
+# TODO: Create intermediary NCO Container for subset of extractors
 
 COPY terrautils /tmp/terrautils/terrautils
 COPY setup.py requirements.txt /tmp/terrautils/

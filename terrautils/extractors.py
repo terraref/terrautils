@@ -3,18 +3,24 @@
 This module provides useful reference methods for extractors.
 """
 
+import datetime
+import logging
+import json
 import os
 import utm
-import datetime
 
 import gdal
+import numpy
 from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
 from matplotlib import cm, pyplot as plt
+from netCDF4 import Dataset
+from osgeo import gdal, osr
 from PIL import Image
 
 from pyclowder.collections import get_datasets
-from pyclowder.datasets import submit_extraction
+from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
+from pyclowder.files import submit_extraction as submit_ext_file
 
 
 # BASIC UTILS -------------------------------------
@@ -57,19 +63,25 @@ def get_extractor_list():
     ]
 
 
-def get_output_directory(rootdir, datasetname):
+def get_output_directory(rootdir, datasetname, include_sensor=False):
     """Determine output directory path given root path and dataset name.
 
-    Example dataset name:
-        stereoTop - 2017-05-04__10-31-34-536
-    Resulting output:
-        rootdir/2017-05-04/2017-05-04__10-31-34-536
+    include_sensor -- insert sensor name between root and first timestamp directory
+
+    Example dataset name:   stereoTop - 2017-05-04__10-31-34-536
+    Resulting output:       rootdir/2017-05-04/2017-05-04__10-31-34-536
+
+        * with include_sensor
+    Example dataset name:   ndviSensor - 2017-05-04__10-31-34-536
+    Resulting output:       rootdir/ndviSensor/2017-05-04/2017-05-04__10-31-34-536
     """
     if datasetname.find(" - ") > -1:
         # 2017-05-04__10-31-34-536
         timestamp = datasetname.split(" - ")[1]
+        sensorname = datasetname.split(" - ")[0]
     else:
         timestamp = datasetname
+        sensorname = ""
 
     if timestamp.find("__") > -1:
         # 2017-05-04
@@ -77,11 +89,16 @@ def get_output_directory(rootdir, datasetname):
     else:
         datestamp = ""
 
-    return os.path.join(rootdir, datestamp, timestamp)
+    if include_sensor and sensorname != "":
+        return os.path.join(rootdir, sensorname, datestamp, timestamp)
+    else:
+        return os.path.join(rootdir, datestamp, timestamp)
 
 
-def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts=[]):
+def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", opts=[], hms=False):
     """Determine output filename given input information.
+
+    hms -- "HH-MM-SS" override if not included in dataset name, e.g. for EnvironmentLogger
 
     sensor_level_datetime_site_a_b_c.extension
         a = what product?
@@ -95,7 +112,14 @@ def get_output_filename(datasetname, outextension, lvl="lv1", site="uamac", opts
         sensorname = datasetname
         timestamp = "2017"
 
-    return "_".join([sensorname, lvl, timestamp, site]+opts)+".%s" % outextension
+    # If extension included a period, remove it
+    if outextension != '':
+        outextension = '.' + outextension.replace('.', '')
+
+    if hms:
+        timestamp += "_" + hms
+
+    return "_".join([sensorname, lvl, timestamp, site]+opts) + outextension
 
 
 def is_latest_file(resource):
@@ -104,10 +128,16 @@ def is_latest_file(resource):
     This simple check should be used in dataset extractors to avoid collisions between 2+ instances of the same
     extractor trying to process the same dataset simultaneously by triggering off of 2 different uploaded files.
 
-    Note that in the resource dictionary, "latest_file" is the file that triggered the extraction (i.e. latest file
+    Note that in the resource dictionary, "triggering_file" is the file that triggered the extraction (i.e. latest file
     at the time of message generation), not necessarily the newest file in the dataset.
     """
-    if resource['latest_file']:
+    trig = None
+    if 'triggering_file' in resource:
+        trig = resource['triggering_file']
+    elif 'latest_file' in resource:
+        trig = resource['latest_file']
+
+    if trig:
         latest_file = ""
         latest_time = "Sun Jan 01 00:00:01 CDT 1920"
 
@@ -117,14 +147,28 @@ def is_latest_file(resource):
                 latest_time = f['date-created']
                 latest_file = f['filename']
 
-        if latest_file != resource['latest_file']:
+        if latest_file != trig:
             return False
         else:
             return True
+    else:
+        return False
+
+
+def load_json_file(filepath):
+    """Load contents of a .json file on disk into a JSON object.
+    """
+    try:
+        with open(filepath, 'r') as jsonfile:
+            return json.load(jsonfile)
+    except:
+        logging.error('could not load .json file %s' % filepath)
+        return None
+
 
 # FORMAT CONVERSION -------------------------------------
 def calculate_bounding_box(gps_bounds, z_value=0):
-    """Given a set of GPS boundaries, return arrau of 4 vertices representing the polygon.
+    """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
 
     gps_bounds -- (lat(y) min, lat(y) max, long(x) min, long(x) max)
 
@@ -138,6 +182,21 @@ def calculate_bounding_box(gps_bounds, z_value=0):
         (gps_bounds[3], gps_bounds[0], z_value), # lower-right
         (gps_bounds[2], gps_bounds[0], z_value)  # lower-left
     ]
+
+
+def calculate_centroid(gps_bounds):
+    """Given a set of GPS boundaries, return lat/lon of centroid.
+
+    gps_bounds -- (lat(y) min, lat(y) max, long(x) min, long(x) max)
+
+    Returns:
+        Tuple of (lat, lon) representing centroid
+    """
+
+    return (
+        gps_bounds[0] + (gps_bounds[1] - gps_bounds[0]),
+        gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
+    )
 
 
 def calculate_gps_bounds(metadata, sensor="stereoTop"):
@@ -174,6 +233,12 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
         return (left_gps_bounds, right_gps_bounds)
+    elif sensor=="flirIrCamera":
+        HEIGHT_MAGIC_NUMBER = 1.0
+        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER
+        fov_x = fov_x * (camH_fix/2)
+        fov_y = fov_y * (camH_fix/2)
+        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
     else:
         return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
@@ -190,7 +255,7 @@ def calculate_scan_time(metadata):
     return scan_time
 
 
-def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
+def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 
         Keyword arguments:
@@ -201,8 +266,9 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
                                                         long (x) min, long (x) max)
         out_path -- path to GeoTIFF to be created
         nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
+        float -- whether to use GDT_Float32 data type instead of GDT_Byte (e.g. for decimal numbers)
     """
-    dimensions = np.shape(pixels)
+    dimensions = numpy.shape(pixels)
     if len(dimensions) == 2:
         nrows, ncols = dimensions
         channels = 1
@@ -219,7 +285,10 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
     )
 
     # Create output GeoTIFF and set coordinates & projection
-    output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
+    if asfloat:
+        output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Float32)
+    else:
+        output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
     output_raster.SetGeoTransform(geotransform)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326) # google mercator
@@ -242,11 +311,36 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99):
             output_raster.GetRasterBand(1).SetNoDataValue(nodata)
 
     output_raster = None
-    return
 
 
-def create_png(pixels, out_path, scaled=False):
-    """Generate output PNG file given an input BIN file.
+def create_netcdf(pixels, out_path, scaled=False):
+    """Generate output netCDF file given an input numpy pixel array.
+
+            Keyword arguments:
+            pixels -- 2-dimensional numpy array of pixel values
+            out_path -- path to GeoTIFF to be created
+            scaled -- whether to scale PNG output values based on pixels min/max
+        """
+    dimensions = numpy.shape(pixels)
+    if len(dimensions) == 2:
+        nrows, ncols = dimensions
+        channels = 1
+    else:
+        nrows, ncols, channels = dimensions
+
+    out_nc = Dataset(out_path, "w", format="NETCDF4")
+    out_nc.createDimension('band',  channels) # only 1 band for mask
+    out_nc.createDimension('x', ncols)
+    out_nc.createDimension('y', nrows)
+
+    mask = out_nc.createVariable('soil_mask','f8',('band', 'x', 'y'))
+    mask[:] = pixels
+
+    out_nc.close()
+
+
+def create_image(pixels, out_path, scaled=False):
+    """Generate output JPG/PNG file given an input numpy pixel array.
 
             Keyword arguments:
             pixels -- 2-dimensional numpy array of pixel values
@@ -265,7 +359,7 @@ def create_png(pixels, out_path, scaled=False):
         Image.fromarray(pixels).save(out_path)
 
 
-def geom_from_metadata(metadata):
+def geom_from_metadata(metadata, sensor="stereoTop"):
     """Parse location elements from metadata.
 
         Returns:
@@ -293,9 +387,6 @@ def geom_from_metadata(metadata):
             gantry_x = _search_for_key(gantry_meta, x_positions)
             gantry_y = _search_for_key(gantry_meta, y_positions)
             gantry_z = _search_for_key(gantry_meta, z_positions)
-
-            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
-            scan_time = _search_for_key(gantry_meta, ["time"])
 
         if 'sensor_fixed_metadata' in lem_md:
             sensor_meta = lem_md['sensor_fixed_metadata']
@@ -340,25 +431,23 @@ def error_notification(msg):
     pass
 
 
-def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
+def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, bytecount):
     """Send extractor job detail summary to InfluxDB instance.
 
+    connparams -- connection parameter dictionary with {host, port, db, user, pass}
     starttime - example format "2017-02-10T16:09:57+00:00"
     endtime - example format "2017-02-10T16:09:57+00:00"
+    filecount -- int of # files added
+    bytecount -- int of # bytes added
     """
 
     # Convert timestamps to seconds from epoch
     f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
     f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
 
-    # Check
-    influx_host = os.getenv("INFLUX_HOST", "terra-logging.ncsa.illinois.edu")
-    influx_port = os.getenv("INFLUX_PORT", 8086)
-    influx_db = os.getenv("INFLUX_DB", "extractor_db")
-    influx_user = os.getenv("INFLUX_USER", "terra")
-    influx_pass = os.getenv("INFLUX_PASS", "")
+    client = InfluxDBClient(connparams["host"], connparams["port"],
+                            connparams["user"], connparams["pass"], connparams["db"])
 
-    client = InfluxDBClient(influx_host, influx_port, influx_user, influx_pass, influx_db)
     client.write_points([{
         "measurement": "file_processed",
         "time": f_completed_ts,
@@ -376,16 +465,30 @@ def log_to_influxdb(extractorname, starttime, endtime, filecount, bytecount):
     }], tags={"extractor": extractorname, "type": "bytes"})
 
 
-def trigger_extraction_on_collection(clowderhost, clowderkey, collectionid, extractor):
+def trigger_file_extractions_by_dataset(clowderhost, clowderkey, datasetid, extractor, ext=False):
+    """Manually trigger an extraction on all files in a dataset.
+
+        This will iterate through all files in the given dataset and submit them to
+        the provided extractor. Does not operate recursively if there are nested datasets.
+
+        ext -- extension to filter. e.g. 'tif' will only submit TIFF files for extraction.
+    """
+    flist = get_file_list(None, clowderhost, clowderkey, datasetid)
+    for f in flist:
+        if ext and not f['filename'].endswith(ext):
+            continue
+        submit_ext_file(None, clowderhost, clowderkey, f['id'], extractor)
+
+
+def trigger_dataset_extractions_by_collection(clowderhost, clowderkey, collectionid, extractor):
     """Manually trigger an extraction on all datasets in a collection.
 
         This will iterate through all datasets in the given collection and submit them to
         the provided extractor. Does not operate recursively if there are nested collections.
     """
     dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
-    print("submitting %s datasets" % len(dslist))
     for ds in dslist:
-        submit_extraction(None, clowderhost, clowderkey, ds['id'], extractor)
+        submit_ext_ds(None, clowderhost, clowderkey, ds['id'], extractor)
 
 
 # PRIVATE -------------------------------------
@@ -427,23 +530,6 @@ def _get_bounding_box_with_formula(center_position, fov):
     bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
     bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
 
-    """TODO: flirIrCamera used this transformation, any good? x/y swapped?
-
-        r = 6378137 # earth's radius
-
-        lat_min_offset = x_n/r * 180/pi
-        lat_max_offset = x_s/r * 180/pi
-        lng_min_offset = y_w/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
-        lng_max_offset = y_e/(r * cos(pi * ZERO_ZERO[0]/180)) * 180/pi
-
-        lat_min = SE_utm[0] + lat_min_offset
-        lat_max = SE_utm[0] + lat_max_offset
-        lng_min = SE_utm[1] - lng_min_offset
-        lng_max = SE_utm[1] - lng_max_offset
-
-        return (lat_min, lat_max, lng_max, lng_min)
-    """
-
     return ( bbox_se_latlon[0] - lat_shift,
              bbox_nw_latlon[0] - lat_shift,
              bbox_nw_latlon[1] + lon_shift,
@@ -467,7 +553,7 @@ def _search_for_key(metadata, key_variants):
     if val:
         try:
             return float(val.encode("utf-8"))
-        except AttributeError:
+        except:
             return val
     else:
         return None
