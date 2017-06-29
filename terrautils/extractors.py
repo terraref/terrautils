@@ -152,7 +152,8 @@ def is_latest_file(resource):
         else:
             return True
     else:
-        return False
+        # If unable to determine triggering file, return True
+        return True
 
 
 def load_json_file(filepath):
