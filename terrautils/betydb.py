@@ -10,7 +10,119 @@ import os
 from osgeo import ogr
 
 
-BETYDB_API="https://terraref.ncsa.illinois.edu/bety"
+BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
+
+
+def get_bety_key():
+    """return key from environment or ~/.betykey if it exists."""
+
+    key = os.environ.get('BETYDB_KEY', '')
+    if key:
+        return key
+
+    keyfile_path = os.path.expanduser('~/.betykey')
+    if os.path.exists(keyfile_path):
+        keyfile = open(keyfile_path, "r")
+        return keyfile.readline().strip()
+    else:
+        logging.warn("~/.betykey does not exist; use 'betykey'" +
+                      " argument or set ~/.betykey")
+
+
+def betydb_query(betykey, betyurl=BETYDB_URL,
+                 endpoint="search", **kwargs):
+    """ General function for querying the BETYdb API, returns 
+        'data' array from API JSON as an array of python 
+        dictionaries
+    """
+    request_payload = { 'key':betykey }
+    for key in kwargs:
+        request_payload.update({ key: kwargs[key] })
+
+    api_response = requests.get("%s/api/beta/%s" % 
+            (betyurl, endpoint), params=request_payload)
+
+    if api_response.status_code == 200 or \
+       api_response.status_code == 201:
+        api_data = dict(api_response.json())
+        return api_data
+    else:
+        logging.error("Error querying data from BETYdb: %s" % 
+                      api_response.status_code)
+        return None
+
+
+def betydb_search(**kwargs):
+    """ Returns cleaned up array from betydb_query() for 
+        the search table
+    """
+    query_data = betydb_query(**kwargs)
+    if query_data:
+        return [ view["traits_and_yields_view"] for view in query_data['data']]
+
+
+def betydb_traits(**kwargs):
+    """ Returns cleaned up array from betydb_query() for 
+        the traits table
+    """
+    query_data = betydb_query(endpoint="traits", **kwargs)
+    if query_data:
+        return [t["trait"] for t in query_data['data']]
+
+
+def betydb_sites(**kwargs):
+    """Return cleaned up array from betydb_query() from the sites table
+    """
+    query_data = betydb_query(endpoint="sites", **kwargs)
+    if query_data:
+        return [s["site"] for s in query_data['data']]
+
+
+# TODO won't work because betykey MUST be passed on all queries
+def betydb_trait(trait_id):
+    """ Returns python dictionary for a single trait
+    """
+    query_data = betydb_traits(id=trait_id)
+    if query_data:
+        return query_data[0]
+
+
+# TODO won't work because betykey MUST be passed on all queries
+def betydb_site(site_id):
+    """ Returns python dictionary for a single site
+    """
+    query_data = betydb_sites(id=site_id)
+    if query_data:
+        return query_data[0]
+
+
+def betydb_submit_traits(betykey, file, filetype='csv', 
+                         betyurl="https://terraref.ncsa.illinois" +
+                         ".edu/bety/api/beta/traits"):
+    """ Submit csv of traits to the BETYdb API
+    """
+    request_payload = { 'key':betykey }
+
+    if filetype == 'csv':
+        content_type = 'text/csv'
+    elif filetype == 'json':
+        content_type = 'application/json'
+    elif filetype == 'xml':
+        content_type = 'application/xml'
+    else:
+        logging.error("Unsupported file type.")
+        return
+
+    api_response = request.post("%s.%s" % (betyurl, filetype),
+                    params=request_payload,
+                    data=file(file, 'rb').read(),
+                    headers={'Content-type': content_type})
+
+    if api_response.status_code == 200 or\
+       api_response.status_code == 201:
+        logging.info("Data successfully submitted to BETYdb.")
+    else:
+        logging.error("Error submitting data to BETYdb: %s" % r.status_code)
 
 
 def get_cultivar(plot):
@@ -31,7 +143,7 @@ def get_plot(bbox):
     pass
 
 
-def get_sites(host=BETYDB_API, city=None, sitename=None, contains=None):
+def get_sites(host=BETYDB_URL, city=None, sitename=None, contains=None):
     """ Gets list of stations from BETYdb, filtered by city or sitename prefix if provided.
 
         e.g.
@@ -105,47 +217,31 @@ def get_sites(host=BETYDB_API, city=None, sitename=None, contains=None):
         return r.json()
 
 
-def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
-    """ Submit a CSV containing traits to the BETYdb API.
+def get_sitename_boundary(sitename):
+    """Retrieve the clip boundary from betyDB API given the sitename.
 
     Args:
-      csv (str) -- CSV to submit
-      betykey (str) -- API key for given BETYdb instance
-      betyurl (str) -- URL (including /api portion) to submit CSV to
+      sitename (str): match to the sitename field in betydb
 
-    """
-    sess = requests.Session()
-
-    r = sess.post("%s?key=%s" % (betyurl, betykey),
-                  data=file(csv, 'rb').read(),
-                  headers={'Content-type': 'text/csv'})
-
-    if r.status_code == 200 or r.status_code == 201:
-        logging.info("...CSV successfully uploaded to BETYdb.")
-    else:
-        logging.error("Error uploading CSV to BETYdb %s" % r.status_code)
-
-
-def get_sitename_boundary(sitename):
-    """ Retrieve the clip boundary dynamically from betyDB API given sitename
-    and turns the obtained json data into a geojson polygon.
+    Returns:
+      (geojson str): returns boundarys as a geojson string
     """
 
-    betyurl = os.environ.get('BETYDB_URL', '')
+    betyurl = os.environ.get('BETYDB_URL', BETYDB_URL)
     if not betyurl:
         raise RuntimeError("BETYDB_URL environmental variable not set.")
 
-    api = os.environ.get('API_KEY', '')
+    api = os.environ.get('BETYDB_KEY', '')
     if not api:
-        raise RuntimeError("API_KEY environmental variable not set.")
+        raise RuntimeError("BETYDB_KEY environmental variable not set.")
 
     url = (betyurl + "/sites.json" +
            '?key={}&sitename={}').format(api, sitename)
     
-    username = os.environ.get('BETY_USER','')
-    password = os.environ.get('BETY_PASS','')
+    username = os.environ.get('BETYDB_USER','guestuser')
+    password = os.environ.get('BETYDB_PASS','guestuser')
     if (not username) or (not password):
-        raise RuntimeError("BETY_USER or BETY_PASS environmental variable" +
+        raise RuntimeError("BETYDB_USER or BETYDB_PASS environmental variable" +
                            "not set.")
 
     r = requests.get(url, auth=(username, password))
