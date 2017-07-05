@@ -5,28 +5,84 @@ This module provides wrappers to BETY API for getting and posting data.
 
 import logging
 import requests
-
+import json
+import os
 from osgeo import ogr
 
+# Returns key from ~/.betykey if it exists
+def get_bety_key():
+    keyfile_path = os.path.expanduser('~/.betykey')
+    if os.path.exists(keyfile_path):
+        keyfile = open(keyfile_path, "r")
+        return keyfile.readline().strip()
+    else:
+        logging.error("~/.betykey does not exist; use 'betykey' argument or set ~/.betykey")
 
+# General function for querying the BETYdb API, returns 'data' array from API JSON as an array of python dictionaries
+def query(betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta", endpoint="search", **kwargs):
 
-def get_cultivar(plot):
-    """
-    """
-    pass
+    request_payload = { 'key':betykey }
+    for key in kwargs:
+        request_payload.update({ key: kwargs[key] })
 
+    api_response = requests.get("%s/%s" % (betyurl, endpoint), params=request_payload)
 
-def get_experiment(date):
-    """
-    """
-    pass
+    if api_response.status_code == 200 or api_response.status_code == 201:
+        api_data = dict(api_response.json())
+        return api_data['data']
+    else:
+        logging.error("Error querying data from BETYdb: %s" % api_response.status_code)
 
+# Returns cleaned up array from betydb_query() for the search table
+def search(**kwargs):
 
-def get_plot(bbox):
-    """
-    """
-    pass
+    query_data = query(**kwargs)
+    if query_data:
+        return [ view["traits_and_yields_view"] for view in query_data ]
 
+# Returns cleaned up array from betydb_query() for the traits table
+def traits(**kwargs):
+
+    query_data = query(endpoint="traits", **kwargs)
+    if query_data:
+        return [ trait["trait"] for trait in query_data ]
+
+# Returns cleaned up array from betydb_query() for the sites table
+def sites(**kwargs):
+
+    query_data = query(endpoint="sites", **kwargs)
+    if query_data:
+        return [ site["site"] for site in query_data ]
+
+# Returns python dictionary for a single trait
+def trait(trait_id):
+
+    query_data = traits(id=trait_id)
+    if query_data:
+        return query_data[0]
+
+# Returns python dictionary for a single site
+def site(site_id):
+
+    query_data = sites(id=site_id)
+    if query_data:
+        return query_data[0]
+
+# Submit csv of traits to the BETYdb API
+def betydb_submit_traits(csv, betykey=get_bety_key(), betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
+
+    request_payload = { 'key':betykey }
+
+    api_response = request.post(betyurl,
+                    params=request_payload,
+                    data=file(file, 'rb').read(),
+                    headers={'Content-type': 'text/csv'})
+
+    if api_response.status_code == 200 or api_response.status_code == 201:
+        logging.info("Data successfully submitted to BETYdb.")
+    else:
+        logging.error("Error submitting data to BETYdb: %s" % r.status_code)
+    
 
 def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitename=None, contains=None):
     """Get list of sites from BETYdb, filtered by city or sitename prefix if provided.
@@ -96,22 +152,3 @@ def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitenam
 
     else:
         return r.json()
-
-
-def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
-    """Submit a CSV containing traits to the BETYdb API.
-
-    csv -- CSV to submit
-    betykey -- API key for given BETYdb instance
-    betyurl -- URL (including /api portion) to submit CSV to
-    """
-    sess = requests.Session()
-
-    r = sess.post("%s?key=%s" % (betyurl, betykey),
-                  data=file(csv, 'rb').read(),
-                  headers={'Content-type': 'text/csv'})
-
-    if r.status_code == 200 or r.status_code == 201:
-        logging.info("...CSV successfully uploaded to BETYdb.")
-    else:
-        logging.error("Error uploading CSV to BETYdb %s" % r.status_code)
