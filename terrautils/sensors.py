@@ -1,9 +1,6 @@
 import os
 import requests
 import json
-from flask import safe_join, request
-from plot_service import app
-from plot_service.exceptions import InvalidUsage
 
 TERRAREF_BASE = '/projects/arpae/terraref'
 
@@ -163,7 +160,7 @@ def check_site(station):
         raise InvalidUsage('Could not find TerraREF data, try setting '
                            'TERRAREF_BASE environmental variable')
 
-    sitepath = safe_join(terraref, 'sites', station)
+    sitepath = os.path.join(terraref, 'sites', station)
     if not os.path.exists(sitepath):
         raise InvalidUsage('unknown site', payload={'site': station})
 
@@ -177,7 +174,7 @@ def check_sensor(station, sensor, date=None):
 
     sitepath = check_site(station)
 
-    sensorpath = safe_join(sitepath, 'Level_1', sensor)
+    sensorpath = os.path.join(sitepath, 'Level_1', sensor)
     if not os.path.exists(sensorpath):
         raise InvalidUsage('unknown sensor',
                            payload={'site': station, 'sensor': sensor})
@@ -185,7 +182,7 @@ def check_sensor(station, sensor, date=None):
     if not date:
         return sensorpath
 
-    datepath = safe_join(sensorpath, date)
+    datepath = os.path.join(sensorpath, date)
     print("datepath = {}".format(datepath))
     if not os.path.exists(datepath):
         raise InvalidUsage('sensor data not available for given date',
@@ -195,12 +192,13 @@ def check_sensor(station, sensor, date=None):
     return datepath
 
 
+# TODO return from dictionary!
 def get_sensor_product(site, sensor):
     """ Returns the downloadable product for each site-sensor pair.
     """
 
     # TODO do something much more intelligent
-    return "ff.tif"
+    return "stereoTop_fullfield.tif"
 
 
 def get_attachment_name(site, sensor, date, product):
