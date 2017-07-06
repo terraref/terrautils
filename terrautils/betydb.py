@@ -3,11 +3,12 @@
 This module provides wrappers to BETY API for getting and posting data.
 """
 
-import logging
-import requests
-import json
 import os
+import logging
+import json
+import urlparse
 from osgeo import ogr
+import requests
 
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
@@ -24,79 +25,83 @@ def get_bety_key():
     if os.path.exists(keyfile_path):
         keyfile = open(keyfile_path, "r")
         return keyfile.readline().strip()
-    else:
-        logging.warn("~/.betykey does not exist; use 'betykey'" +
-                      " argument or set ~/.betykey")
+
+    raise RuntimeError("BETYDB_URL not found. Set environmental variable "
+                       "or create $HOME/.betykey.")
 
 
-def betydb_query(betykey, betyurl=BETYDB_URL,
-                 endpoint="search", **kwargs):
-    """ General function for querying the BETYdb API, returns 
-        'data' array from API JSON as an array of python 
-        dictionaries
+def get_bety_url(path=''):
+    """return betydb url from environment with optional path
+
+    Of 3 options string join, os.path.join and urlparse.urljoin, os.path.join
+    is the best at handling excessive / characters. 
     """
-    request_payload = { 'key':betykey }
-    for key in kwargs:
-        request_payload.update({ key: kwargs[key] })
 
-    api_response = requests.get("%s/api/beta/%s" % 
-            (betyurl, endpoint), params=request_payload)
+    url = os.environ.get('BETYDB_URL', BETYDB_URL)
+    return os.path.join(url, path)
 
-    if api_response.status_code == 200 or \
-       api_response.status_code == 201:
-        api_data = dict(api_response.json())
-        return api_data
-    else:
-        logging.error("Error querying data from BETYdb: %s" % 
-                      api_response.status_code)
-        return None
+
+def get_bety_api(endpoint=None):
+    """return betydb API based on betydb url"""
+
+    url = get_bety_url(path='api/beta/{}'.format(endpoint))
+    return url
+
+
+def betydb_query(endpoint="search", **kwargs):
+    """return betydb API results.
+
+    This is general function for querying the betyDB API. It automatically
+    decodes the json response if one is returned.
+    """
+
+    payload = { 'key': get_bety_key() }
+    payload.update(kwargs)
+
+    r = requests.get(get_bety_api(endpoint), params=payload)
+    r.raise_for_status()
+    return r.json()
 
 
 def betydb_search(**kwargs):
-    """ Returns cleaned up array from betydb_query() for 
-        the search table
-    """
+    """Return cleaned up array from betydb_query() for the search table."""
+
     query_data = betydb_query(**kwargs)
     if query_data:
         return [ view["traits_and_yields_view"] for view in query_data['data']]
 
 
 def betydb_traits(**kwargs):
-    """ Returns cleaned up array from betydb_query() for 
-        the traits table
-    """
+    """Return cleaned up array from betydb_query() for the traits table."""
+
     query_data = betydb_query(endpoint="traits", **kwargs)
     if query_data:
         return [t["trait"] for t in query_data['data']]
 
 
 def betydb_sites(**kwargs):
-    """Return cleaned up array from betydb_query() from the sites table
-    """
+    """Return a site array from betydb_query() from the sites table."""
+
     query_data = betydb_query(endpoint="sites", **kwargs)
     if query_data:
         return [s["site"] for s in query_data['data']]
 
 
-# TODO won't work because betykey MUST be passed on all queries
 def betydb_trait(trait_id):
-    """ Returns python dictionary for a single trait
-    """
+    """Returns python dictionary for a single trait."""
     query_data = betydb_traits(id=trait_id)
     if query_data:
         return query_data[0]
 
 
-# TODO won't work because betykey MUST be passed on all queries
 def betydb_site(site_id):
-    """ Returns python dictionary for a single site
-    """
+    """Returns python dictionary for a single site"""
     query_data = betydb_sites(id=site_id)
     if query_data:
         return query_data[0]
 
 
-def betydb_submit_traits(betykey, file, filetype='csv', 
+def betydb_submit_traits(betykey, file_, filetype='csv', 
                          betyurl="https://terraref.ncsa.illinois" +
                          ".edu/bety/api/beta/traits"):
     """ Submit csv of traits to the BETYdb API
@@ -162,7 +167,7 @@ def get_sites(host=BETYDB_URL, city=None, sitename=None, contains=None):
     sess = requests.Session()
     sess.auth = ("guestuser", "guestuser")
 
-    betyurl = host + "/sites.json"
+    betyurl = host + "sites.json"
     has_arg = False
     if city:
         betyurl += "?city=%s" % city
@@ -227,24 +232,9 @@ def get_sitename_boundary(sitename):
       (geojson str): returns boundarys as a geojson string
     """
 
-    betyurl = os.environ.get('BETYDB_URL', BETYDB_URL)
-    if not betyurl:
-        raise RuntimeError("BETYDB_URL environmental variable not set.")
-
-    api = os.environ.get('BETYDB_KEY', '')
-    if not api:
-        raise RuntimeError("BETYDB_KEY environmental variable not set.")
-
-    url = (betyurl + "/sites.json" +
-           '?key={}&sitename={}').format(api, sitename)
-    
-    username = os.environ.get('BETYDB_USER','guestuser')
-    password = os.environ.get('BETYDB_PASS','guestuser')
-    if (not username) or (not password):
-        raise RuntimeError("BETYDB_USER or BETYDB_PASS environmental variable" +
-                           "not set.")
-
-    r = requests.get(url, auth=(username, password))
+    payload = { 'key': get_bety_key(), 'sitename': sitename }
+    r = requests.get(get_bety_url('sites.json'), params=payload)
+    r.raise_for_status()
 
     data = r.json()[0]['site']['geometry'][10:-2]
     coords = data.split(',')
