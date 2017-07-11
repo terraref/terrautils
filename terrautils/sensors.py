@@ -19,7 +19,7 @@ SENSOR_VNIR = "VNIR"
 SENSOR_WEATHER = "weather"
 
     
-# Map of sensor name to Clowder dataset ID
+# Map of sensor name to Clowder sensor dataset ID
 _sensor_datasetid_map = {
     SENSOR_CO2 : "5873a9924f0cad7d8131b648",                                                                                   
     SENSOR_CROP_CIRCLE : "5873a7ed4f0cad7d8131a2e7",                                                                                    

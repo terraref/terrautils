@@ -33,14 +33,13 @@ def clean(metadata):
             
 # Standardize user given metadata
 def _standardize_user_given_metadata(lem_md):
-    # Return reference to user given metadata in BETYdb?
+    # Currently not used. Will possibly return reference to user given metadata in BETY
     return
 
-# Not currently used
 # Standardize gantry fixed metadata
-#def _standardize_gantry_system_fixed_metadata(orig):
-#    # Return reference to gantry fixed metadata in Clowder
-#    return
+def _standardize_gantry_system_fixed_metadata(orig):
+    # Currently not used. Will possibly return URL to Gantry fixed metadata in Clowder
+    return
 
 def _get_sensor_fixed_metadata_url(lem_md):
     """
