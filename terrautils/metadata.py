@@ -28,12 +28,6 @@ def clean_metadata(json):
     else:
         return None
 
-def clean_fixed_metadata(json):
-    """Return cleaned fixed metadata json object with updated structure and names.
-    TODO: This may not be needed, if we assume that the fixed metadata is authoritative.
-    """
-    pass
-
 def get_preferred_synonym(variable):
     """Execute a thesaurus check to see if input variable has alternate preferred name.
     """
@@ -46,7 +40,7 @@ def _get_dataset_id_for_sensor(sensor):
     
 
 if __name__ == "__main__":
-    fixed = get_sensor_fixed_metadata("co2Sensor")
+    fixed = get_sensor_fixed_metadata(sensors.SENSOR_VNIR)
     print "\nFIXED METADATA"
     print json.dumps(fixed[0]["content"], indent=4, sort_keys=True)
 

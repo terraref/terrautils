@@ -25,7 +25,7 @@ def clean(metadata):
     
     properties = {}
     properties["gantry_variable"] = _standardize_gantry_system_variable_metadata(lem_md)
-    properties["sensor_fixed"]    = _get_sensor_fixed_metadata(lem_md)
+    properties["sensor_fixed"]    = _get_sensor_fixed_metadata_url(lem_md)
     properties["sensor_variable"] = _standardize_sensor_variable_metadata(lem_md)
     #_standardize_user_given_metadata(lem_md)
 
@@ -42,12 +42,13 @@ def _standardize_user_given_metadata(lem_md):
 #    # Return reference to gantry fixed metadata in Clowder
 #    return
 
-def _get_sensor_fixed_metadata(lem_md):
+def _get_sensor_fixed_metadata_url(lem_md):
     """
     Assumes that the sensor fixed metadata stored in Clowder is authoritative
     Ignore the fixed metadata in the JSON object and return the fixed metadata URL in Clowder.
     """
     # TODO: Compare to known fixed metadata structure
+    # TODO; We only need this one -- duplicate method in metadata.py
     
     # Get the dataset ID for the sensor by name
     sensor = lem_md['sensor_fixed_metadata']['sensor product name']
@@ -89,19 +90,20 @@ def _standardize_gantry_system_variable_metadata(lem_md):
     data = {}
     data['time'] = orig['time']
     
-    data['position'] = {}
-    data['position']['x'] = orig["position x [m]"]
-    data['position']['y'] = orig["position y [m]"]
-    data['position']['z'] = orig["position z [m]"]
+    data['position_m'] = {}
+    data['position_m']['x'] = orig["position x [m]"]
+    data['position_m']['y'] = orig["position y [m]"]
+    data['position_m']['z'] = orig["position z [m]"]
 
-    data['speed'] = {}
-    data['speed']['x'] = orig["speed x [m/s]"]
-    data['speed']['y'] = orig["speed y [m/s]"]
-    data['speed']['z'] = orig["speed z [m/s]"]
+    data['speed_m/s'] = {}
+    data['speed_m/s']['x'] = orig["speed x [m/s]"]
+    data['speed_m/s']['y'] = orig["speed y [m/s]"]
+    data['speed_m/s']['z'] = orig["speed z [m/s]"]
     
-    data['distance'] = orig["scanDistanceInM [m]"]
+    data['distance_m'] = orig["scanDistanceInM [m]"]
 
-    data['is_positive'] = orig["scanDirectionIsPositive"]
+    # What does this mean?
+    data['direction_is_positive'] = orig["scanDirectionIsPositive"]
 
     return data
 
