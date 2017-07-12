@@ -5,10 +5,9 @@ This module provides wrappers to BETY API for getting and posting data.
 
 import os
 import logging
-import json
-import urlparse
-from osgeo import ogr
+
 import requests
+from osgeo import ogr
 
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
@@ -71,12 +70,42 @@ def search(**kwargs):
         return [ view["traits_and_yields_view"] for view in query_data['data']]
 
 
+def get_cultivars(**kwargs):
+    """Return cleaned up array from query() for the cultivars table."""
+
+    query_data = query(endpoint="cultivars", **kwargs)
+    if query_data:
+        return [t["cultivar"] for t in query_data['data']]
+
+
+def get_experiments(**kwargs):
+    """Return cleaned up array from query() for the experiments table."""
+
+    query_data = query(endpoint="experiments", **kwargs)
+    if query_data:
+        return [t["experiment"] for t in query_data['data']]
+
+
+def get_trait(trait_id):
+    """Returns python dictionary for a single trait."""
+    query_data = get_traits(id=trait_id)
+    if query_data:
+        return query_data[0]
+
+
 def get_traits(**kwargs):
     """Return cleaned up array from query() for the traits table."""
 
     query_data = query(endpoint="traits", **kwargs)
     if query_data:
         return [t["trait"] for t in query_data['data']]
+
+
+def get_site(site_id):
+    """Returns python dictionary for a single site"""
+    query_data = get_sites(id=site_id)
+    if query_data:
+        return query_data[0]
 
 
 def get_sites(**kwargs):
@@ -93,21 +122,7 @@ def get_sites(**kwargs):
         return [s["site"] for s in query_data['data']]
 
 
-def get_trait(trait_id):
-    """Returns python dictionary for a single trait."""
-    query_data = get_traits(id=trait_id)
-    if query_data:
-        return query_data[0]
-
-
-def get_site(site_id):
-    """Returns python dictionary for a single site"""
-    query_data = get_sites(id=site_id)
-    if query_data:
-        return query_data[0]
-
-
-def get_sites_by_point(latlon, **kwargs):
+def get_sites_by_latlon(latlon, **kwargs):
     """Gets list of sites from BETYdb, filtered by a contained point.
 
       latlon (tuple) -- only sites that contain this point will be returned
@@ -129,6 +144,27 @@ def get_sites_by_point(latlon, **kwargs):
             results.append(s)
 
     return results
+
+
+def get_site_boundaries(**kwargs):
+    """Get a dictionary of site GeoJSON bounding boxes filtered by standard arguments.
+
+    Returns:
+        {
+            'sitename_1': 'geojson bbox',
+            'sitename_2': 'geojson bbox',
+            ...
+         }
+    """
+
+    sitelist = get_sites(**kwargs)
+    bboxes = {}
+
+    for s in sitelist:
+        geom = ogr.CreateGeometryFromWkt(s['geometry'])
+        bboxes[s['sitename']] = geom.ExportToJson()
+
+    return bboxes
 
 
 def submit_traits(csv, filetype='csv', betykey=get_bety_key(), betyurl=get_bety_api("traits")):
@@ -154,40 +190,3 @@ def submit_traits(csv, filetype='csv', betykey=get_bety_key(), betyurl=get_bety_
         logging.info("Data successfully submitted to BETYdb.")
     else:
         logging.error("Error submitting data to BETYdb: %s" % resp.status_code)
-
-
-def get_cultivars(**kwargs):
-    """Return cleaned up array from query() for the cultivars table."""
-
-    query_data = query(endpoint="cultivars", **kwargs)
-    if query_data:
-        return [t["cultivar"] for t in query_data['data']]
-
-
-def get_experiment(**kwargs):
-    """Return cleaned up array from query() for the experiments table."""
-
-    query_data = query(endpoint="experiments", **kwargs)
-    if query_data:
-        return [t["experiment"] for t in query_data['data']]
-
-
-def get_site_boundary(**kwargs):
-    """Get a dictionary of site GeoJSON bounding boxes filtered by standard arguments.
-
-    Returns:
-        {
-            'sitename_1': 'geojson bbox',
-            'sitename_2': 'geojson bbox',
-            ...
-         }
-    """
-
-    sitelist = get_sites(**kwargs)
-    bboxes = {}
-
-    for s in sitelist:
-        geom = ogr.CreateGeometryFromWkt(s['geometry'])
-        bboxes[s['sitename']] = geom.ExportToJson()
-
-    return bboxes
