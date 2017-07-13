@@ -1,3 +1,8 @@
+"""GDAL
+
+This module provides wrappers to GDAL for manipulating geospatial data.
+"""
+
 import os
 from StringIO import StringIO
 from osgeo import gdal, gdalnumeric, ogr
@@ -26,13 +31,11 @@ def clip_raster(rast_path, features_path, nodata=-9999):
             (a.astype('b')).tostring())
         return i
 
-
     def image_to_array(i):
         """Converts a PIL array to a gdalnumeric image."""
         a = gdalnumeric.fromstring(i.tobytes(), 'b')
         a.shape = i.im.size[1], i.im.size[0]
         return a
-
 
     def world_to_pixel(geo_matrix, x, y):
         """Use GDAL GeoTransform to calculate pixel location.
