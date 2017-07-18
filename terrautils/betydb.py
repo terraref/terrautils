@@ -133,7 +133,7 @@ def get_sites_by_latlon(latlon, **kwargs):
     targgeom = ogr.CreateGeometryFromWkt("POINT (%s %s 0)" % (latlon[0], latlon[1]))
     results = []
 
-    sitelist = get_sites(**kwargs)
+    sitelist = get_sites(limit='none', **kwargs)
     for s in sitelist:
         if 'geometry' in s and s['geometry'] != None:
             sitegeom = ogr.CreateGeometryFromWkt(s['geometry'])
