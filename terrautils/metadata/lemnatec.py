@@ -16,6 +16,25 @@ import os
 import requests
 from terrautils import sensors
 
+station = "ua-mac"
+
+# Official sensor names
+SENSOR_CO2 = "co2Sensor"
+SENSOR_CROP_CIRCLE = "cropCircle"
+SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
+SENSOR_FLIR = "flirIrCamera"
+SENSOR_IRRIGATION = "irrigation"
+SENSOR_LIGHTNING = "lightning"
+SENSOR_NDVI = "ndviSensor"
+SENSOR_PAR = "parSensor"
+SENSOR_PRI = "priSensor"
+SENSOR_PS2_TOP = "ps2Top"
+SENSOR_SCANNER_3D_TOP = "scanner3DTop"
+SENSOR_STEREO_TOP = "stereoTop"
+SENSOR_SWIR = "SWIR"
+SENSOR_VNIR = "VNIR"
+SENSOR_WEATHER = "weather"
+
 
 def clean(metadata, sensorId):
     """ Given a LemnaTec metadata.json object, produces the "cleaned" metadata that 
@@ -51,7 +70,7 @@ def _get_sensor_fixed_metadata_url(sensorId):
     # TODO; We only need this one -- duplicate method in metadata.py
     
     # Get the dataset ID for the sensor by identifier
-    datasetid = sensors.get_datasetid_for_sensor(sensorId)
+    datasetid = sensors.get_fixed_datasetid_for_sensor(station, sensorId)
     
     properties = {}
     properties["url"] = os.environ["CLOWDER_HOST"] + "api/datasets/" + datasetid + "/metadata.jsonld"
@@ -128,29 +147,29 @@ def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_
     sensor_variable_metadata = orig_lem_md['sensor_variable_metadata'] 
     sensor_fixed_metadata = _get_sensor_fixed_metadata(sensor)
 
-    if sensor == sensors.SENSOR_CO2:
+    if sensor == SENSOR_CO2:
         properties = _co2_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_CROP_CIRCLE:
+    elif sensor == SENSOR_CROP_CIRCLE:
         properties = _cropCircle_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_ENVIRONMENTAL_LOGGER:
+    elif sensor == SENSOR_ENVIRONMENTAL_LOGGER:
         properties = _xxx_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_FLIR:
+    elif sensor == SENSOR_FLIR:
         properties = _flir_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_NDVI:
+    elif sensor == SENSOR_NDVI:
         properties = _ndvi_standardize(sensor_variable_metadata)        
-    elif sensor == sensors.SENSOR_PAR:
+    elif sensor == SENSOR_PAR:
         properties = _par_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_PRI:
+    elif sensor == SENSOR_PRI:
         properties = _pri_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_PS2_TOP:
+    elif sensor == SENSOR_PS2_TOP:
         properties = _ps2_standardize(sensor_variable_metadata)        
-    elif sensor == sensors.SENSOR_SCANNER_3D_TOP:
+    elif sensor == SENSOR_SCANNER_3D_TOP:
         properties = _scanner3d_standardize(sensor_variable_metadata, sensor_fixed_metadata, corrected_gantry_variable_md)
-    elif sensor == sensors.SENSOR_STEREO_TOP:
+    elif sensor == SENSOR_STEREO_TOP:
         properties = _stereoTop_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_SWIR:
+    elif sensor == SENSOR_SWIR:
         properties = _swir_standardize(sensor_variable_metadata)
-    elif sensor == sensors.SENSOR_VNIR:
+    elif sensor == SENSOR_VNIR:
         properties = _vnir_standardize(sensor_variable_metadata)
 
     return properties

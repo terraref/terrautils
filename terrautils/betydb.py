@@ -3,115 +3,190 @@
 This module provides wrappers to BETY API for getting and posting data.
 """
 
+import os
 import logging
-import requests
 
+import requests
 from osgeo import ogr
 
 
+BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 
-def get_cultivar(plot):
+
+def get_bety_key():
+    """return key from environment or ~/.betykey if it exists."""
+
+    key = os.environ.get('BETYDB_KEY', '')
+    if key:
+        return key
+
+    keyfile_path = os.path.expanduser('~/.betykey')
+    if os.path.exists(keyfile_path):
+        keyfile = open(keyfile_path, "r")
+        return keyfile.readline().strip()
+
+    raise RuntimeError("BETYDB_URL not found. Set environmental variable "
+                       "or create $HOME/.betykey.")
+
+
+def get_bety_url(path=''):
+    """return betydb url from environment with optional path
+
+    Of 3 options string join, os.path.join and urlparse.urljoin, os.path.join
+    is the best at handling excessive / characters. 
     """
+
+    url = os.environ.get('BETYDB_URL', BETYDB_URL)
+    return os.path.join(url, path)
+
+
+def get_bety_api(endpoint=None):
+    """return betydb API based on betydb url"""
+
+    url = get_bety_url(path='api/beta/{}'.format(endpoint))
+    return url
+
+
+def query(endpoint="search", **kwargs):
+    """return betydb API results.
+
+    This is general function for querying the betyDB API. It automatically
+    decodes the json response if one is returned.
     """
-    pass
 
+    payload = { 'key': get_bety_key() }
+    payload.update(kwargs)
 
-def get_experiment(date):
-    """
-    """
-    pass
-
-
-def get_plot(bbox):
-    """
-    """
-    pass
-
-
-def get_sites(host="https://terraref.ncsa.illinois.edu/bety", city=None, sitename=None, contains=None):
-    """Get list of sites from BETYdb, filtered by city or sitename prefix if provided.
-
-        e.g.
-            get_sites(city="Maricopa")
-            get_sites(sitename="MAC Field Scanner Season 2")
-
-    host -- URL of BETYdb instance to query
-    city -- city parameter to pass to API
-    sitename -- string to filter returned sites by sitename prefix
-    contains -- (lat, lon) tuple; only sites that contain this point will be returned
-    """
-    sess = requests.Session()
-    sess.auth = ("guestuser", "guestuser")
-
-    betyurl = host + "/sites.json"
-    has_arg = False
-    if city:
-        betyurl += "?city=%s" % city
-        has_arg = True
-    # TODO: Enable when new API endpoint is deployed:
-    if contains and False:
-        betyurl += ("&" if has_arg else "?") + "containing=%s,%s" % (contains[0], contains[1])
-        has_arg = True
-
-    r = sess.get(betyurl)
+    r = requests.get(get_bety_api(endpoint), params=payload)
     r.raise_for_status()
+    return r.json()
 
-    # Filter some results on client side if necessary
-    if sitename or contains:
-        all_results = r.json()
-        filtered = []
-        if contains:
-            targgeom = ogr.CreateGeometryFromWkt("POINT (%s %s 0)" % (contains[0], contains[1]))
 
-        removed = 0
-        for res in all_results:
-            if 'site' in res:
-                currsite = res['site']
-            else:
-                removed += 1
+def search(**kwargs):
+    """Return cleaned up array from query() for the search table."""
+
+    query_data = query(**kwargs)
+    if query_data:
+        return [ view["traits_and_yields_view"] for view in query_data['data']]
+
+
+def get_cultivars(**kwargs):
+    """Return cleaned up array from query() for the cultivars table."""
+
+    query_data = query(endpoint="cultivars", **kwargs)
+    if query_data:
+        return [t["cultivar"] for t in query_data['data']]
+
+
+def get_experiments(**kwargs):
+    """Return cleaned up array from query() for the experiments table."""
+
+    query_data = query(endpoint="experiments", **kwargs)
+    if query_data:
+        return [t["experiment"] for t in query_data['data']]
+
+
+def get_trait(trait_id):
+    """Returns python dictionary for a single trait."""
+    query_data = get_traits(id=trait_id)
+    if query_data:
+        return query_data[0]
+
+
+def get_traits(**kwargs):
+    """Return cleaned up array from query() for the traits table."""
+
+    query_data = query(endpoint="traits", **kwargs)
+    if query_data:
+        return [t["trait"] for t in query_data['data']]
+
+
+def get_site(site_id):
+    """Returns python dictionary for a single site"""
+    query_data = get_sites(id=site_id)
+    if query_data:
+        return query_data[0]
+
+
+def get_sites(**kwargs):
+    """Return a site array from query() from the sites table.
+
+    e.g.
+            get_sites(city="Maricopa")
+            get_sites(sitename="MAC Field Scanner Season 4 Range 4 Column 6")
+            get_sites(contains="-111.97496613200647,33.074671230742446")
+    """
+
+    query_data = query(endpoint="sites", **kwargs)
+    if query_data:
+        return [s["site"] for s in query_data['data']]
+
+
+def get_sites_by_latlon(latlon, **kwargs):
+    """Gets list of sites from BETYdb, filtered by a contained point.
+
+      latlon (tuple) -- only sites that contain this point will be returned
+    """
+
+    # TODO: When BETYdb is updated, just use get_sites(contains="lat,lon")
+
+    targgeom = ogr.CreateGeometryFromWkt("POINT (%s %s 0)" % (latlon[0], latlon[1]))
+    results = []
+
+    sitelist = get_sites(limit='none', **kwargs)
+    for s in sitelist:
+        if 'geometry' in s and s['geometry'] != None:
+            sitegeom = ogr.CreateGeometryFromWkt(s['geometry'])
+            intersection = targgeom.Intersection(sitegeom)
+            if str(intersection) == 'GEOMETRYCOLLECTION EMPTY':
                 continue
 
-            # Reject sites that don't begin with sitename, if provided
-            if sitename and 'sitename' in currsite:
-                if currsite['sitename'] == None or not currsite['sitename'].startswith(sitename):
-                    removed += 1
-                    continue
+            results.append(s)
 
-            # Reject sites that don't intersect contains, if provided
-            # TODO: Remove when above filter functionality is available
-            elif contains and 'geometry' in currsite:
-                if currsite['geometry'] == None:
-                    removed += 1
-                    continue
-                else:
-                    sitegeom = ogr.CreateGeometryFromWkt(currsite['geometry'])
-                    intersection = targgeom.Intersection(sitegeom)
-                    if str(intersection) == 'GEOMETRYCOLLECTION EMPTY':
-                        removed += 1
-                        continue
-
-            filtered.append(res)
-        print("filtered %s sites" % removed)
-        return filtered
-
-    else:
-        return r.json()
+    return results
 
 
-def submit_traits(csv, betykey, betyurl="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv"):
-    """Submit a CSV containing traits to the BETYdb API.
+def get_site_boundaries(**kwargs):
+    """Get a dictionary of site GeoJSON bounding boxes filtered by standard arguments.
 
-    csv -- CSV to submit
-    betykey -- API key for given BETYdb instance
-    betyurl -- URL (including /api portion) to submit CSV to
+    Returns:
+        {
+            'sitename_1': 'geojson bbox',
+            'sitename_2': 'geojson bbox',
+            ...
+         }
     """
-    sess = requests.Session()
 
-    r = sess.post("%s?key=%s" % (betyurl, betykey),
-                  data=file(csv, 'rb').read(),
-                  headers={'Content-type': 'text/csv'})
+    sitelist = get_sites(**kwargs)
+    bboxes = {}
 
-    if r.status_code == 200 or r.status_code == 201:
-        logging.info("...CSV successfully uploaded to BETYdb.")
+    for s in sitelist:
+        geom = ogr.CreateGeometryFromWkt(s['geometry'])
+        bboxes[s['sitename']] = geom.ExportToJson()
+
+    return bboxes
+
+
+def submit_traits(csv, filetype='csv', betykey=get_bety_key(), betyurl=get_bety_api("traits")):
+    """ Submit traits file to BETY; can be CSV, JSON or XML."""
+
+    request_payload = { 'key':betykey }
+
+    if filetype == 'csv':
+        content_type = 'text/csv'
+    elif filetype == 'json':
+        content_type = 'application/json'
+    elif filetype == 'xml':
+        content_type = 'application/xml'
     else:
-        logging.error("Error uploading CSV to BETYdb %s" % r.status_code)
+        logging.error("Unsupported file type.")
+        return
+
+    resp = requests.post("%s.%s" % (betyurl, filetype), params=request_payload,
+                    data=file(csv, 'rb').read(),
+                    headers={'Content-type': content_type})
+
+    if resp.status_code in [200,201]:
+        logging.info("Data successfully submitted to BETYdb.")
+    else:
+        logging.error("Error submitting data to BETYdb: %s" % resp.status_code)
