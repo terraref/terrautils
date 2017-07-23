@@ -13,21 +13,22 @@ TODO:
 
 import json
 import os
+import requests
 from terrautils import sensors
 
 
-def clean(metadata):
+def clean(metadata, sensorId):
     """ Given a LemnaTec metadata.json object, produces the "cleaned" metadata that 
     will be put in the Clowder jsonld endpoint.
     """
     
-    lem_md = metadata['lemnatec_measurement_metadata']
+    orig_lem_md = metadata['lemnatec_measurement_metadata']
     
     properties = {}
-    properties["gantry_variable"] = _standardize_gantry_system_variable_metadata(lem_md)
-    properties["sensor_fixed"]    = _get_sensor_fixed_metadata_url(lem_md)
-    properties["sensor_variable"] = _standardize_sensor_variable_metadata(lem_md)
-    #_standardize_user_given_metadata(lem_md)
+    properties["gantry_variable"] = _standardize_gantry_system_variable_metadata(orig_lem_md)
+    properties["sensor_fixed"]    = _get_sensor_fixed_metadata_url(sensorId)
+    properties["sensor_variable"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, properties["gantry_variable"])
+    #_standardize_user_given_metadata(orig_lem_md)
 
     return properties
             
@@ -41,7 +42,7 @@ def _standardize_gantry_system_fixed_metadata(orig):
     # Currently not used. Will possibly return URL to Gantry fixed metadata in Clowder
     return
 
-def _get_sensor_fixed_metadata_url(lem_md):
+def _get_sensor_fixed_metadata_url(sensorId):
     """
     Assumes that the sensor fixed metadata stored in Clowder is authoritative
     Ignore the fixed metadata in the JSON object and return the fixed metadata URL in Clowder.
@@ -49,13 +50,20 @@ def _get_sensor_fixed_metadata_url(lem_md):
     # TODO: Compare to known fixed metadata structure
     # TODO; We only need this one -- duplicate method in metadata.py
     
-    # Get the dataset ID for the sensor by name
-    sensor = lem_md['sensor_fixed_metadata']['sensor product name']
-    datasetid = sensors.get_datasetid_for_sensor(sensor)
+    # Get the dataset ID for the sensor by identifier
+    datasetid = sensors.get_datasetid_for_sensor(sensorId)
     
     properties = {}
     properties["url"] = os.environ["CLOWDER_HOST"] + "api/datasets/" + datasetid + "/metadata.jsonld"
     return properties
+    
+def _get_sensor_fixed_metadata(sensorId):
+    md = _get_sensor_fixed_metadata_url(sensorId)
+    r = requests.get(md["url"])
+    json = r.json()
+    content = json[0]["content"]
+    return content
+    
 
 def _standardize_gantry_system_variable_metadata(lem_md):
     """
@@ -99,14 +107,14 @@ def _standardize_gantry_system_variable_metadata(lem_md):
     data['speed_m/s']['y'] = orig["speed y [m/s]"]
     data['speed_m/s']['z'] = orig["speed z [m/s]"]
     
-    data['distance_m'] = orig["scanDistanceInM [m]"]
+    data['distance_m'] = orig.get("scanDistanceInM [m]", "")
 
-    # What does this mean?
-    data['direction_is_positive'] = orig["scanDirectionIsPositive"]
+    # This is used in the calculation of the point cloud origin
+    data['scan_direction_is_positive'] = orig.get("scanDirectionIsPositive", "False")
 
     return data
 
-def _standardize_sensor_variable_metadata(lem_md):
+def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_variable_md):
     """
     Standardize the sensor variable metadata
     
@@ -117,9 +125,9 @@ def _standardize_sensor_variable_metadata(lem_md):
         SENSOR_WEATHER
     """
     
-    sensor = lem_md['sensor_fixed_metadata']['sensor product name']
-    sensor_variable_metadata = lem_md['sensor_variable_metadata'] 
-    
+    sensor_variable_metadata = orig_lem_md['sensor_variable_metadata'] 
+    sensor_fixed_metadata = _get_sensor_fixed_metadata(sensor)
+
     if sensor == sensors.SENSOR_CO2:
         properties = _co2_standardize(sensor_variable_metadata)
     elif sensor == sensors.SENSOR_CROP_CIRCLE:
@@ -137,7 +145,7 @@ def _standardize_sensor_variable_metadata(lem_md):
     elif sensor == sensors.SENSOR_PS2_TOP:
         properties = _ps2_standardize(sensor_variable_metadata)        
     elif sensor == sensors.SENSOR_SCANNER_3D_TOP:
-        properties = _scanner3d_standardize(sensor_variable_metadata)
+        properties = _scanner3d_standardize(sensor_variable_metadata, sensor_fixed_metadata, corrected_gantry_variable_md)
     elif sensor == sensors.SENSOR_STEREO_TOP:
         properties = _stereoTop_standardize(sensor_variable_metadata)
     elif sensor == sensors.SENSOR_SWIR:
@@ -215,7 +223,7 @@ def _ps2_standardize(ps2):
     properties["ledcurrent"] = ps2["current setting ledcurrent"]
     return properties    
     
-def _scanner3d_standardize(scanner3d):
+def _scanner3d_standardize(scanner3d, fixed_md, corrected_gantry_variable_md):
     '''
         "sensor_variable_metadata": {
           "current setting Exposure [microS]": "70",
@@ -235,7 +243,34 @@ def _scanner3d_standardize(scanner3d):
     properties["scan_direction"] = scanner3d["current setting Scan direction (automatically set at runtime)"]
     properties["scan_distance_mm"] = scanner3d["current setting Scan distance (automatically set at runtime) [mm]"]
     properties["scan_speed_microMeter/s"] = scanner3d["current setting Scan speed (automatically set at runtime) [microMeter/s]"]
-    return properties      
+
+    properties["point_cloud_origin_m"] = _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md)
+
+    return properties  
+    
+def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md): 
+    '''
+        Calculate the origin of the point cloud. 
+        Per https://github.com/terraref/reference-data/issues/44
+            * The origin of point cloud in Z direction is the subtraction of 3445mm from the gantry position during the scan.
+            * In X direction, is +82mm to the north from the center of the 3D scanner.
+            * If the scan is in positive direction, the origin of ply files in Y direction is +3450mm in gantry coordinate system, 
+            * If the scan is done in negative direction is +25711mm in gantry coordinate system.
+        The origin is calculated based on the position of the west scanner. 
+        So, any further misalignment correction should be applied to the east ply files.
+    '''
+    
+    point_cloud_origin = {}
+    
+    point_cloud_origin["z"] =  float(corrected_gantry_variable_md['position_m']['z']) - 3.445
+    point_cloud_origin["x"] =  float(fixed_md["scanner west location in camera box x [m]"]) - 0.0082
+    if (corrected_gantry_variable_md["scan_direction_is_positive"] == "True"):
+        point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['y']) + 3.450
+    else:
+        point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['z']) + 25.711
+
+    return point_cloud_origin
+    
 
 def _stereoTop_standardize(stereoTop):
     '''
@@ -267,6 +302,33 @@ def _stereoTop_standardize(stereoTop):
         }    
     '''
     properties = {}    
+    
+    
+    properties["rotate_flip_type_left"] = stereoTop["Rotate flip type - left"]
+    properties["crosshairs_left"] = stereoTop["Crosshairs - left"]
+    properties["exposure_left"] = stereoTop["exposure - left"]
+    properties["autoexposure_left"] = stereoTop["autoexposure - left"]
+    properties["gain_left"] = stereoTop["gain - left"]
+    properties["autogain_left"] = stereoTop["autogain - left"]
+    properties["gamma_left"] = stereoTop["gamma - left"]
+    properties["rwhitebalanceratio_left"] = stereoTop["rwhitebalanceratio - left"]
+    properties["bwhitebalanceratio_left"] = stereoTop["bwhitebalanceratio - left"]
+    properties["rotate_flip_type_right"] = stereoTop["Rotate flip type - right"]
+    properties["crosshairs_right"] = stereoTop["Crosshairs - right"]
+    properties["exposure_right"] = stereoTop["exposure - right"]
+    properties["autoexposure_right"] = stereoTop["autoexposure - right"]
+    properties["gain_right"] = stereoTop["gain - right"]
+    properties["autogain_right"] = stereoTop["autogain - right"]
+    properties["gamma_right"] = stereoTop["gamma - right"]
+    properties["rwhitebalanceratio_right"] = stereoTop["rwhitebalanceratio - right"]
+    properties["bwhitebalanceratio_right"] = stereoTop["bwhitebalanceratio - right"]
+    properties["height_left_image_pixels"] = stereoTop["height left image [pixel]"]
+    properties["width_left_image_pixels"] = stereoTop["width left image [pixel]"]
+    properties["image_format_left"] = stereoTop["image format left image"]
+    properties["height_right_image_pixels"] = stereoTop["height right image [pixel]"]
+    properties["width_right_image_pixels"] = stereoTop["width right image [pixel]"]
+    properties["image_format_right"] = stereoTop["image format right image"]
+    
     return properties     
     
 def _swir_standardize(swir):
@@ -317,7 +379,10 @@ def _pri_standardize(pri):
     
     
 if __name__ == "__main__":
-    with open("/data/terraref/sites/ua-mac/raw_data/VNIR/2017-05-13/2017-05-13__12-29-21-202/cd2a45b6-4922-48b4-bc29-f2f95e6206ec_metadata.json") as file:
+    fixed = _get_sensor_fixed_metadata("scanner3DTop")
+    print json.dumps(fixed, indent=4, sort_keys=True)
+    
+    with open("/data/terraref/sites/ua-mac/raw_data/scanner3DTop/2017-07-20/2017-07-20__05-40-41-035/7fa3a8d7-294f-4076-81ab-4c191fa9faa0_metadata.json") as file:
         json_data = json.load(file)
-    cleaned = clean(json_data)
+    cleaned = clean(json_data, "scanner3DTop")
     print json.dumps(cleaned, indent=4, sort_keys=True)
