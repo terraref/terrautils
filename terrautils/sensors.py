@@ -191,14 +191,28 @@ def exact_p(pattern):
 
 def get_sensor_path(station, level, sensor, date='', time='',
                     filename=''):
-    """ 
-    Return the full path, depending on whether the file exists
-    or not, to a file or directory. This uses the station name,
-    level, sensor, date(optinal), time (optional), and filename
-    (optional) given to fill out a path template. If no filename
-    is given, this will look up in the data base dictionary for
-    a specific filename or filename pattern, and then return the
-    full path.
+    """Get the appropritate path for writing sensor data
+
+    Args:
+      station (str): abbreviated name of the site
+      level (str): data level (raw_data | Level_1 | Level_2)
+      sensor (str): sensor name, may be a product name for Level_1
+      date (YYYY-MM-DD str): optional date field
+      time (datetime str): optional time field
+      filename (str): option filename, must match sensor pattern
+      
+    Returns:
+      (str) full path
+
+    Notes:
+      When no filename is given, get_sensor_path returns the desired
+      path with pre-defined, well-known filename. If filename is not
+      given and no pre-defined filename exists, then a RuntimeError
+      is raised.
+
+      If a filename is supplied, it must patch a pre-defined pattern.
+      A RuntimeError is raised if the filename does not match the 
+      pattern.
     """
 
     if date and re.match(exact_p(date_p), date)==None:
@@ -311,14 +325,6 @@ def check_sensor(station, sensor, date=None):
                                     'date': date})
 
     return datepath
-
-
-def get_sensor_product(sensor="stereoTop", site="MAC"):
-    """ Returns the downloadable product for each site-sensor pair.
-    """
-
-    # TODO do something much more intelligent
-    return "stereoTop_fullfield.tif"
 
 
 def get_attachment_name(site, sensor, date, product):
