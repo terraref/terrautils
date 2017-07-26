@@ -128,22 +128,9 @@ def get_sites_by_latlon(latlon, **kwargs):
       latlon (tuple) -- only sites that contain this point will be returned
     """
 
-    # TODO: When BETYdb is updated, just use get_sites(contains="lat,lon")
+    latlon_api_arg = "%s,%s" % (latlon[0], latlon[1])
 
-    targgeom = ogr.CreateGeometryFromWkt("POINT (%s %s 0)" % (latlon[0], latlon[1]))
-    results = []
-
-    sitelist = get_sites(limit='none', **kwargs)
-    for s in sitelist:
-        if 'geometry' in s and s['geometry'] != None:
-            sitegeom = ogr.CreateGeometryFromWkt(s['geometry'])
-            intersection = targgeom.Intersection(sitegeom)
-            if str(intersection) == 'GEOMETRYCOLLECTION EMPTY':
-                continue
-
-            results.append(s)
-
-    return results
+    return get_sites(containing=latlon_api_arg, **kwargs)
 
 
 def get_site_boundaries(**kwargs):
