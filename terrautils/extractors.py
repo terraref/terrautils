@@ -199,6 +199,20 @@ def calculate_centroid(gps_bounds):
         gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
     )
 
+def calculate_centroid_from_wkt(wkt):
+    """Given WKT, return lat/lon of centroid.
+
+    wkt -- string
+
+    returns:
+        Tuple of (lat, lon) representing centroid
+    """
+
+    loc_geom = ogr.CreateGeometryFromWkt(wkt)
+    return (
+        loc_geom.Centroid().GetX(),
+        loc_geom.Centroid().GetY()
+    )
 
 def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.

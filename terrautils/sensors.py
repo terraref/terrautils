@@ -1,12 +1,13 @@
 import os
+import re
 
-import extractors
 
 
-if os.path.exists('/projects/arpae/terraref'):
+if os.path.exists('/projects/arpae/terraref/sites'):
     TERRAREF_BASE = '/projects/arpae/terraref/sites'
 else:
     TERRAREF_BASE = '/home/extractor/sites'
+
 TERRAREF_BASE = os.environ.get('TERRAREF_BASE', TERRAREF_BASE)
 
 
@@ -17,10 +18,10 @@ TERRAREF_BASE = os.environ.get('TERRAREF_BASE', TERRAREF_BASE)
         "sensors": {
             "sensor short name": {
                 "grouping": { "either unstitched (raw outputs) or stitched (full field clippable mosaics)"
-                    "pathname": "location on disk after site base (e.g. /home/extractor/sites/ua-mac/raw/PATHNAME)
-                    "level": "data product level, default Level_1 (e.g. raw_data)
-                    "day_folder": "whether there is a date folder between pathname and data, default True"
-                    "timestamp_folder": "whether there is a timestamp folder between pathname and data, default True"
+                    "template": "location on disk after site base (e.g. /home/extractor/sites/ua-mac/raw/PATHNAME)
+                    "level": "data product level, default level (e.g. raw_data)
+                    "day_folder": "whether there is a date folder between template and data, default True"
+                    "timestamp_folder": "whether there is a timestamp folder between template and data, default True"
                     "patterns": ["basic representations of filename pattern if unusual
                         TZUTC = YYYY-MM-DDTHH-MM-SSZ"
                         SNAPID = Danforth snapshot ID (e.g. 295351)
@@ -40,105 +41,148 @@ TERRAREF_BASE = os.environ.get('TERRAREF_BASE', TERRAREF_BASE)
     }
 }
 """
+
+
+year_p = '(20\d\d)'
+month_p = '(0[1-9]|1[0-2])'
+day_p = '(10|20|[0-2][1-9]|3[01])'
+date_p = '{}-{}-{}'.format(year_p, month_p, day_p)
+time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)'
+full_time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)-(\d{3})'
+full_date_p = '{}__{}'.format(date_p, full_time_p)
+
 STATIONS = {
     'danforth': {
-        'sitename': 'Danforth Plant Science Center Bellweather Phenotyping Facility',
-        'sensors': {
+        'sitename': 'Danforth Plant Science Center '
+                    'Bellweather Phenotyping Facility',
+        'derived_data': {
+        },
+        'raw_data': {
             'ddpscIndoorSuite': {
-                "unstitched": {
-                    'pathname': 'sorghum_pilot_dataset',
-                    'level': 'raw_data',
-                    'day_folder': False,
-                    'timestamp_folder': False,
-                    'patterns': [
-                        'snapshotSNAPID/NIR_SV_0_z1_h1_g0_e35_UID.png',
-                        'snapshotSNAPID/NIR_SV_90_z1_h1_g0_e35_UID2.png',
-                        'snapshotSNAPID/NIR_SV_180_z1_h1_g0_e35_UID3.png',
-                        'snapshotSNAPID/NIR_SV_270_z1_h1_g0_e35_UID4.png',
-                        'snapshotSNAPID/NIR_TV_z1_h0_g0_e50_UID5.png',
-                        'snapshotSNAPID/VIS_SV_0_z1_h1_g0_e82_UID6.png',
-                        'snapshotSNAPID/VIS_SV_90_z1_h1_g0_e82_UID7.png',
-                        'snapshotSNAPID/VIS_SV_180_z1_h1_g0_e82_UID8.png',
-                        'snapshotSNAPID/VIS_SV_270_z1_h1_g0_e82_UID9.png',
-                        'snapshotSNAPID/VIS_TV_z1_h0_g0_e110_UID10.png'
-                    ]
-                }
-            },
-            'plantcv': {
-                "unstitched": {
-                    'pathname': 'plantcv',
-                    'day_folder': False,
-                    'patterns': ['avg_traits.csv']
-                }
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{snapshotID}/{filename}',  
+                'filename': '{snapshotID}/{suffix}.png'
             }
+        },
+        'plantcv': {
+            'template': '{TERRAREF_BASE}/{station}{level}/'
+                        '{sensor}/{time}/{filename}',
+            'filename': 'avg_traits.csv'
         }
     },
+
     'ksu': {
         'sitename': 'Ashland Bottoms KSU Field Site',
-        'sensors': {
+        'raw_data': {
+        },
+
+        'Level_1': {
             'dsm': {
-                "stitched": {
-                    'pathname': 'dsm_fullfield',
-                    'day_folder': False,
-                    'timestamp_folder': False,
-                    'patterns': ['TZUTC_DSM_16ASH-TERRA.tif']
-                }
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{filename}',
+                'filename': '{time}_DSM_16ASH-TERRA.tif'
             },
             'rededge': {
-                "stitched": {
-                    'pathname': 'rededge_fullfield',
-                    'day_folder': False,
-                    'timestamp_folder': False,
-                    'patterns': ['TZUTC_BGREN_16ASH-TERRA.tif']
-                }
-            },
-            'height': {
-                "stitched": {
-                    'level': 'Level_2'
-                }
-            },
-            'ndvi': {
-                "stitched": {
-                    'level': 'Level_2'
-                }
+                'template': '{TERRAREF_BASE}/{station}/{Level_1}/'
+                            '{sensor}/{filename}',
+                'filename': '{time}_BGREN_16ASH-TERRA'
             }
+        },
+        'Level_2': {
         }
     },
     'ua-mac': {
         'sitename': 'MAC Field Scanner',
-        'sensors': {
+        'Level_1': {
+            'rgb_fullfield': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{filename}',
+                'filename': 'stereoTop_fullfield.tif'
+            },
+            'rgb_fullfield_1pct': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{filename}',
+                'filename': 'stereoTop_fullfield_1pct.tif'
+            },
+            'flirIrCamera': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': '([0-9a-f]){8}-([0-9a-f]){4}-([0-9'
+                           'a-f]){4}-([0-9a-f]){4}-([0-9a-f])'
+                           '{12}.(png|tif)'
+            },
+            'stereoTop_geotiff': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': ('stereoTop_lv1_{}__{}_uamac_(left|right)'
+                            '.(jpg|tif)').format(date_p, full_time_p)
+            },
+            'stereoTop_canopyCover': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'filename': 'CanopyCoverTraits.csv'
+            },
+            'texture_analysis': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': 'stereoTop_lv1_{}__{}_uamac_texture.csv'.\
+                            format(date_p, full_time_p)
+            },
+            'flir2tif': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': 'flirIrCamera - {}__{}.(png|tif)'.\
+                            format(date_p, full_time_p)
+            },
+            'ps2_png': {
+            },
+            'bin2csv': {
+            },
+            'EnvironmentLogger': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{filename}',
+                'pattern': '{}_{}_environmentlogger.nc'.\
+                           format(date_p, time_p)
+            },
+            'soil_removal_vnir': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': 'VNIR_lv1_{}__{}_{}'.format(date_p, 
+                           full_time_p, 'uamac_soilremovalmask.nc')
+            },
+            'soil_removal_swir': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': ''
+            },
+            'scanner3DTop_mergedlas': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': 'scanner3DTop_(lv1_)?{}__{}.las'.\
+                           format(date_p, full_time_p,
+                           '(_uamac_merged | MergedPointCloud)')
+            },
+            'scanner3DTop_plant_height': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': ('scanner3DTop - {}__{} {}.npy'.\
+                            format(date_p, full_time_p,
+                              '(highest|historgram)'))
+            },
+            'scanner3DTop_heightmap': {
+                'template': '{TERRAREF_BASE}/{station}/{level}/'
+                            '{sensor}/{date}/{time}/{filename}',
+                'pattern': ('scanner3DTop_lv1_{}__{}_{}.bmp'.\
+                            format(date_p, full_time_p,
+                            'uamac_heightmap(_mask)?'))
+            }
+        },
+        'raw_data': {
             'stereoTop': {
                 "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e",
-                "unstitched": {
-                    "pathname": "stereoTop_geotiff",
-                    'suffixes': [
-                        "left.jpg", "right.jpg",
-                        "left.tif", "right.tif"
-                    ]
-                },
-                "stitched": {
-                    "pathname": "fullfield",
-                    "timestamp_folder": False,
-                    "patterns": [
-                        "stereoTop_fullfield.tif",
-                        "stereoTop_fullfield_10pct.tif"
-                    ]
-                }
             },
             'flirIrCamera': {
                 "fixed_metadata_datasetid": "5873a7184f0cad7d8131994a",
-                "unstitched": {
-                    "pathname": "flir2tif",
-                    'suffixes': [".png", ".tif"]
-                },
-                "stitched": {
-                    "pathname": "fullfield",
-                    "timestamp_folder": False,
-                    "patterns": [
-                        "flirIrCamera_fullfield.tif",
-                        "flirIrCamera_fullfield_10pct.tif"
-                    ]
-                }
             },
             "co2Sensor": {
                 "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648"
@@ -182,10 +226,82 @@ STATIONS = {
             "weather": {
                 "fixed_metadata_datasetid": "TBD"
             },
-
         }
     }
+
 }
+
+
+def exact_p(pattern):
+
+    return '^{}$'.format(pattern)
+
+
+def get_sensor_path(station, level, sensor, date='', time='',
+                    filename=''):
+    """Get the appropritate path for writing sensor data
+
+    Args:
+      station (str): abbreviated name of the site
+      level (str): data level (raw_data | Level_1 | Level_2)
+      sensor (str): sensor name, may be a product name for Level_1
+      date (YYYY-MM-DD str): optional date field
+      time (datetime str): optional time field
+      filename (str): option filename, must match sensor pattern
+      
+    Returns:
+      (str) full path
+
+    Notes:
+      When no filename is given, get_sensor_path returns the desired
+      path with pre-defined, well-known filename. If filename is not
+      given and no pre-defined filename exists, then a RuntimeError
+      is raised.
+
+      If a filename is supplied, it must patch a pre-defined pattern.
+      A RuntimeError is raised if the filename does not match the 
+      pattern.
+    """
+
+    if date and re.match(exact_p(date_p), date)==None:
+        raise RuntimeError('The date given is in the wrong format')
+
+    if time and re.match(exact_p(full_date_p), time)==None:
+        raise RuntimeError('The time given is in the wrong format')
+
+    try:
+        s = STATIONS[station][level][sensor]
+    except KeyError:
+        raise RuntimeError('The station, level or sensor given does'
+                           'not exist')
+
+    if filename:
+        result = re.match(exact_p(s['pattern']), filename)
+        if result==None:
+            raise RuntimeError('The filename given does not match '
+                               'the correct pattern')
+    else:
+        try:
+            filename = s['filename']
+        except KeyError:
+            raise RuntimeError('No default filename found, you need '
+                               'to specify a filename')
+
+
+    path = s['template'].format(TERRAREF_BASE=TERRAREF_BASE,
+                                station=station, level=level,
+                                sensor=sensor, date=date, time=time,
+                                filename=filename)
+    return path
+
+
+def create_sensor_path(path):
+    """
+    Check if the path exists. If it exists, then do nothing.
+    If not, then create all the missing subdirectories.
+    """
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
 
 
 def get_sensors(station):
@@ -197,58 +313,6 @@ def get_sites():
     """ Get all sites (stations) listed."""
     return STATIONS.keys()
 
-
-def get_file_paths(station, sensor, date, stitched=True):
-    """ Gets the filenames for the dataset for the given date, sensor
-    and station.
-
-    Args:
-      station: the name of the station the sensor belongs to
-      sensor: the name of the sensor
-      date: the date or timestamp when the dataset was captured
-      stitched: determines whether we use the stitched dataset or the unstitched one
-
-    Returns:
-      (str) the names of the dataset files for the given date, sensor and station
-
-    """
-    results = []
-
-    if station in STATIONS:
-        if sensor in STATIONS[station]['sensors']:
-            sens = STATIONS[station]['sensors'][sensor]
-            if stitched and 'stitched' in sens:
-                dsinfo = sens['stitched']
-            elif (not stitched) and ('unstitched' in sens):
-                dsinfo = sens['unstitched']
-            else:
-                return results
-
-            ds_root = os.path.join(TERRAREF_BASE, station,
-                                   dsinfo['level'] if 'level' in dsinfo else 'Level_1',
-                                   dsinfo['pathname'],
-                                   date.split("__")[0] if 'day_folder' not in dsinfo else (
-                                       date.split("__")[0] if dsinfo['day_folder'] else ''),
-                                   date if 'timestamp_folder' not in dsinfo else (
-                                       date if dsinfo['timestamp_folder'] else '')
-                                   )
-
-            if 'suffixes' in dsinfo:
-                for sfx in dsinfo['suffixes']:
-                    fname = terrautils.extractors.get_output_filename(
-                            sensor + " - " + date,
-                            outextension=sfx.split('.')[1],
-                            site=station.replace("-", ""),
-                            opts=[sfx.split('.')[0]]
-                    )
-                    results.append(os.path.join(ds_root, fname))
-            elif 'patterns' in dsinfo:
-                for pat in dsinfo['patterns']:
-                    # TODO: Handle Danforth and KSU files better here
-                    results.append(os.path.join(ds_root, pat))
-
-    return results
-        
 
 def get_sitename(station, date, range_=None, column=None):
     """ Returns a full sitename for the plot (or fullfield image)
@@ -311,14 +375,6 @@ def check_sensor(station, sensor, date=None):
     return datepath
 
 
-def get_sensor_product(sensor="stereoTop", site="MAC"):
-    """ Returns the downloadable product for each site-sensor pair.
-    """
-
-    # TODO do something much more intelligent
-    return "stereoTop_fullfield.tif"
-
-
 def get_attachment_name(site, sensor, date, product):
     """ Encodes site, sensor, and date to create a unique attachment name.
     """
@@ -334,12 +390,49 @@ def plot_attachment_name(sitename, sensor, date, product):
     root, ext = os.path.splitext(product)
     return "{}-{}-{}.{}".format(sitename, sensor, date, ext) 
     
-    
 def get_fixed_datasetid_for_sensor(station, sensor):
     """ Returns the Clowder dataset ID for the fixed sensor information
     """
-    return STATIONS[station]["sensors"][sensor]["fixed_metadata_datasetid"]
+    return STATIONS[station]["raw_data"][sensor]["fixed_metadata_datasetid"]    
 
 
+if __name__ == '__main__':
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'rgb_fullfield', '2017-04-27')
+    except Exception as e:
+        print(e)
 
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'rgb_fullfield', '20127')
+    except Exception as e:
+        print(e)
 
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'stereoTop_geotiff', '2017-04-27', '2017-04-27__13-48-56-082', 'stereoTop_lv1_2016-04-29__13-53-42-743_uamac_left.jpg')
+    except Exception as e:
+        print(e)
+
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'stereoTop_geotiff', '2017-04-27', '13-48-56-082', 'stereoTop_lv1_2016-04-29__13-53-42-743_uamac_left.jpg')
+    except Exception as e:
+        print(e)
+
+    try:
+        print get_sensor_path('ua', 'Level_1', 'flirIrCamera', '2017-04-27', '2017-04-27__23-12-13-999', 'uamac_soilremovalmask.nc')
+    except Exception as e:
+        print(e)
+
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'flirIrCamera', '2017-04-27', '2017-04-27__23-12-13-999', 'uamac_soilremovalmask.nc')
+    except Exception as e:
+        print(e)
+
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'flirIrCamera', '2017-04-27', '2017-04-27__23-12-13-999', '')
+    except Exception as e:
+        print(e)
+
+    try:
+        print get_sensor_path('ua-mac', 'Level_1', 'scanner3DTop_heightmap', '2017-04-27', '2017-04-27__15-16-17-888', 'scanner3DTop_lv1_2017-06-06__17-14-31-218_uamac_heightmap_mask.bmp')
+    except Exception as e:
+        print(e)
