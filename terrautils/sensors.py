@@ -2,6 +2,7 @@ import os
 import re
 
 
+
 if os.path.exists('/projects/arpae/terraref/sites'):
     TERRAREF_BASE = '/projects/arpae/terraref/sites'
 else:
@@ -90,7 +91,6 @@ STATIONS = {
         'Level_2': {
         }
     },
-
     'ua-mac': {
         'sitename': 'MAC Field Scanner',
         'Level_1': {
@@ -178,6 +178,54 @@ STATIONS = {
             }
         },
         'raw_data': {
+            'stereoTop': {
+                "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e",
+            },
+            'flirIrCamera': {
+                "fixed_metadata_datasetid": "5873a7184f0cad7d8131994a",
+            },
+            "co2Sensor": {
+                "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648"
+            },
+            "cropCircle": {
+                "fixed_metadata_datasetid": "5873a7ed4f0cad7d8131a2e7"
+            },
+            "EnvironmentLogger": {
+                "fixed_metadata_datasetid": "TBD"
+            },
+            "irrigation": {
+                "fixed_metadata_datasetid": "TBD"
+            },
+            "lightning": {
+                "fixed_metadata_datasetid": "TBD"
+            },
+            "ndviSensor": {
+                "fixed_metadata_datasetid": "5873a8f64f0cad7d8131af54"
+            },
+            "parSensor": {
+                "fixed_metadata_datasetid": "5873a8ce4f0cad7d8131ad86"
+            },
+            "priSensor": {
+                "fixed_metadata_datasetid": "5873a9174f0cad7d8131b09a"
+            },            
+            "ps2Top": {
+                "fixed_metadata_datasetid": "5873a84b4f0cad7d8131a73d"
+            },
+            "scanner3DTop": {
+                "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b"
+            },
+            "stereoTop": {
+                "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e"
+            },
+            "SWIR": {
+                "fixed_metadata_datasetid": "5873a79e4f0cad7d81319f5f"
+            },
+            "VNIR": {
+                "fixed_metadata_datasetid": "5873a7bb4f0cad7d8131a0b7"
+            },
+            "weather": {
+                "fixed_metadata_datasetid": "TBD"
+            },
         }
     }
 
@@ -341,6 +389,11 @@ def plot_attachment_name(sitename, sensor, date, product):
 
     root, ext = os.path.splitext(product)
     return "{}-{}-{}.{}".format(sitename, sensor, date, ext) 
+    
+def get_fixed_datasetid_for_sensor(station, sensor):
+    """ Returns the Clowder dataset ID for the fixed sensor information
+    """
+    return STATIONS[station]["raw_data"][sensor]["fixed_metadata_datasetid"]    
 
 
 if __name__ == '__main__':
