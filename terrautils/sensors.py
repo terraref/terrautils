@@ -42,13 +42,19 @@ TERRAREF_BASE = os.environ.get('TERRAREF_BASE', TERRAREF_BASE)
 }
 """
 
-
+# 2017
 year_p = '(20\d\d)'
+# 06
 month_p = '(0[1-9]|1[0-2])'
+# 28
 day_p = '(10|20|[0-2][1-9]|3[01])'
+# 2017-06-28
 date_p = '{}-{}-{}'.format(year_p, month_p, day_p)
+# 23-48-28
 time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)'
+# 23-48-28-435
 full_time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)-(\d{3})'
+# 2017-06-28__23-48-28-435
 full_date_p = '{}__{}'.format(date_p, full_time_p)
 
 STATIONS = {
@@ -237,8 +243,7 @@ def exact_p(pattern):
     return '^{}$'.format(pattern)
 
 
-def get_sensor_path(station, level, sensor, date='', time='',
-                    filename=''):
+def get_sensor_path(station, level, sensor, date='', time='', filename=''):
     """Get the appropritate path for writing sensor data
 
     Args:
@@ -293,6 +298,60 @@ def get_sensor_path(station, level, sensor, date='', time='',
                                 sensor=sensor, date=date, time=time,
                                 filename=filename)
     return path
+
+
+def get_sensor_path_by_dataset(station, level, datasetname, sensor='', extension='', opts=[], hms=None):
+    """Get the appropritate path for writing sensor data
+
+    Args:
+      station (str): abbreviated name of the site
+      level (str): data level (raw_data | Level_1 | Level_2)
+      datasetname (sensor - date__timestamp str): e.g. VNIR - 2017-06-28__23-48-28-435
+      sensor (str): sensor name, may be a product name for Level_1
+      extension (str): file extension for generated filename
+      opts (list of strs): any suffixes to apply to generated filename
+      hms (str): allows one to add/override a timestamp if not included in datasetname (e.g. EnvironmentLogger)
+
+    Returns:
+      (str) full path
+    """
+
+    # Split dataset into sensorname and timestamp portions
+    if datasetname.find(" - ") > -1:
+        sensorname = datasetname.split(" - ")[0]
+        time = datasetname.split(" - ")[1]
+    else:
+        sensorname = datasetname
+        time = "2017"
+    # Get date portion of timestamp if there is one; if not, assume whole thing is just the date
+    if time.find("__") > -1:
+        date = time.split("__")[0]
+    else:
+        date = time
+        time = ""
+    # Override timestamp if necessary
+    if hms:
+        time = date + "__" + hms
+    # Override dataset sensorname with provided name if given (e.g. use timestamp of raw while getting Level_1 output)
+    if sensor == '':
+        sensor = sensorname
+
+    filename = get_sensor_filename(station, level, sensor, time, extension, opts)
+
+    return get_sensor_path(station, level, sensor, date, time, filename)
+
+
+def get_sensor_filename(station, level, sensor, time, extension, opts):
+    """Determine output filename given input information."""
+
+    # Use shortland for levels
+    if level.find("Level_") > -1:
+        level = level.replace("Level_", "lv")
+    # If extension included a period, remove it
+    if extension != '':
+        extension = '.' + extension.replace('.', '')
+
+    return "_".join([sensor, level, station, time]+opts) + extension
 
 
 def create_sensor_path(path):

@@ -21,6 +21,7 @@ from PIL import Image
 from pyclowder.collections import get_datasets
 from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
 from pyclowder.files import submit_extraction as submit_ext_file
+from terrautils.sensors import get_sensor_path
 
 
 # BASIC UTILS -------------------------------------
@@ -61,65 +62,6 @@ def get_extractor_list():
         "stereoTop",
         "flirIrCamera"
     ]
-
-
-def get_output_directory(rootdir, datasetname, include_sensor=False):
-    """Determine output directory path given root path and dataset name.
-
-    include_sensor -- insert sensor name between root and first timestamp directory
-
-    Example dataset name:   stereoTop - 2017-05-04__10-31-34-536
-    Resulting output:       rootdir/2017-05-04/2017-05-04__10-31-34-536
-
-        * with include_sensor
-    Example dataset name:   ndviSensor - 2017-05-04__10-31-34-536
-    Resulting output:       rootdir/ndviSensor/2017-05-04/2017-05-04__10-31-34-536
-    """
-    if datasetname.find(" - ") > -1:
-        # 2017-05-04__10-31-34-536
-        timestamp = datasetname.split(" - ")[1]
-        sensorname = datasetname.split(" - ")[0]
-    else:
-        timestamp = datasetname
-        sensorname = ""
-
-    if timestamp.find("__") > -1:
-        # 2017-05-04
-        datestamp = timestamp.split("__")[0]
-    else:
-        datestamp = ""
-
-    if include_sensor and sensorname != "":
-        return os.path.join(rootdir, sensorname, datestamp, timestamp)
-    else:
-        return os.path.join(rootdir, datestamp, timestamp)
-
-
-def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", opts=[], hms=False):
-    """Determine output filename given input information.
-
-    hms -- "HH-MM-SS" override if not included in dataset name, e.g. for EnvironmentLogger
-
-    sensor_level_datetime_site_a_b_c.extension
-        a = what product?
-        left/right/top/bottom - position
-    """
-    if datasetname.find(" - ") > -1:
-        # 2017-05-04__10-31-34-536
-        sensorname = datasetname.split(" - ")[0]
-        timestamp = datasetname.split(" - ")[1]
-    else:
-        sensorname = datasetname
-        timestamp = "2017"
-
-    # If extension included a period, remove it
-    if outextension != '':
-        outextension = '.' + outextension.replace('.', '')
-
-    if hms:
-        timestamp += "_" + hms
-
-    return "_".join([sensorname, lvl, timestamp, site]+opts) + outextension
 
 
 def is_latest_file(resource):
@@ -199,6 +141,7 @@ def calculate_centroid(gps_bounds):
         gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
     )
 
+
 def calculate_centroid_from_wkt(wkt):
     """Given WKT, return lat/lon of centroid.
 
@@ -213,6 +156,7 @@ def calculate_centroid_from_wkt(wkt):
         loc_geom.Centroid().GetX(),
         loc_geom.Centroid().GetY()
     )
+
 
 def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
