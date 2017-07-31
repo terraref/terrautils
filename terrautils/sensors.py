@@ -11,37 +11,6 @@ else:
 TERRAREF_BASE = os.environ.get('TERRAREF_BASE', TERRAREF_BASE)
 
 
-"""
-{
-    "site short (disk) name": {
-        "sitename": "site long name"
-        "sensors": {
-            "sensor short name": {
-                "grouping": { "either unstitched (raw outputs) or stitched (full field clippable mosaics)"
-                    "template": "location on disk after site base (e.g. /home/extractor/sites/ua-mac/raw/PATHNAME)
-                    "level": "data product level, default level (e.g. raw_data)
-                    "day_folder": "whether there is a date folder between template and data, default True"
-                    "timestamp_folder": "whether there is a timestamp folder between template and data, default True"
-                    "patterns": ["basic representations of filename pattern if unusual
-                        TZUTC = YYYY-MM-DDTHH-MM-SSZ"
-                        SNAPID = Danforth snapshot ID (e.g. 295351)
-                        UID = some distinct ID number that may vary per dataset
-                    ],
-                    "suffixes" ["basic representations of filename pattern if using extractors.get_output_filename
-                        terrautils.extractors.get_output_filename(
-                            "dataset (e.g. stereoTop - 2000-01-01__01-01-01-000)",
-                            outextension=suffixes[i].split('.')[1],
-                            site="uamac",
-                            opts=[suffixes[i].split('.')[0]]
-                        )
-                    ]
-                },
-            }
-        }
-    }
-}
-"""
-
 # 2017
 year_p = '(20\d\d)'
 # 06
@@ -56,6 +25,8 @@ time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)'
 full_time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)-(\d{3})'
 # 2017-06-28__23-48-28-435
 full_date_p = '{}__{}'.format(date_p, full_time_p)
+
+
 
 STATIONS = {
     'danforth': {
@@ -344,6 +315,8 @@ def get_sensor_path_by_dataset(station, level, datasetname, sensor='', extension
 def get_sensor_filename(station, level, sensor, time, extension, opts):
     """Determine output filename given input information."""
 
+    default_filename_template = '{sensor}_{level}_{station}_{time}_{opts}.{ext}'
+
     # Use shortland for levels
     if level.find("Level_") > -1:
         level = level.replace("Level_", "lv")
@@ -351,7 +324,12 @@ def get_sensor_filename(station, level, sensor, time, extension, opts):
     if extension != '':
         extension = '.' + extension.replace('.', '')
 
-    return "_".join([sensor, level, station, time]+opts) + extension
+    # TODO: Allow overriding of this template by station or sensor
+    filename_template = default_filename_template
+
+    # "_".join([sensor, level, station, time]+opts) + extension
+    return filename_template.format(sensor=sensor, level=level, station=station,
+                                    time=time, opts="_".join(opts), ext=extension)
 
 
 def create_sensor_path(path):
