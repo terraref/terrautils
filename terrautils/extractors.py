@@ -21,7 +21,7 @@ from PIL import Image
 from pyclowder.collections import get_datasets
 from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
 from pyclowder.files import submit_extraction as submit_ext_file
-from terrautils.sensors import get_sensor_path
+from terrautils.metadata import get_sensor_fixed_metadata
 
 
 # BASIC UTILS -------------------------------------
@@ -333,7 +333,7 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
     cambox_x, cambox_y, cambox_z = None, None, None
     fov_x, fov_y = None, None
 
-    # TODO: Replace these with GETs from Clowder fixed metadata for each sensor
+    # TODO: Deprecated; can eventually remove
     if 'lemnatec_measurement_metadata' in metadata:
         lem_md = metadata['lemnatec_measurement_metadata']
         if 'gantry_system_variable_metadata' in lem_md:
@@ -374,11 +374,23 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
                         fov_x = fovs[0]
                         fov_y = fovs[1]
 
-    # TODO: Hard-coded overrides
-    if sensor=="stereoTop":
-        cambox_z = 0.578
-    elif not cambox_z:
-        cambox_z = 0
+        if sensor=="stereoTop":
+            cambox_z = 0.578
+        elif not cambox_z:
+            cambox_z = 0
+
+    elif 'position_m' in metadata:
+        gantry_x = metadata['position_m']['x']
+        gantry_y = metadata['position_m']['y']
+        gantry_z = metadata['position_m']['z']
+
+        sensor_fixed = get_sensor_fixed_metadata(metadata['station'],
+                                                 metadata['sensor'])
+        cambox_x = sensor_fixed['cambox_location_m']['x']
+        cambox_y = sensor_fixed['cambox_location_m']['y']
+        cambox_z = sensor_fixed['cambox_location_m']['z']
+        fov_x = sensor_fixed['fov']['x']
+        fov_y = sensor_fixed['fov']['y']
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 

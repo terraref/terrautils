@@ -137,7 +137,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
     latlon -- [latitude, longitude] tuple of datapoint location
     starttime -- start time, in format 2017-01-25T09:33:02-06:00
     endtime -- end time, in format 2017-01-25T09:33:02-06:00
-    properties -- JSON object with any desired properties
+    metadata -- JSON object with any desired properties
     """
 
     # SENSOR is the plot - try by location first to see if this already exists in geostream
@@ -179,6 +179,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
         "type": "Point",
         "coordinates": [latlon[1], latlon[0], 0]},
                      starttime, endtime, metadata)
+
 
 def get_sensor_by_name(connector, host, key, sensorname):
     """Get sensor by name from Geostreams, or return None.
