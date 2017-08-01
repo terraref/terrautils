@@ -10,20 +10,6 @@ import json
 
 
 
-def get_sensor_fixed_metadata(station, sensorId, host='', key=''):
-    """Get fixed sensor metadata from Clowder.
-    """
-    if not host:
-        host = os.getenv("CLOWDER_HOST", 'https://terraref.ncsa.illinois.edu/clowder/')
-    if not key:
-        key = os.getenv("CLOWDER_KEY", '')
-
-    datasetid = sensors.get_fixed_datasetid_for_sensor(station, sensorId)
-    jsonld = pyclowder.datasets.download_metadata(None, host, key, datasetid)
-    
-    return jsonld
-
-
 def clean_metadata(json, sensorId):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
@@ -34,10 +20,37 @@ def clean_metadata(json, sensorId):
         return None
 
 
+def get_cleaned_metadata(clowder_md, old_ok=False):
+    """Crawl Clowder metadata object and return TERRARef metadata or None.
+
+    If old_ok, will return old lemnatec_measurement_metadata object."""
+    for sub_metadata in clowder_md:
+        if 'content' in sub_metadata:
+            sub_md = sub_metadata['content']
+            if 'gantry_variable' in sub_md and 'sensor_fixed' in sub_md and 'sensor_variable' in sub_md:
+                return sub_md
+            elif old_ok and 'lemnatec_measurement_metadata' in sub_md:
+                return sub_md
+
+    return None
+
+
 def get_preferred_synonym(variable):
-    """Execute a thesaurus check to see if input variable has alternate preferred name.
-    """
+    """Execute a thesaurus check to see if input variable has alternate preferred name."""
     pass
+
+
+def get_sensor_fixed_metadata(station, sensorId, host='', key=''):
+    """Get fixed sensor metadata from Clowder."""
+    if not host:
+        host = os.getenv("CLOWDER_HOST", 'https://terraref.ncsa.illinois.edu/clowder/')
+    if not key:
+        key = os.getenv("CLOWDER_KEY", '')
+
+    datasetid = sensors.get_fixed_datasetid_for_sensor(station, sensorId)
+    jsonld = pyclowder.datasets.download_metadata(None, host, key, datasetid)
+
+    return jsonld
 
 
 if __name__ == "__main__":
