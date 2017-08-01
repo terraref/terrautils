@@ -35,6 +35,17 @@ def get_cleaned_metadata(clowder_md, old_ok=False):
     return None
 
 
+def get_extractor_metadata(clowder_md, extractor_name):
+    """Crawl Clowder metadata object for particular extractor metadata and return if found."""
+    for sub_metadata in clowder_md:
+        if 'agent' in sub_metadata:
+            sub_md = sub_metadata['agent']
+            if 'name' in sub_md and sub_md['name'].find(extractor_name) > -1:
+                return sub_md
+
+    return None
+
+
 def get_preferred_synonym(variable):
     """Execute a thesaurus check to see if input variable has alternate preferred name."""
     pass
