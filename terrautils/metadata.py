@@ -20,7 +20,7 @@ def clean_metadata(json, sensorId):
         return None
 
 
-def get_cleaned_metadata(clowder_md, old_ok=False):
+def get_terraref_metadata(clowder_md, old_ok=False):
     """Crawl Clowder metadata object and return TERRARef metadata or None.
 
     If old_ok, will return old lemnatec_measurement_metadata object."""
