@@ -18,9 +18,93 @@ from netCDF4 import Dataset
 from osgeo import gdal, osr
 from PIL import Image
 
+from pyclowder.extractors import Extractor
 from pyclowder.collections import get_datasets
 from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
 from pyclowder.files import submit_extraction as submit_ext_file
+
+CLOWDER_SPACE = "58da6b924f0c430e2baa823f"
+
+
+def add_arguments(parser):
+
+    # TODO: shouldn't this be part of pyclowder?
+    parser.add_argument('--clowder-space', 
+            default=os.environ.get('CLOWDER_SPACE', CLOWDER_SPACE)
+            help='sets the default Clowder space')
+
+    # TODO: deprecated
+    parser.add_argument('--mainspace', 
+            help='DEPRECATED, use --clowder-space'
+
+    parser.add_argument('--overwrite', default=False, 
+            action='store_true',
+            help='enable overwriting of existing files')
+
+    parser.add_argument('--debug', '-d', action='store_const',
+            default=logging.WARN, const=logging.DEBUG,
+            help='enable debugging (default=WARN)')
+
+
+class TerrarefExtractor(Extractor):
+
+    def __init__(self):
+
+        super(TerrarefExtractor, self).__init__()
+
+        add_arguments(self.parser)
+        terrautils.sensors.add_arguments(self.parser)
+        terrautils.influx.add_arguments(self.parser)
+
+
+    def setup(self):
+
+        super(TerrarefExtractor, self).setup()
+
+        self.clowder_space = self.args.clowder_space
+        self.debug = self.args.debug
+        self.overwrite = self.args.overwrite
+
+        logging.getLogger('pyclowder').setLevel(self.args.debug)
+        logging.getLogger('__main__').setLevel(self.args.debug)
+
+        # TODO: create sensor class with setup method for args
+        self.sensors = Sensors(base=self.args.terraref_base,
+                               site=self.args.terraref_site,
+                               level=self.args.terraref_level,
+                               sensor=self.args.sensor
+                               )
+        self.get_sensor_path = self.sensors.get_sensor_path
+
+        # TODO: create influx class with setup method for args
+        self.influx = Influx(host=self.args.influx_host,
+                             port=self.args.influx_port,
+                             db=self.args.influx_db,
+                             user=self.args.influx_user,
+                             port=self.args.influx_pass
+                            )
+
+
+    # support message processing tracking, currently logged to influx
+    def start_message():
+        self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S') 
+
+    def end_message(created, bytes):
+        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S') 
+        self.influx.log(self.extractor_info['name'],
+                              self.starttime, endtime, created, bytes)
+
+
+    # TODO - Deprecated, remove at the appropriate time
+    @property
+    def output_dir():
+        raise AttributeError('output_dir is deprecated, use sensors functions')
+
+    # TODO - Deprecated, remove at the appropriate time
+    @property
+    def mainspace():
+        logging.warn('mainspace attriute is deprecated, use clowder_space')
+        return self.clowder_space
 
 
 # BASIC UTILS -------------------------------------
