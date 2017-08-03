@@ -426,7 +426,8 @@ def plot_attachment_name(sitename, sensor, date, product):
 
     root, ext = os.path.splitext(product)
     return "{}-{}-{}.{}".format(sitename, sensor, date, ext) 
-    
+
+
 def get_fixed_datasetid_for_sensor(station, sensor):
     """ Returns the Clowder dataset ID for the fixed sensor information
     """

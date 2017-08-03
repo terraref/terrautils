@@ -38,6 +38,7 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
     if context == []:
         context = ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"]
 
+    # TODO: Include version of extractor as standard
     md = {
         # TODO: Generate JSON-LD context for additional fields
         "@context": context,
@@ -174,21 +175,20 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
                         float(gantry_z) + float(cambox_z) )
-    camHeight = center_position[2]
+    cam_height = center_position[2]
 
     if sensor=="stereoTop":
-        # TODO: Hard-coded overrides for fov_x, fov_y, HEIGHT_MAGIC_NUMBER, PREDICT_MAGIC_SLOPE, STEREO_OFFSET
-        HEIGHT_MAGIC_NUMBER = 1.64 # gantry rails are at 2m
-        PREDICT_MAGIC_SLOPE = 0.574
-        predict_plant_height = PREDICT_MAGIC_SLOPE * camHeight
-        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER - predict_plant_height
-        fov_x = float(1.015 * (camH_fix/2))
-        fov_y = float(0.749 * (camH_fix/2))
-
-        # NOTE: This STEREO_OFFSET is an experimentally determined value.
-        STEREO_OFFSET = .17 # distance from center_position to each of the stereo cameras (left = +, right = -)
-        left_position = [center_position[0]+STEREO_OFFSET, center_position[1], center_position[2]]
-        right_position = [center_position[0]-STEREO_OFFSET, center_position[1], center_position[2]]
+        # Use height of camera * slope_estimation to estimate expected canopy height
+        predicted_plant_height = metadata['slope_estimation'] * cam_height
+        # Subtract expected plant height from (cam height + rail height offset) to get canopy height
+        cam_height_above_canopy = cam_height + metadata['rail_height_offset'] - predicted_plant_height
+        fov_x = float(fov_x * (cam_height_above_canopy/2))
+        fov_y = float(fov_y * (cam_height_above_canopy/2))
+        # Account for experimentally determined distance from center to each stereo lens for left/right
+        stereo_off = metadata['stereo_offsets_from_center']
+        left_position = [center_position[0]+stereo_off, center_position[1], center_position[2]]
+        right_position = [center_position[0]-stereo_off, center_position[1], center_position[2]]
+        # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
         return (left_gps_bounds, right_gps_bounds)
@@ -203,13 +203,22 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
 
 
 def calculate_scan_time(metadata):
-    # TODO: Replace these with references to cleaned metadata
+    """Parse scan time from metadata.
+
+        Returns:
+            timestamp string
+    """
     scan_time = None
+
+    # TODO: Deprecated; can eventually remove
     if 'lemnatec_measurement_metadata' in metadata:
         lem_md = metadata['lemnatec_measurement_metadata']
         if 'gantry_system_variable_metadata' in lem_md:
             # timestamp, e.g. "2016-05-15T00:30:00-05:00"
             scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time", "timestamp"])
+
+    elif 'time' in metadata:
+        scan_time = metadata['time']
 
     return scan_time
 
@@ -326,7 +335,6 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
             location of scannerbox x, y, z
             location offset of sensor in scannerbox in x, y, z
             field-of-view of camera in x, y dimensions
-            scan time
         )
     """
     gantry_x, gantry_y, gantry_z = None, None, None
@@ -380,17 +388,23 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
             cambox_z = 0
 
     elif 'position_m' in metadata:
-        gantry_x = metadata['position_m']['x']
-        gantry_y = metadata['position_m']['y']
-        gantry_z = metadata['position_m']['z']
+        gantry_x = metadata['position_m']['x'] if 'x' in metadata['position_m'] else gantry_x
+        gantry_y = metadata['position_m']['y'] if 'y' in metadata['position_m'] else gantry_y
+        gantry_z = metadata['position_m']['z'] if 'z' in metadata['position_m'] else gantry_z
 
         sensor_fixed = get_sensor_fixed_metadata(metadata['station'],
                                                  metadata['sensor'])
-        cambox_x = sensor_fixed['cambox_location_m']['x']
-        cambox_y = sensor_fixed['cambox_location_m']['y']
-        cambox_z = sensor_fixed['cambox_location_m']['z']
-        fov_x = sensor_fixed['fov']['x']
-        fov_y = sensor_fixed['fov']['y']
+
+        # LOCATION IN CAMERA BOX
+        cambox_x = sensor_fixed['location_in_camera_box_m']['x']
+        cambox_y = sensor_fixed['location_in_camera_box_m']['y']
+        cambox_z = sensor_fixed['location_in_camera_box_m']['z']
+
+        # FIELD OF VIEW (FOV)
+        for fov_field in ['field_of_view_m', 'field_of_view_degrees']:
+            if fov_field in sensor_fixed:
+                fov_x = sensor_fixed[fov_field]['x'] if 'x' in sensor_fixed[fov_field] else fov_x
+                fov_y = sensor_fixed[fov_field]['y'] if 'y' in sensor_fixed[fov_field] else fov_y
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 
@@ -435,7 +449,7 @@ def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, by
         "fields": {"value": int(bytecount)}
     }], tags={"extractor": extractorname, "type": "bytes"})
 
-
+# TODO: Remove once pyclowder2 PR #40 merged
 def trigger_file_extractions_by_dataset(clowderhost, clowderkey, datasetid, extractor, ext=False):
     """Manually trigger an extraction on all files in a dataset.
 
@@ -450,7 +464,7 @@ def trigger_file_extractions_by_dataset(clowderhost, clowderkey, datasetid, extr
             continue
         submit_ext_file(None, clowderhost, clowderkey, f['id'], extractor)
 
-
+# TODO: Remove once pyclowder2 PR #40 merged
 def trigger_dataset_extractions_by_collection(clowderhost, clowderkey, collectionid, extractor):
     """Manually trigger an extraction on all datasets in a collection.
 
