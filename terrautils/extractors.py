@@ -18,10 +18,90 @@ from netCDF4 import Dataset
 from osgeo import gdal, osr
 from PIL import Image
 
-from pyclowder.collections import get_datasets
-from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
-from pyclowder.files import submit_extraction as submit_ext_file
+from pyclowder.extractors import Extractor
 from terrautils.metadata import get_sensor_fixed_metadata
+from terrautils.influxterrautils.influx import Influx, add_arguments as add_influx_arguments
+from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
+
+
+CLOWDER_SPACE = "58da6b924f0c430e2baa823f"
+
+
+def add_arguments(parser):
+
+    # TODO: shouldn't this be part of pyclowder?
+    parser.add_argument('--clowder-space', 
+            default=os.environ.get('CLOWDER_SPACE', CLOWDER_SPACE),
+            help='sets the default Clowder space')
+
+    # TODO: deprecated
+    parser.add_argument('--mainspace', 
+            help='DEPRECATED, use --clowder-space')
+
+    parser.add_argument('--overwrite', default=False, 
+            action='store_true',
+            help='enable overwriting of existing files')
+
+    parser.add_argument('--debug', '-d', action='store_const',
+            default=logging.WARN, const=logging.DEBUG,
+            help='enable debugging (default=WARN)')
+
+
+class TerrarefExtractor(Extractor):
+
+    def __init__(self):
+
+        super(TerrarefExtractor, self).__init__()
+
+        add_arguments(self.parser)
+        add_sensor_arguments(self.parser)
+        add_influx_arguments(self.parser)
+
+
+    def setup(self):
+
+        super(TerrarefExtractor, self).setup()
+
+        self.clowder_space = self.args.clowder_space
+        self.debug = self.args.debug
+        self.overwrite = self.args.overwrite
+
+        logging.getLogger('pyclowder').setLevel(self.args.debug)
+        logging.getLogger('__main__').setLevel(self.args.debug)
+
+        self.sensors = Sensors(base=self.args.terraref_base,
+                               site=self.args.terraref_site,
+                               level=self.args.terraref_level,
+                               sensor=self.args.sensor
+                               )
+        self.get_sensor_path = self.sensors.get_sensor_path
+
+        self.influx = Influx(self.args.influx_host, self.args.influx_port,
+                             self.args.influx_db, self.args.influx_user,
+                             self.args.influx_pass)
+
+
+    # support message processing tracking, currently logged to influx
+    def start_message(self):
+        self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S') 
+
+
+    def end_message(self, created, bytes):
+        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.influx.log(self.extractor_info['name'],
+                        self.starttime, endtime, created, bytes)
+
+
+    # TODO - Deprecated, remove at the appropriate time
+    @property
+    def output_dir():
+        raise AttributeError('output_dir is deprecated, use sensors functions')
+
+    # TODO - Deprecated, remove at the appropriate time
+    @property
+    def mainspace():
+        logging.warn('mainspace attriute is deprecated, use clowder_space')
+        return self.clowder_space
 
 
 # BASIC UTILS -------------------------------------
@@ -398,47 +478,6 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
                 fov_y = sensor_fixed[fov_field]['y'] if 'y' in sensor_fixed[fov_field] else fov_y
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
-
-
-# LOGGING -------------------------------------
-def error_notification(msg):
-    """Send an error message notification, e.g. to Slack.
-    """
-    pass
-
-
-def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, bytecount):
-    """Send extractor job detail summary to InfluxDB instance.
-
-    connparams -- connection parameter dictionary with {host, port, db, user, pass}
-    starttime - example format "2017-02-10T16:09:57+00:00"
-    endtime - example format "2017-02-10T16:09:57+00:00"
-    filecount -- int of # files added
-    bytecount -- int of # bytes added
-    """
-
-    # Convert timestamps to seconds from epoch
-    f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
-    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
-
-    client = InfluxDBClient(connparams["host"], connparams["port"],
-                            connparams["user"], connparams["pass"], connparams["db"])
-
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": f_duration}
-    }], tags={"extractor": extractorname, "type": "duration"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(filecount)}
-    }], tags={"extractor": extractorname, "type": "filecount"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(bytecount)}
-    }], tags={"extractor": extractorname, "type": "bytes"})
 
 
 # PRIVATE -------------------------------------
