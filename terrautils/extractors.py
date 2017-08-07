@@ -57,14 +57,6 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
     return md
 
 
-def get_extractor_list():
-    # TODO: Placeholder. This should eventually go in metadata.py (?)
-    return [
-        "stereoTop",
-        "flirIrCamera"
-    ]
-
-
 def is_latest_file(resource):
     """Check whether the extractor-triggering file is the latest file in the dataset.
 
@@ -192,14 +184,13 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
         return (left_gps_bounds, right_gps_bounds)
+
     elif sensor=="flirIrCamera":
-        HEIGHT_MAGIC_NUMBER = 1.0
-        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER
-        fov_x = fov_x * (camH_fix/2)
-        fov_y = fov_y * (camH_fix/2)
-        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
-    else:
-        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
+        cam_height_above_canopy = cam_height + metadata['rail_height_offset']
+        fov_x = float(fov_x * (cam_height_above_canopy/2))
+        fov_y = float(fov_y * (cam_height_above_canopy/2))
+
+    return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
 
 def calculate_scan_time(metadata):
@@ -448,32 +439,6 @@ def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, by
         "time": f_completed_ts,
         "fields": {"value": int(bytecount)}
     }], tags={"extractor": extractorname, "type": "bytes"})
-
-# TODO: Remove once pyclowder2 PR #40 merged
-def trigger_file_extractions_by_dataset(clowderhost, clowderkey, datasetid, extractor, ext=False):
-    """Manually trigger an extraction on all files in a dataset.
-
-        This will iterate through all files in the given dataset and submit them to
-        the provided extractor. Does not operate recursively if there are nested datasets.
-
-        ext -- extension to filter. e.g. 'tif' will only submit TIFF files for extraction.
-    """
-    flist = get_file_list(None, clowderhost, clowderkey, datasetid)
-    for f in flist:
-        if ext and not f['filename'].endswith(ext):
-            continue
-        submit_ext_file(None, clowderhost, clowderkey, f['id'], extractor)
-
-# TODO: Remove once pyclowder2 PR #40 merged
-def trigger_dataset_extractions_by_collection(clowderhost, clowderkey, collectionid, extractor):
-    """Manually trigger an extraction on all datasets in a collection.
-
-        This will iterate through all datasets in the given collection and submit them to
-        the provided extractor. Does not operate recursively if there are nested collections.
-    """
-    dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
-    for ds in dslist:
-        submit_ext_ds(None, clowderhost, clowderkey, ds['id'], extractor)
 
 
 # PRIVATE -------------------------------------
