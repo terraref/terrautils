@@ -11,8 +11,6 @@ import utm
 
 import gdal
 import numpy
-from dateutil.parser import parse
-from influxdb import InfluxDBClient, SeriesHelper
 from matplotlib import cm, pyplot as plt
 from netCDF4 import Dataset
 from osgeo import gdal, osr

@@ -1,3 +1,8 @@
+"""Influx
+
+This module provides methods for logging to an InfluxDB instance.
+"""
+
 import os
 from influxdb import InfluxDBClient, SeriesHelper
 

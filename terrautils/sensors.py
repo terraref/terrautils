@@ -16,7 +16,7 @@ time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)'
 full_time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)-(\d{3})'
 # 2017-06-28__23-48-28-435
 full_date_p = '{}__{}'.format(date_p, full_time_p)
-filename_level_p = '(raw|lv1|lv2)'ß
+filename_level_p = '(raw|lv1|lv2)'
 path_level_p = '(raw_data|Level_1|Level_2)'
 
 
@@ -445,12 +445,12 @@ class Sensors():
         return sitepath
 
 
-    def check_sensor(station, sensor, date=None):
+    def check_sensor(self, station, sensor, date=None):
         """ Checks for valid sensor with optional date, and return its path
         in the file system.
         """
 
-        sitepath = check_site(station)
+        sitepath = self.check_site(station)
 
         sensorpath = os.path.join(sitepath, 'Level_1', sensor)
         if not os.path.exists(sensorpath):
