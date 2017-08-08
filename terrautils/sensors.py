@@ -135,7 +135,7 @@ STATIONS = {
             'rgb_fullfield': {
                 'template': '{base}/{station}/{level}/'
                             '{sensor}/{date}/{filename}',
-                'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
+                'pattern': '{sensor}_{level}_{station}_{date}{opts}.tif',
             },
 
             'flirIrCamera': {
@@ -256,10 +256,22 @@ class Sensors():
     def __init__(self, base, station, level, sensor):
         """Initialize basic path elements from env and cmdline."""
 
-        self.base = base
-        self.station = station
-        self.level = level
-        self.sensor = sensor
+        self.base = base.rstrip('/')
+
+        if station in STATIONS.keys():
+            self.station = station
+        else:
+            raise AttributeError('unknown station name "{}"'.format(station))
+
+        if level in STATIONS[station].keys():
+            self.level = level
+        else: 
+            raise AttributeError('unknown data level "{}"'.format(level))
+
+        if sensor in STATIONS[station][level].keys():
+            self.sensor = sensor
+        else:
+            raise AttributeError('unknown sensor name "{}"'.format(sensor))
 
 
     def get_sensor_path(self, timestamp, sensor='', filename='', opts=None, ext=''):
@@ -300,7 +312,7 @@ class Sensors():
 
         # Get regex patterns for this site/sensor
         try:
-            s = STATIONS[self.site][self.level][sensor]
+            s = STATIONS[self.station][self.level][sensor]
         except KeyError:
             raise RuntimeError('The site, level or sensor given does not exist')
 
@@ -329,6 +341,7 @@ class Sensors():
                     ext = '.' + ext.replace('.', '')
                 filename = os.path.splitext(filename)[0] + ext
 
+
         # Return fully formed path with generated/validated filename
         return s['template'].format(base=self.base, station=self.station,
                                     level=self.level, sensor=self.sensor,
@@ -340,8 +353,6 @@ class Sensors():
         """Get the appropritate path for writing sensor data
 
         Args:
-          station (str): abbreviated name of the site
-          level (str): data level (raw_data | Level_1 | Level_2)
           datasetname (sensor - date__timestamp str):
               e.g. VNIR - 2017-06-28__23-48-28-435
           sensor (str): sensor name, may be a product name for Level_1
@@ -381,7 +392,7 @@ class Sensors():
         """
 
         if not site:
-            site = self.site
+            site = self.station
         if not level:
             level = self.level
         if not sensor:
@@ -392,18 +403,21 @@ class Sensors():
 
     def create_sensor_path(self, path):
         """Create path if does not exist."""
+
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
 
 
-    def get_sensors(self, station):
-        """Get all sensors for a given station."""
-        return STATIONS[self.station]['sensors'].keys()
-
-
     def get_sites(self):
         """Get all sites (stations) listed."""
+
         return STATIONS.keys()
+
+
+    def get_sensors(self):
+        """Get all sensors for a given station."""
+
+        return STATIONS[self.station][self.level].keys()
 
 
     def check_site(self, station):
