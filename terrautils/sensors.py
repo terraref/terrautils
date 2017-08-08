@@ -60,7 +60,7 @@ STATIONS = {
             'co2Sensor': {
                 "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648",
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '([0-9a-f]){8}-([0-9a-f]){4}-([0-9'
                            'a-f]){4}-([0-9a-f]){4}-([0-9a-f])'
                            '{12}_(metadata.json|rawData0000.bin)'
@@ -140,31 +140,31 @@ STATIONS = {
 
             'flirIrCamera': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
             'stereoTop_geotiff': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
             'stereoTop_canopyCover': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
             'texture_analysis': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.csv',
             },
 
             'flir2tif': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
@@ -176,38 +176,50 @@ STATIONS = {
 
             'soil_removal_vnir': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': 'VNIR_{level}_{station}_{timestamp}{opts}.nc'
             },
             'soil_removal_swir': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': 'SWIR_{level}_{station}_{timestamp}{opts}.nc'
             },
 
             'scanner3DTop_mergedlas': {
                 'template': '{base}/{station}/{level}/'
-                            'scanner3DTop/{date}/{time}/{filename}',
+                            'scanner3DTop/{date}/{timestamp}/{filename}',
                 'pattern': 'scanner3DTop_{level}_{station}_{timestamp}'
                            '_merged{opts}.las'
             },
 
             'scanner3DTop_plant_height': {
                 'template': '{base}/{station}/{level}/'
-                            'scanner3DTop/{date}/{time}/{filename}',
+                            'scanner3DTop/{date}/{timestamp}/{filename}',
                 'pattern': 'scanner3DTop_{level}_{station}_{timestamp}'
                            '_height{opts}.npy'
             },
 
             'scanner3DTop_heightmap': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': 'scanner3DTop_{level}_{station}_{timestamp}'
                            '_heightmap{opts}.bmp'
             },
         },
     },
 }
+
+
+def _level_names(self, level):
+    """Convert level path name to level file name."""
+
+    LV_CONV = {
+        'raw_data': 'raw',
+        'Level_1': 'lv1',
+        'Level_2': 'lv2'
+    }
+
+    return LV_CONV[level]
 
 
 def add_arguments(parser):
@@ -236,27 +248,6 @@ def exact_p(pattern):
     return '^{}$'.format(pattern)
 
 
-def extract_date(timestamp):
-
-    return timestamp.split('__')[0]
-
-
-def get_attachment_name(site, sensor, date, product):
-    """ Encodes site, sensor, and date to create a unique attachment name.
-    """
-
-    root, ext = os.path.splitext(product)
-    return "{}-{}-{}.{}".format(site, sensor, date, ext)
-
-
-def plot_attachment_name(sitename, sensor, date, product):
-    """ Encodes sitename, sensor, and date to create a unqiue attachment name.
-    """
-
-    root, ext = os.path.splitext(product)
-    return "{}-{}-{}.{}".format(sitename, sensor, date, ext)
-
-
 class Sensors():
     """Simple class used to save components of the file system path
     where sensor data will be stored.
@@ -271,20 +262,8 @@ class Sensors():
         self.sensor = sensor
 
 
-    def _level_names(self, level):
-        """Convert level path name to level file name."""
-
-        LV_CONV = {
-            'raw_data': 'raw',
-            'Level_1': 'lv1',
-            'Level_2': 'lv2'
-        }
-
-        return LV_CONV[level]
-
-
     def get_sensor_path(self, timestamp, sensor='', filename='', opts=None, ext=''):
-        """Get the appropritate path for writing sensor data
+        """Get the appropriate path for writing sensor data
 
         Args:
           time (datetime str): timestamp string
@@ -304,28 +283,28 @@ class Sensors():
           pattern.
         """
 
-        if re.match(exact_p(full_date_p), timestamp)==None:
-            raise RuntimeError('Timestamp has the wrong format')
-
         # override class sensor
         if not sensor:
             sensor = self.sensor
-
         # create opt string
         if opts:
             opts = '_'.join(['']+opts)
         else:
             opts = ''
-
         # split timestamp into date and hour-minute-second components
-        date, hms = timestamp.split('__')
+        if timestamp.find('__') > -1:
+            date, hms = timestamp.split('__')
+        else:
+            date = timestamp
+            timestamp, hms = '', ''
 
+        # Get regex patterns for this site/sensor
         try:
             s = STATIONS[self.site][self.level][sensor]
-
         except KeyError:
-            raise RuntimeError('The station, level or sensor given does not exist')
+            raise RuntimeError('The site, level or sensor given does not exist')
 
+        # If filename is given when getting path, validate it
         if filename:
             try:
                 pattern = exact_p(s['pattern']).format(sensor='\D*',
@@ -339,23 +318,25 @@ class Sensors():
             if result==None:
                 raise RuntimeError('The filename given does not match the correct pattern')
 
+        # If not given, generate filename from parameters
         else:
             filename = s['pattern'].format(station=self.station,
-                    level=self._level_names(self.level), sensor=sensor,
+                    level=_level_names(self.level), sensor=sensor,
                     timestamp=timestamp, date=date, time=hms, opts=opts)
 
-        if ext:
-            if ext != '':
-                ext = '.' + ext.replace('.', '')
-            filename = os.path.splitext(filename)[0] + ext
+            if ext:
+                if ext != '':
+                    ext = '.' + ext.replace('.', '')
+                filename = os.path.splitext(filename)[0] + ext
 
+        # Return fully formed path with generated/validated filename
         return s['template'].format(base=self.base, station=self.station,
                                     level=self.level, sensor=self.sensor,
                                     timestamp=timestamp, date=date, time=hms,
                                     filename=filename)
 
 
-    def get_sensor_path_by_dataset(self, dsname, sensor='', ext='', opts=None, hms=None):
+    def get_sensor_path_by_dataset(self, dsname, sensor='', ext='', opts=None, hms=''):
         """Get the appropritate path for writing sensor data
 
         Args:
@@ -377,32 +358,28 @@ class Sensors():
             sensorname, time = dsname.split(" - ")
         else:
             sensorname = dsname
-            time = "2017"
+            time = "2017-01-01"
 
-        # Get date portion of timestamp if there is one; if not,
-        # assume whole thing is just the date
-        if time.find("__") > -1:
-            date = time.split("__")[0]
-        else:
-            date = time
-            time = ""
-
-        # Override timestamp if necessary
+        # Override/add timestamp if necessary
         if hms:
+            if time.find("__") > -1:
+                date = time.split("__")[0]
+            else:
+                date = time
             time = date + "__" + hms
 
         # Override dataset sensor name with provided name if given
         # (e.g. use timestamp of raw while getting Level_1 output)
-        if sensor == "":
+        if not sensor:
             sensor = sensorname
 
         return self.get_sensor_path(time, sensor=sensor, opts=opts, ext=ext)
 
 
     def get_fixed_datasetid_for_sensor(self, site, level, sensor):
-        """ Returns the Clowder dataset ID for the
-            fixed sensor information
+        """ Returns the Clowder dataset ID for the fixed sensor information
         """
+
         if not site:
             site = self.site
         if not level:
