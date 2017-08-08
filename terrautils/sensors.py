@@ -1,13 +1,27 @@
+"""Extractors
+
+This module contains dictionaries and references for handling sensor information.
+"""
+
 import os
 import re
+import datetime
 
+from terrautils.betydb import get_experiments
 
+# 2017
 year_p = '(20\d\d)'
+# 06
 month_p = '(0[1-9]|1[0-2])'
+# 28
 day_p = '(10|20|[0-2][1-9]|3[01])'
+# 2017-06-28
 date_p = '{}-{}-{}'.format(year_p, month_p, day_p)
+# 23-48-28
 time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)'
+# 23-48-28-435
 full_time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)-(\d{3})'
+# 2017-06-28__23-48-28-435
 full_date_p = '{}__{}'.format(date_p, full_time_p)
 filename_level_p = '(raw|lv1|lv2)'
 path_level_p = '(raw_data|Level_1|Level_2)'
@@ -53,7 +67,7 @@ STATIONS = {
             'co2Sensor': {
                 "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648",
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '([0-9a-f]){8}-([0-9a-f]){4}-([0-9'
                            'a-f]){4}-([0-9a-f]){4}-([0-9a-f])'
                            '{12}_(metadata.json|rawData0000.bin)'
@@ -125,7 +139,7 @@ STATIONS = {
 
         'Level_1': {
 
-            'rgb_fullfield': {
+            'fullfield': {
                 'template': '{base}/{station}/{level}/'
                             '{sensor}/{date}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{date}{opts}.tif',
@@ -133,31 +147,31 @@ STATIONS = {
 
             'flirIrCamera': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
             'stereoTop_geotiff': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
             'stereoTop_canopyCover': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
             'texture_analysis': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.csv',
             },
 
             'flir2tif': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
             },
 
@@ -169,33 +183,32 @@ STATIONS = {
 
             'soil_removal_vnir': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': 'VNIR_{level}_{station}_{timestamp}{opts}.nc'
             },
-
             'soil_removal_swir': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': 'SWIR_{level}_{station}_{timestamp}{opts}.nc'
             },
 
             'scanner3DTop_mergedlas': {
                 'template': '{base}/{station}/{level}/'
-                            'scanner3DTop/{date}/{time}/{filename}',
+                            'scanner3DTop/{date}/{timestamp}/{filename}',
                 'pattern': 'scanner3DTop_{level}_{station}_{timestamp}'
                            '_merged{opts}.las'
             },
 
             'scanner3DTop_plant_height': {
                 'template': '{base}/{station}/{level}/'
-                            'scanner3DTop/{date}/{time}/{filename}',
+                            'scanner3DTop/{date}/{timestamp}/{filename}',
                 'pattern': 'scanner3DTop_{level}_{station}_{timestamp}'
                            '_height{opts}.npy'
             },
 
             'scanner3DTop_heightmap': {
                 'template': '{base}/{station}/{level}/'
-                            '{sensor}/{date}/{time}/{filename}',
+                            '{sensor}/{date}/{timestamp}/{filename}',
                 'pattern': 'scanner3DTop_{level}_{station}_{timestamp}'
                            '_heightmap{opts}.bmp'
             },
@@ -203,54 +216,44 @@ STATIONS = {
     },
 }
 
-LV_CONV = {
-    'raw_data': 'raw',
-    'Level_1': 'lv1',
-    'Level_2': 'lv2'
-}
+
+def _level_names(self, level):
+    """Convert level path name to level file name."""
+
+    LV_CONV = {
+        'raw_data': 'raw',
+        'Level_1': 'lv1',
+        'Level_2': 'lv2'
+    }
+
+    return LV_CONV[level]
 
 
 def add_arguments(parser):
+    if os.path.exists('/projects/arpae/terraref/sites'):
+        TERRAREF_BASE = '/projects/arpae/terraref/sites'
+    else:
+        TERRAREF_BASE = '/home/extractor/sites'
 
     parser.add_argument('--terraref_base', type=str,
-                        default=os.environ.get('TERRAREF_BASE',
-                        '/projects/arpae/terraref/sites'),
+                        default=os.getenv('TERRAREF_BASE', TERRAREF_BASE),
                         help='Terraref base path')
 
     parser.add_argument('--terraref_site', type=str,
-                        default=os.environ.get('TERRAREF_SITE',
-                        'ua-mac'), help='station name')
+                        default=os.getenv('TERRAREF_SITE', 'ua-mac'),
+                        help='station name')
 
+    # TODO: Hide this and use dict to fill in this piece based on product/sensor
     parser.add_argument('--terraref_level', type=str,
-                        default='Level_1')
+                        default=os.getenv('TERRAREF_LEVEL', 'Level_1'))
 
     parser.add_argument('--terraref_sensor', type=str,
-                        default='fullfield')
+                        default=os.getenv('TERRAREF_SENSOR', ''))
 
 
 def exact_p(pattern):
 
     return '^{}$'.format(pattern)
-
-
-def extract_date(timestamp):
-
-    return timestamp.split('__')[0]
-
-def get_attachment_name(site, sensor, date, product):
-    """ Encodes site, sensor, and date to create a unique attachment name.
-    """
-
-    root, ext = os.path.splitext(product)
-    return "{}-{}-{}.{}".format(site, sensor, date, ext)
-
-
-def plot_attachment_name(sitename, sensor, date, product):
-    """ Encodes sitename, sensor, and date to create a unqiue attachment name.
-    """
-
-    root, ext = os.path.splitext(product)
-    return "{}-{}-{}.{}".format(sitename, sensor, date, ext)
 
 
 class Sensors():
@@ -279,15 +282,8 @@ class Sensors():
             raise AttributeError('unknown sensor name "{}"'.format(sensor))
 
 
-    def _level_names(self, level):
-        """Convert level path name to level file name."""
-
-        return LV_CONV[level]
-
-
-    def get_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext=''):
-        """Get the appropritate path for writing sensor data
+    def get_sensor_path(self, timestamp, sensor='', filename='', opts=None, ext=''):
+        """Get the appropriate path for writing sensor data
 
         Args:
           time (datetime str): timestamp string
@@ -307,30 +303,28 @@ class Sensors():
           pattern.
         """
 
-        if re.match(exact_p(full_date_p), timestamp)==None:
-            raise RuntimeError('Timestamp has the wrong format')
-
         # override class sensor
         if not sensor:
             sensor = self.sensor
-
         # create opt string
         if opts:
             opts = '_'.join(['']+opts)
         else:
             opts = ''
-
         # split timestamp into date and hour-minute-second components
-        date, hms = timestamp.split('__')
+        if timestamp.find('__') > -1:
+            date, hms = timestamp.split('__')
+        else:
+            date = timestamp
+            timestamp, hms = '', ''
 
+        # Get regex patterns for this site/sensor
         try:
             s = STATIONS[self.station][self.level][sensor]
-
         except KeyError:
-            raise RuntimeError('The station, level or sensor given does'
-                               ' not exist')
+            raise RuntimeError('The site, level or sensor given does not exist')
 
-        # TODO pattern should be completed with regex string using format
+        # If filename is given when getting path, validate it
         if filename:
             try:
                 pattern = exact_p(s['pattern']).format(sensor='\D*',
@@ -338,36 +332,31 @@ class Sensors():
                               date=date_p, time=full_time_p,
                               timestamp=full_date_p, opts='\D*')
             except KeyError:
-                raise RuntimeError('Some fields from the pattern '
-                                   'are not available')
+                raise RuntimeError('Some fields from the pattern are not available')
 
             result = re.match(pattern, filename)
             if result==None:
-                raise RuntimeError('The filename given does not match '
-                                   'the correct pattern')
+                raise RuntimeError('The filename given does not match the correct pattern')
 
-        # TODO check that all fields from patterns are available
-        # TODO write the _level_name function (maps Level_1 to lv1, etc)
+        # If not given, generate filename from parameters
         else:
             filename = s['pattern'].format(station=self.station,
-                    level=self._level_names(self.level), sensor=sensor,
-                    timestamp=timestamp, date=date, time=hms,
-                    opts=opts)
+                    level=_level_names(self.level), sensor=sensor,
+                    timestamp=timestamp, date=date, time=hms, opts=opts)
+            # Override pattern extension if necessary
+            if ext:
+                if not ext.startswith('.'):
+                    ext = '.' + ext
+                filename = os.path.splitext(filename)[0] + ext
 
-        # TODO split extension with os.path function than do
-        # a string match and replace
-        if ext:
-            filename = os.path.splitext(filename)[0] + '.' + ext
-
-        path = s['template'].format(base=self.base, station=self.station,
+        # Return fully formed path with generated/validated filename
+        return s['template'].format(base=self.base, station=self.station,
                                     level=self.level, sensor=self.sensor,
                                     timestamp=timestamp, date=date, time=hms,
                                     filename=filename)
-        return path
 
 
-    def get_sensor_path_by_dataset(self, datasetname, sensor='',
-                                   ext='', opts=None, hms=None):
+    def get_sensor_path_by_dataset(self, dsname, sensor='', ext='', opts=None, hms=''):
         """Get the appropritate path for writing sensor data
 
         Args:
@@ -383,36 +372,32 @@ class Sensors():
         """
 
         # Split dataset into sensorname and timestamp portions
-        if datasetname.find(" - ") > -1:
-            sensorname, time = datasetname.split(" - ")
+        if dsname.find(" - ") > -1:
+            sensorname, time = dsname.split(" - ")
         else:
-            sensorname = datasetname
-            time = "2017"
+            sensorname = dsname
+            time = "2017-01-01"
 
-        # Get date portion of timestamp if there is one; if not,
-        # assume whole thing is just the date
-        if time.find("__") > -1:
-            date = time.split("__")[0]
-        else:
-            date = time
-            time = ""
-
-        # Override timestamp if necessary
+        # Override/add timestamp if necessary
         if hms:
+            if time.find("__") > -1:
+                date = time.split("__")[0]
+            else:
+                date = time
             time = date + "__" + hms
 
         # Override dataset sensor name with provided name if given
         # (e.g. use timestamp of raw while getting Level_1 output)
-        if sensor == "":
+        if not sensor:
             sensor = sensorname
 
         return self.get_sensor_path(time, sensor=sensor, opts=opts, ext=ext)
 
 
-    def get_fixed_datasetid_for_sensor(site, level, sensor):
-        """ Returns the Clowder dataset ID for the
-            fixed sensor information
+    def get_fixed_datasetid_for_sensor(self, site, level, sensor):
+        """ Returns the Clowder dataset ID for the fixed sensor information
         """
+
         if not site:
             site = self.station
         if not level:
@@ -434,6 +419,22 @@ class Sensors():
         """Get all sites (stations) listed."""
 
         return STATIONS.keys()
+
+
+    def get_season(self, date):
+        experiments = get_experiments()
+
+        # We only care about date portion if timestamp is given
+        if date.find("__") > -1:
+            date = date.split("__")[0]
+
+        ds_time = datetime.datetime.strptime(date, "%Y-%m-%d")
+        for exp in experiments:
+            begin = datetime.datetime.strptime(exp['start_date'], "%Y-%m-%d")
+            end = datetime.datetime.strptime(exp['end_date'], "%Y-%m-%d")
+
+            if ds_time >= begin and ds_time <= end:
+                return exp['name'][:exp['name'].find(':')]
 
 
     def get_sensors(self):
@@ -458,12 +459,12 @@ class Sensors():
         return sitepath
 
 
-    def check_sensor(station, sensor, date=None):
+    def check_sensor(self, station, sensor, date=None):
         """ Checks for valid sensor with optional date, and return its path
         in the file system.
         """
 
-        sitepath = check_site(station)
+        sitepath = self.check_site(station)
 
         sensorpath = os.path.join(sitepath, 'Level_1', sensor)
         if not os.path.exists(sensorpath):
@@ -481,5 +482,3 @@ class Sensors():
                                         'date': date})
 
         return datepath
-
-

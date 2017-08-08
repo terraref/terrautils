@@ -11,31 +11,23 @@ import utm
 
 import gdal
 import numpy
-from dateutil.parser import parse
-from influxdb import InfluxDBClient, SeriesHelper
 from matplotlib import cm, pyplot as plt
 from netCDF4 import Dataset
 from osgeo import gdal, osr
 from PIL import Image
 
 from pyclowder.extractors import Extractor
-from pyclowder.collections import get_datasets
-from pyclowder.datasets import get_file_list, submit_extraction as submit_ext_ds
-from pyclowder.files import submit_extraction as submit_ext_file
-
-CLOWDER_SPACE = "58da6b924f0c430e2baa823f"
+from terrautils.metadata import get_sensor_fixed_metadata
+from terrautils.influx import Influx, add_arguments as add_influx_arguments
+from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
 
 def add_arguments(parser):
 
-    # TODO: shouldn't this be part of pyclowder?
-    parser.add_argument('--clowder-space', 
-            default=os.environ.get('CLOWDER_SPACE', CLOWDER_SPACE)
-            help='sets the default Clowder space')
-
-    # TODO: deprecated
-    parser.add_argument('--mainspace', 
-            help='DEPRECATED, use --clowder-space'
+    # TODO: Move defaults into a level-based dict
+    parser.add_argument('--clowderspace',
+            default=os.getenv('CLOWDER_SPACE', "58da6b924f0c430e2baa823f"),
+            help='sets the default Clowder space for creating new things')
 
     parser.add_argument('--overwrite', default=False, 
             action='store_true',
@@ -53,58 +45,46 @@ class TerrarefExtractor(Extractor):
         super(TerrarefExtractor, self).__init__()
 
         add_arguments(self.parser)
-        terrautils.sensors.add_arguments(self.parser)
-        terrautils.influx.add_arguments(self.parser)
+        add_sensor_arguments(self.parser)
+        add_influx_arguments(self.parser)
 
 
-    def setup(self):
+    def setup(self, base='', site='', level='', sensor=''):
 
         super(TerrarefExtractor, self).setup()
 
-        self.clowder_space = self.args.clowder_space
+        self.clowderspace = self.args.clowderspace
         self.debug = self.args.debug
         self.overwrite = self.args.overwrite
+
+        if not base: base = self.args.terraref_base
+        if not site: site = self.args.terraref_site
+        if not level: level = self.args.terraref_level
+        if not sensor: sensor = self.args.sensor
 
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
 
-        # TODO: create sensor class with setup method for args
-        self.sensors = Sensors(base=self.args.terraref_base,
-                               site=self.args.terraref_site,
-                               level=self.args.terraref_level,
-                               sensor=self.args.sensor
-                               )
+        self.sensors = Sensors(base=base, site=site, level=level, sensor=sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
 
-        # TODO: create influx class with setup method for args
-        self.influx = Influx(host=self.args.influx_host,
-                             port=self.args.influx_port,
-                             db=self.args.influx_db,
-                             user=self.args.influx_user,
-                             port=self.args.influx_pass
-                            )
+        self.influx = Influx(self.args.influx_host, self.args.influx_port,
+                             self.args.influx_db, self.args.influx_user,
+                             self.args.influx_pass)
 
 
     # support message processing tracking, currently logged to influx
-    def start_message():
-        self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S') 
+    def start_message(self):
+        self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.created = 0
+        self.bytes = 0
 
-    def end_message(created, bytes):
-        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S') 
+
+    def end_message(self):
+        endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.influx.log(self.extractor_info['name'],
-                              self.starttime, endtime, created, bytes)
-
-
-    # TODO - Deprecated, remove at the appropriate time
-    @property
-    def output_dir():
-        raise AttributeError('output_dir is deprecated, use sensors functions')
-
-    # TODO - Deprecated, remove at the appropriate time
-    @property
-    def mainspace():
-        logging.warn('mainspace attriute is deprecated, use clowder_space')
-        return self.clowder_space
+                        self.starttime, endtime,
+                        self.created, self.bytes)
 
 
 # BASIC UTILS -------------------------------------
@@ -121,6 +101,7 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
     if context == []:
         context = ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"]
 
+    # TODO: Include version of extractor as standard
     md = {
         # TODO: Generate JSON-LD context for additional fields
         "@context": context,
@@ -137,73 +118,6 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
         md['file_id'] = target_id
 
     return md
-
-
-def get_extractor_list():
-    # TODO: Placeholder. This should eventually go in metadata.py (?)
-    return [
-        "stereoTop",
-        "flirIrCamera"
-    ]
-
-
-def get_output_directory(rootdir, datasetname, include_sensor=False):
-    """Determine output directory path given root path and dataset name.
-
-    include_sensor -- insert sensor name between root and first timestamp directory
-
-    Example dataset name:   stereoTop - 2017-05-04__10-31-34-536
-    Resulting output:       rootdir/2017-05-04/2017-05-04__10-31-34-536
-
-        * with include_sensor
-    Example dataset name:   ndviSensor - 2017-05-04__10-31-34-536
-    Resulting output:       rootdir/ndviSensor/2017-05-04/2017-05-04__10-31-34-536
-    """
-    if datasetname.find(" - ") > -1:
-        # 2017-05-04__10-31-34-536
-        timestamp = datasetname.split(" - ")[1]
-        sensorname = datasetname.split(" - ")[0]
-    else:
-        timestamp = datasetname
-        sensorname = ""
-
-    if timestamp.find("__") > -1:
-        # 2017-05-04
-        datestamp = timestamp.split("__")[0]
-    else:
-        datestamp = ""
-
-    if include_sensor and sensorname != "":
-        return os.path.join(rootdir, sensorname, datestamp, timestamp)
-    else:
-        return os.path.join(rootdir, datestamp, timestamp)
-
-
-def get_output_filename(datasetname, outextension='', lvl="lv1", site="uamac", opts=[], hms=False):
-    """Determine output filename given input information.
-
-    hms -- "HH-MM-SS" override if not included in dataset name, e.g. for EnvironmentLogger
-
-    sensor_level_datetime_site_a_b_c.extension
-        a = what product?
-        left/right/top/bottom - position
-    """
-    if datasetname.find(" - ") > -1:
-        # 2017-05-04__10-31-34-536
-        sensorname = datasetname.split(" - ")[0]
-        timestamp = datasetname.split(" - ")[1]
-    else:
-        sensorname = datasetname
-        timestamp = "2017"
-
-    # If extension included a period, remove it
-    if outextension != '':
-        outextension = '.' + outextension.replace('.', '')
-
-    if hms:
-        timestamp += "_" + hms
-
-    return "_".join([sensorname, lvl, timestamp, site]+opts) + outextension
 
 
 def is_latest_file(resource):
@@ -283,6 +197,7 @@ def calculate_centroid(gps_bounds):
         gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
     )
 
+
 def calculate_centroid_from_wkt(wkt):
     """Given WKT, return lat/lon of centroid.
 
@@ -297,6 +212,7 @@ def calculate_centroid_from_wkt(wkt):
         loc_geom.Centroid().GetX(),
         loc_geom.Centroid().GetY()
     )
+
 
 def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
@@ -314,42 +230,49 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
                         float(gantry_z) + float(cambox_z) )
-    camHeight = center_position[2]
+    cam_height = center_position[2]
 
     if sensor=="stereoTop":
-        # TODO: Hard-coded overrides for fov_x, fov_y, HEIGHT_MAGIC_NUMBER, PREDICT_MAGIC_SLOPE, STEREO_OFFSET
-        HEIGHT_MAGIC_NUMBER = 1.64 # gantry rails are at 2m
-        PREDICT_MAGIC_SLOPE = 0.574
-        predict_plant_height = PREDICT_MAGIC_SLOPE * camHeight
-        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER - predict_plant_height
-        fov_x = float(1.015 * (camH_fix/2))
-        fov_y = float(0.749 * (camH_fix/2))
-
-        # NOTE: This STEREO_OFFSET is an experimentally determined value.
-        STEREO_OFFSET = .17 # distance from center_position to each of the stereo cameras (left = +, right = -)
-        left_position = [center_position[0]+STEREO_OFFSET, center_position[1], center_position[2]]
-        right_position = [center_position[0]-STEREO_OFFSET, center_position[1], center_position[2]]
+        # Use height of camera * slope_estimation to estimate expected canopy height
+        predicted_plant_height = metadata['slope_estimation'] * cam_height
+        # Subtract expected plant height from (cam height + rail height offset) to get canopy height
+        cam_height_above_canopy = cam_height + metadata['rail_height_offset'] - predicted_plant_height
+        fov_x = float(fov_x * (cam_height_above_canopy/2))
+        fov_y = float(fov_y * (cam_height_above_canopy/2))
+        # Account for experimentally determined distance from center to each stereo lens for left/right
+        stereo_off = metadata['stereo_offsets_from_center']
+        left_position = [center_position[0]+stereo_off, center_position[1], center_position[2]]
+        right_position = [center_position[0]-stereo_off, center_position[1], center_position[2]]
+        # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
         return (left_gps_bounds, right_gps_bounds)
+
     elif sensor=="flirIrCamera":
-        HEIGHT_MAGIC_NUMBER = 1.0
-        camH_fix = camHeight + HEIGHT_MAGIC_NUMBER
-        fov_x = fov_x * (camH_fix/2)
-        fov_y = fov_y * (camH_fix/2)
-        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
-    else:
-        return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
+        cam_height_above_canopy = cam_height + metadata['rail_height_offset']
+        fov_x = float(fov_x * (cam_height_above_canopy/2))
+        fov_y = float(fov_y * (cam_height_above_canopy/2))
+
+    return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
 
 def calculate_scan_time(metadata):
-    # TODO: Replace these with references to cleaned metadata
+    """Parse scan time from metadata.
+
+        Returns:
+            timestamp string
+    """
     scan_time = None
+
+    # TODO: Deprecated; can eventually remove
     if 'lemnatec_measurement_metadata' in metadata:
         lem_md = metadata['lemnatec_measurement_metadata']
         if 'gantry_system_variable_metadata' in lem_md:
             # timestamp, e.g. "2016-05-15T00:30:00-05:00"
             scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time", "timestamp"])
+
+    elif 'time' in metadata:
+        scan_time = metadata['time']
 
     return scan_time
 
@@ -466,14 +389,13 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
             location of scannerbox x, y, z
             location offset of sensor in scannerbox in x, y, z
             field-of-view of camera in x, y dimensions
-            scan time
         )
     """
     gantry_x, gantry_y, gantry_z = None, None, None
     cambox_x, cambox_y, cambox_z = None, None, None
     fov_x, fov_y = None, None
 
-    # TODO: Replace these with GETs from Clowder fixed metadata for each sensor
+    # TODO: Deprecated; can eventually remove
     if 'lemnatec_measurement_metadata' in metadata:
         lem_md = metadata['lemnatec_measurement_metadata']
         if 'gantry_system_variable_metadata' in lem_md:
@@ -514,80 +436,31 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
                         fov_x = fovs[0]
                         fov_y = fovs[1]
 
-    # TODO: Hard-coded overrides
-    if sensor=="stereoTop":
-        cambox_z = 0.578
-    elif not cambox_z:
-        cambox_z = 0
+        if sensor=="stereoTop":
+            cambox_z = 0.578
+        elif not cambox_z:
+            cambox_z = 0
+
+    elif 'position_m' in metadata:
+        gantry_x = metadata['position_m']['x'] if 'x' in metadata['position_m'] else gantry_x
+        gantry_y = metadata['position_m']['y'] if 'y' in metadata['position_m'] else gantry_y
+        gantry_z = metadata['position_m']['z'] if 'z' in metadata['position_m'] else gantry_z
+
+        sensor_fixed = get_sensor_fixed_metadata(metadata['station'],
+                                                 metadata['sensor'])
+
+        # LOCATION IN CAMERA BOX
+        cambox_x = sensor_fixed['location_in_camera_box_m']['x']
+        cambox_y = sensor_fixed['location_in_camera_box_m']['y']
+        cambox_z = sensor_fixed['location_in_camera_box_m']['z']
+
+        # FIELD OF VIEW (FOV)
+        for fov_field in ['field_of_view_m', 'field_of_view_degrees']:
+            if fov_field in sensor_fixed:
+                fov_x = sensor_fixed[fov_field]['x'] if 'x' in sensor_fixed[fov_field] else fov_x
+                fov_y = sensor_fixed[fov_field]['y'] if 'y' in sensor_fixed[fov_field] else fov_y
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
-
-
-# LOGGING -------------------------------------
-def error_notification(msg):
-    """Send an error message notification, e.g. to Slack.
-    """
-    pass
-
-
-def log_to_influxdb(extractorname, connparams, starttime, endtime, filecount, bytecount):
-    """Send extractor job detail summary to InfluxDB instance.
-
-    connparams -- connection parameter dictionary with {host, port, db, user, pass}
-    starttime - example format "2017-02-10T16:09:57+00:00"
-    endtime - example format "2017-02-10T16:09:57+00:00"
-    filecount -- int of # files added
-    bytecount -- int of # bytes added
-    """
-
-    # Convert timestamps to seconds from epoch
-    f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
-    f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
-
-    client = InfluxDBClient(connparams["host"], connparams["port"],
-                            connparams["user"], connparams["pass"], connparams["db"])
-
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": f_duration}
-    }], tags={"extractor": extractorname, "type": "duration"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(filecount)}
-    }], tags={"extractor": extractorname, "type": "filecount"})
-    client.write_points([{
-        "measurement": "file_processed",
-        "time": f_completed_ts,
-        "fields": {"value": int(bytecount)}
-    }], tags={"extractor": extractorname, "type": "bytes"})
-
-
-def trigger_file_extractions_by_dataset(clowderhost, clowderkey, datasetid, extractor, ext=False):
-    """Manually trigger an extraction on all files in a dataset.
-
-        This will iterate through all files in the given dataset and submit them to
-        the provided extractor. Does not operate recursively if there are nested datasets.
-
-        ext -- extension to filter. e.g. 'tif' will only submit TIFF files for extraction.
-    """
-    flist = get_file_list(None, clowderhost, clowderkey, datasetid)
-    for f in flist:
-        if ext and not f['filename'].endswith(ext):
-            continue
-        submit_ext_file(None, clowderhost, clowderkey, f['id'], extractor)
-
-
-def trigger_dataset_extractions_by_collection(clowderhost, clowderkey, collectionid, extractor):
-    """Manually trigger an extraction on all datasets in a collection.
-
-        This will iterate through all datasets in the given collection and submit them to
-        the provided extractor. Does not operate recursively if there are nested collections.
-    """
-    dslist = get_datasets(None, clowderhost, clowderkey, collectionid)
-    for ds in dslist:
-        submit_ext_ds(None, clowderhost, clowderkey, ds['id'], extractor)
 
 
 # PRIVATE -------------------------------------
