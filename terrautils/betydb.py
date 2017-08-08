@@ -13,6 +13,16 @@ from osgeo import ogr
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 
 
+def add_arguments(parser):
+    parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
+                        default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
+                        help="traits API endpoint of BETY instance that outputs should be posted to")
+
+    parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?',
+                        default=os.getenv('BETYDB_KEY', ''),
+                        help="API key for BETY instance specified by betyURL")
+
+
 def get_bety_key():
     """return key from environment or ~/.betykey if it exists."""
 
