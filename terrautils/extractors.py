@@ -87,18 +87,6 @@ class TerrarefExtractor(Extractor):
                         self.created, self.bytes)
 
 
-    # TODO - Deprecated, remove at the appropriate time
-    @property
-    def output_dir():
-        raise AttributeError('output_dir is deprecated, use sensors functions')
-
-    # TODO - Deprecated, remove at the appropriate time
-    @property
-    def mainspace():
-        logging.warn('mainspace attriute is deprecated, use clowder_space')
-        return self.clowder_space
-
-
 # BASIC UTILS -------------------------------------
 def build_metadata(clowderhost, extractorname, target_id, content, target_type='file', context=[]):
     """Construct extractor metadata object ready for submission to a Clowder file/dataset.

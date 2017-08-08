@@ -5,7 +5,9 @@ This module contains dictionaries and references for handling sensor information
 
 import os
 import re
+import datetime
 
+from terrautils.betydb import get_experiments
 
 # 2017
 year_p = '(20\d\d)'
@@ -241,6 +243,7 @@ def add_arguments(parser):
                         default=os.getenv('TERRAREF_SITE', 'ua-mac'),
                         help='station name')
 
+    # TODO: Hide this and use dict to fill in this piece based on product/sensor
     parser.add_argument('--terraref_level', type=str,
                         default=os.getenv('TERRAREF_LEVEL', 'Level_1'))
 
@@ -416,6 +419,22 @@ class Sensors():
         """Get all sites (stations) listed."""
 
         return STATIONS.keys()
+
+
+    def get_season(self, date):
+        experiments = get_experiments()
+
+        # We only care about date portion if timestamp is given
+        if date.find("__") > -1:
+            date = date.split("__")[0]
+
+        ds_time = datetime.datetime.strptime(date, "%Y-%m-%d")
+        for exp in experiments:
+            begin = datetime.datetime.strptime(exp['start_date'], "%Y-%m-%d")
+            end = datetime.datetime.strptime(exp['end_date'], "%Y-%m-%d")
+
+            if ds_time >= begin and ds_time <= end:
+                return exp['name'][:exp['name'].find(':')]
 
 
     def get_sensors(self):
