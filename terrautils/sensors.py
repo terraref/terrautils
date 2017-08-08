@@ -128,7 +128,7 @@ STATIONS = {
             'rgb_fullfield': {
                 'template': '{base}/{station}/{level}/'
                             '{sensor}/{date}/{filename}',
-                'pattern': '{sensor}_{level}_{station}_{timestamp}{opts}.tif',
+                'pattern': '{sensor}_{level}_{station}_{date}{opts}.tif',
             },
 
             'flirIrCamera': {
@@ -261,10 +261,22 @@ class Sensors():
     def __init__(self, base, station, level, sensor):
         """Initialize basic path elements from env and cmdline."""
 
-        self.base = base
-        self.station = station
-        self.level = level
-        self.sensor = sensor
+        self.base = base.rstrip('/')
+
+        if station in STATIONS.keys():
+            self.station = station
+        else:
+            raise AttributeError('unknown station name "{}"'.format(station))
+
+        if level in STATIONS[station].keys():
+            self.level = level
+        else: 
+            raise AttributeError('unknown data level "{}"'.format(level))
+
+        if sensor in STATIONS[station][level].keys():
+            self.sensor = sensor
+        else:
+            raise AttributeError('unknown sensor name "{}"'.format(sensor))
 
 
     def _level_names(self, level):
@@ -312,7 +324,7 @@ class Sensors():
         date, hms = timestamp.split('__')
 
         try:
-            s = STATIONS[self.site][self.level][sensor]
+            s = STATIONS[self.station][self.level][sensor]
 
         except KeyError:
             raise RuntimeError('The station, level or sensor given does'
@@ -339,17 +351,17 @@ class Sensors():
         else:
             filename = s['pattern'].format(station=self.station,
                     level=self._level_names(self.level), sensor=sensor,
-                    timestamp=timstamp, date=date, time=hms,
+                    timestamp=timestamp, date=date, time=hms,
                     opts=opts)
 
         # TODO split extension with os.path function than do
         # a string match and replace
         if ext:
-            filename = os.path.splitext(filename)[0] + ext
+            filename = os.path.splitext(filename)[0] + '.' + ext
 
         path = s['template'].format(base=self.base, station=self.station,
                                     level=self.level, sensor=self.sensor,
-                                    timestamp=timstamp, date=date, time=hms,
+                                    timestamp=timestamp, date=date, time=hms,
                                     filename=filename)
         return path
 
@@ -359,8 +371,6 @@ class Sensors():
         """Get the appropritate path for writing sensor data
 
         Args:
-          station (str): abbreviated name of the site
-          level (str): data level (raw_data | Level_1 | Level_2)
           datasetname (sensor - date__timestamp str):
               e.g. VNIR - 2017-06-28__23-48-28-435
           sensor (str): sensor name, may be a product name for Level_1
@@ -404,7 +414,7 @@ class Sensors():
             fixed sensor information
         """
         if not site:
-            site = self.site
+            site = self.station
         if not level:
             level = self.level
         if not sensor:
@@ -415,18 +425,21 @@ class Sensors():
 
     def create_sensor_path(self, path):
         """Create path if does not exist."""
+
         if not os.path.exists(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
 
 
-    def get_sensors(self, station):
-        """Get all sensors for a given station."""
-        return STATIONS[self.station]['sensors'].keys()
-
-
     def get_sites(self):
         """Get all sites (stations) listed."""
+
         return STATIONS.keys()
+
+
+    def get_sensors(self):
+        """Get all sensors for a given station."""
+
+        return STATIONS[self.station][self.level].keys()
 
 
     def check_site(self, station):
