@@ -229,18 +229,18 @@ def add_arguments(parser):
         TERRAREF_BASE = '/home/extractor/sites'
 
     parser.add_argument('--terraref_base', type=str,
-                        default=os.environ.get('TERRAREF_BASE', TERRAREF_BASE),
+                        default=os.getenv('TERRAREF_BASE', TERRAREF_BASE),
                         help='Terraref base path')
 
     parser.add_argument('--terraref_site', type=str,
-                        default=os.environ.get('TERRAREF_SITE', 'ua-mac'),
+                        default=os.getenv('TERRAREF_SITE', 'ua-mac'),
                         help='station name')
 
     parser.add_argument('--terraref_level', type=str,
-                        default='Level_1')
+                        default=os.getenv('TERRAREF_LEVEL', 'Level_1'))
 
     parser.add_argument('--terraref_sensor', type=str,
-                        default='fullfield')
+                        default=os.getenv('TERRAREF_SENSOR', 'fullfield'))
 
 
 def exact_p(pattern):

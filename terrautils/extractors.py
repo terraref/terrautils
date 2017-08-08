@@ -22,19 +22,12 @@ from terrautils.influxterrautils.influx import Influx, add_arguments as add_infl
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
 
-CLOWDER_SPACE = "58da6b924f0c430e2baa823f"
-
-
 def add_arguments(parser):
 
-    # TODO: shouldn't this be part of pyclowder?
-    parser.add_argument('--clowder-space', 
-            default=os.environ.get('CLOWDER_SPACE', CLOWDER_SPACE),
-            help='sets the default Clowder space')
-
-    # TODO: deprecated
-    parser.add_argument('--mainspace', 
-            help='DEPRECATED, use --clowder-space')
+    # TODO: Move defaults into a level-based dict
+    parser.add_argument('--clowderspace',
+            default=os.getenv('CLOWDER_SPACE', "58da6b924f0c430e2baa823f"),
+            help='sets the default Clowder space for creating new things')
 
     parser.add_argument('--overwrite', default=False, 
             action='store_true',
@@ -60,7 +53,7 @@ class TerrarefExtractor(Extractor):
 
         super(TerrarefExtractor, self).setup()
 
-        self.clowder_space = self.args.clowder_space
+        self.clowderspace = self.args.clowderspace
         self.debug = self.args.debug
         self.overwrite = self.args.overwrite
 
@@ -70,8 +63,7 @@ class TerrarefExtractor(Extractor):
         self.sensors = Sensors(base=self.args.terraref_base,
                                site=self.args.terraref_site,
                                level=self.args.terraref_level,
-                               sensor=self.args.sensor
-                               )
+                               sensor=self.args.sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
 
         self.influx = Influx(self.args.influx_host, self.args.influx_port,
@@ -81,13 +73,16 @@ class TerrarefExtractor(Extractor):
 
     # support message processing tracking, currently logged to influx
     def start_message(self):
-        self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S') 
+        self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        self.created = 0
+        self.bytes = 0
 
 
-    def end_message(self, created, bytes):
+    def end_message(self):
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.influx.log(self.extractor_info['name'],
-                        self.starttime, endtime, created, bytes)
+                        self.starttime, endtime,
+                        self.created, self.bytes)
 
 
     # TODO - Deprecated, remove at the appropriate time
