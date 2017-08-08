@@ -18,7 +18,7 @@ from PIL import Image
 
 from pyclowder.extractors import Extractor
 from terrautils.metadata import get_sensor_fixed_metadata
-from terrautils.influxterrautils.influx import Influx, add_arguments as add_influx_arguments
+from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
 
@@ -49,7 +49,7 @@ class TerrarefExtractor(Extractor):
         add_influx_arguments(self.parser)
 
 
-    def setup(self):
+    def setup(self, base='', site='', level='', sensor=''):
 
         super(TerrarefExtractor, self).setup()
 
@@ -57,13 +57,15 @@ class TerrarefExtractor(Extractor):
         self.debug = self.args.debug
         self.overwrite = self.args.overwrite
 
+        if not base: base = self.args.terraref_base
+        if not site: site = self.args.terraref_site
+        if not level: level = self.args.terraref_level
+        if not sensor: sensor = self.args.sensor
+
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
 
-        self.sensors = Sensors(base=self.args.terraref_base,
-                               site=self.args.terraref_site,
-                               level=self.args.terraref_level,
-                               sensor=self.args.sensor)
+        self.sensors = Sensors(base=base, site=site, level=level, sensor=sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
 
         self.influx = Influx(self.args.influx_host, self.args.influx_port,

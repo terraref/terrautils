@@ -1,3 +1,8 @@
+"""Extractors
+
+This module contains dictionaries and references for handling sensor information.
+"""
+
 import os
 import re
 
@@ -132,7 +137,7 @@ STATIONS = {
 
         'Level_1': {
 
-            'rgb_fullfield': {
+            'fullfield': {
                 'template': '{base}/{station}/{level}/'
                             '{sensor}/{date}/{filename}',
                 'pattern': '{sensor}_{level}_{station}_{date}{opts}.tif',
@@ -240,7 +245,7 @@ def add_arguments(parser):
                         default=os.getenv('TERRAREF_LEVEL', 'Level_1'))
 
     parser.add_argument('--terraref_sensor', type=str,
-                        default=os.getenv('TERRAREF_SENSOR', 'fullfield'))
+                        default=os.getenv('TERRAREF_SENSOR', ''))
 
 
 def exact_p(pattern):
@@ -335,12 +340,11 @@ class Sensors():
             filename = s['pattern'].format(station=self.station,
                     level=_level_names(self.level), sensor=sensor,
                     timestamp=timestamp, date=date, time=hms, opts=opts)
-
+            # Override pattern extension if necessary
             if ext:
-                if ext != '':
-                    ext = '.' + ext.replace('.', '')
+                if not ext.startswith('.'):
+                    ext = '.' + ext
                 filename = os.path.splitext(filename)[0] + ext
-
 
         # Return fully formed path with generated/validated filename
         return s['template'].format(base=self.base, station=self.station,
