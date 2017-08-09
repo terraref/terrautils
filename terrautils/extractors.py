@@ -169,6 +169,47 @@ def load_json_file(filepath):
 
 # CLOWDER UTILS -------------------------------------
 # TODO: Move these to pyClowder 2 eventually, once pull requests are being merged timely
+def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_name,
+                            year='', month='', date='', leaf_ds_name=''):
+    """This will build collections for year, month, date level if needed in parent space.
+
+        Typical hierarchy:
+        MAIN LEVEL 1 DATA SPACE IN CLOWDER
+        - Root collection for sensor ("stereoRGB geotiffs")
+            - Year collection ("stereoRGB geotiffs - 2017")
+                - Month collection ("stereoRGB geotiffs - 2017-01")
+                    - Date collection ("stereoRGB geotiffs - 2017-01-01")
+                        - Dataset ("stereoRGB geotiffs - 2017-01-01__01-02-03-456")
+
+        Omitting year, month or date will result in dataset being added to next level up.
+    """
+    parent_collect = get_collection_or_create(connector, host, secret_key, root_coll_name,
+                                              parent_space=root_space)
+
+    if year:
+        # Create year-level collection
+        year_collect = get_collection_or_create(connector, host, secret_key, year,
+                                                parent_collect, root_space)
+        if month:
+            # Create month-level collection
+            month_collect = get_collection_or_create(connector, host, secret_key, month,
+                                                     year_collect, root_space)
+            if date:
+                targ_collect = get_collection_or_create(connector, host, secret_key, date,
+                                                        month_collect, root_space)
+            else:
+                targ_collect = month_collect
+        else:
+            targ_collect = year_collect
+    else:
+        targ_collect = parent_collect
+
+    target_dsid = get_dataset_or_create(connector, host, secret_key, leaf_ds_name,
+                                        targ_collect, root_space)
+
+    return target_dsid
+
+
 def get_collection_or_create(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
     url = "%sapi/collections?key=%s&title=" % (host, secret_key, cname)
