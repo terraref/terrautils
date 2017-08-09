@@ -169,7 +169,7 @@ def load_json_file(filepath):
 
 # CLOWDER UTILS -------------------------------------
 # TODO: Move these to pyClowder 2 eventually, once pull requests are being merged timely
-def getCollectionOrCreate(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
+def get_collection_or_create(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
     url = "%sapi/collections?key=%s&title=" % (host, secret_key, cname)
     result = requests.get(url, verify=connector.ssl_verify)
@@ -182,7 +182,7 @@ def getCollectionOrCreate(connector, host, secret_key, cname, parent_colln=None,
         return result.json()[0]['id']
 
 
-def getDatasetOrCreate(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
+def get_dataset_or_create(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
     url = "%sapi/datasets?key=%s&title=" % (host, secret_key, dsname)
     result = requests.get(url, verify=connector.ssl_verify)
