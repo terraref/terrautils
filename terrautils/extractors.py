@@ -8,6 +8,7 @@ import logging
 import json
 import os
 import utm
+import requests
 
 import gdal
 import numpy
@@ -17,6 +18,8 @@ from osgeo import gdal, osr
 from PIL import Image
 
 from pyclowder.extractors import Extractor
+from pyclowder.collections import create_empty as create_empty_collection
+from pyclowder.datasets import create_empty as create_empty_dataset
 from terrautils.metadata import get_sensor_fixed_metadata
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
@@ -163,6 +166,33 @@ def load_json_file(filepath):
     except:
         logging.error('could not load .json file %s' % filepath)
         return None
+
+# CLOWDER UTILS -------------------------------------
+# TODO: Move these to pyClowder 2 eventually, once pull requests are being merged timely
+def getCollectionOrCreate(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
+    # Fetch dataset from Clowder by name, or create it if not found
+    url = "%sapi/collections?key=%s&title=" % (host, secret_key, cname)
+    result = requests.get(url, verify=connector.ssl_verify)
+    result.raise_for_status()
+
+    if len(result.json()) == 0:
+        return create_empty_collection(connector, host, secret_key, cname, "",
+                                       parent_colln, parent_space)
+    else:
+        return result.json()[0]['id']
+
+
+def getDatasetOrCreate(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
+    # Fetch dataset from Clowder by name, or create it if not found
+    url = "%sapi/datasets?key=%s&title=" % (host, secret_key, dsname)
+    result = requests.get(url, verify=connector.ssl_verify)
+    result.raise_for_status()
+
+    if len(result.json()) == 0:
+        return create_empty_dataset(connector, host, secret_key, dsname, "",
+                                    parent_colln, parent_space)
+    else:
+        return result.json()[0]['id']
 
 
 # FORMAT CONVERSION -------------------------------------
