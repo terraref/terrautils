@@ -369,40 +369,40 @@ def _flir_standardize(flir, filepath=""):
 
     prop_map = {
         "current setting AutoFocus": {
-            "normalized": "autofocus",
+            "normalized": ["autofocus"],
             "required": False
         },
         "current setting Manual focal length [cm]": {
-            "normalized": "manual_focal_length_cm",
+            "normalized": ["manual_focal_length_cm"],
             "required": False
         },
         # 2016 data
         "current setting Manual focal length": {
-            "normalized": "manual_focal_length_cm",
+            "normalized": ["manual_focal_length_cm"],
             "required": False
         },        
         "current setting ImageAdjustMode": {
-            "normalized": "image_adjust_mode",
+            "normalized": ["image_adjust_mode"],
             "required": False
         },            
         "camera info": {
-            "normalized": "camera_info",
+            "normalized": ["camera_info"],
             "required": False
         },
         "focus distance [m]": {
-            "normalized": "focus_distance_m",
+            "normalized": ["focus_distance_m"],
             "required": False
         },
         "lens temperature [K]": {
-            "normalized": "lens_temperature_K",
+            "normalized": ["lens_temperature_K"],
             "required": False
         },
         "shutter temperature [K]": {
-            "normalized": "shutter_temperature_K",
+            "normalized": ["shutter_temperature_K"],
             "required": False
         }, 
         "front temperature [K]": {
-            "normalized": "front_temperature_K",
+            "normalized": ["front_temperature_K"],
             "required": False
         }               
     }
@@ -416,27 +416,27 @@ def _ps2_standardize(ps2, filepath=""):
 
     prop_map = {
         "current setting rotate flip type" : {
-            "normalized": "rotate_flip_type",
+            "normalized": ["rotate_flip_type"],
             "required": False
         },
         "current setting crosshairs" : {
-            "normalized": "crosshairs",
+            "normalized": ["crosshairs"],
             "required": False
         },
         "current setting exposure" : {
-            "normalized": "exposure",
+            "normalized": ["exposure"],
             "required": False
         },
         "current setting gain" : {
-            "normalized": "gain",
+            "normalized": ["gain"],
             "required": False
         },        
         "current setting gamma" : {
-            "normalized": "gamma",
+            "normalized": ["gamma"],
             "required": False
         },  
         "current setting ledcurrent" : {
-            "normalized": "led_current",
+            "normalized": ["led_current"],
             "required": False
         }           
     }
@@ -662,39 +662,39 @@ def _vnir_standardize(vnir, filepath="", name=SENSOR_VNIR):
 
     prop_map = {
         "current setting frameperiod": {
-            "normalized": "frame_period", 
+            "normalized": ["frame_period"], 
             "required": False
         },
         "current setting userotatingmirror": {
-            "normalized": "use_rotating_mirror", 
+            "normalized": ["use_rotating_mirror"], 
             "required": False
         },
         "current setting useexternaltrigger": {
-            "normalized": "use_external_trigger", 
+            "normalized": ["use_external_trigger"], 
             "required": False
         },       
         "current setting exposure": {
-            "normalized": "exposure", 
+            "normalized": ["exposure"], 
             "required": False
         },
         "current setting createdatacube": {
-            "normalized": "create_data_cube", 
+            "normalized": ["create_data_cube"], 
             "required": False
         },      
         "current setting speed": {
-            "normalized": "speed", 
+            "normalized": ["speed"], 
             "required": False
         }, 
         "current setting constmirrorpos": {
-            "normalized": "const_mirror_position", 
+            "normalized": ["const_mirror_position"], 
             "required": False
         },  
         "current setting startpos": {
-            "normalized": "start_position", 
+            "normalized": ["start_position"], 
             "required": False
         }, 
         "current setting stoppos": {
-            "normalized": "stop_position", 
+            "normalized": ["stop_position"], 
             "required": False
         }
     }
@@ -755,4 +755,4 @@ if __name__ == "__main__":
     with open(path) as file:
         json_data = json.load(file)
     cleaned = clean(json_data, sensor, path)
-    #print json.dumps(cleaned, indent=4, sort_keys=True)
+    print json.dumps(cleaned, indent=4, sort_keys=True)
