@@ -28,6 +28,7 @@ full_date_p = '{}__{}'.format(date_p, full_time_p)
 STATIONS = {
     'danforth': {
         'ddpscIndoorSuite': {
+            'display': 'Average Snapshot Traits',
             'template': '{base}/{station}/raw_data/'
                             '{sensor}/{snapshotID}/{filename}',
             'pattern': 'avg_traits.csv'
@@ -36,10 +37,12 @@ STATIONS = {
 
     'ksu': {
         'dsm': {
+            'display': 'Digital Surface Model GeoTIFFs',
             'template': '{base}/{station}/Level_1/{sensor}/{filename}',
             'pattern': '{time}_DSM_16ASH-TERRA.tif'
         },
         'rededge': {
+            'display': 'Red Edge',
             'template': '{base}/{station}/Level_1/{sensor}/{filename}',
             'pattern': '{time}_BGREN_16ASH-TERRA'
         }
@@ -118,61 +121,78 @@ STATIONS = {
               "fixed_metadata_datasetid": "TBD"
         },
 
-        'rgb_fullfield': {
+        'fullfield': {
+            'display': 'Full Field Stitched Mosaics',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{date}{opts}.tif',
         },
 
-        'flirIrCamera': {
+        'hyperspectral2nc_vnir': {
+            'display': 'VNIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
+            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
+        },
+
+        'hyperspectral2nc_swir': {
+            'display': 'SWIR Hyperspectral NetCDFs',
+            'template': '{base}/{station}/Level_1/'
+                        '{sensor}/{date}/{time}/{filename}',
+            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
         },
 
         'stereoTop_geotiff': {
+            'display': 'stereoTop GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
         },
 
         'stereoTop_canopyCover': {
+            'display': 'stereoTop Canopy Cover',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
         },
 
         'texture_analysis': {
+            'display': 'stereoTop R Texture Analysis',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.csv',
         },
 
         'flir2tif': {
+            'display': 'flirIrCamera GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
         },
 
         'EnvironmentLogger': {
+            'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
         },
 
         'soil_removal_vnir': {
+            'display': 'VNIR Soil Removal Masks',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'VNIR_lv1_{station}_{timestamp}{opts}.nc'
         },
 
         'soil_removal_swir': {
+            'display': 'SWIR Soil Removal Masks',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'SWIR_lv1_{station}_{timestamp}{opts}.nc'
         },
 
         'scanner3DTop_mergedlas': {
+            'display': 'scanner3D Merged LAS',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_lv1_{station}_{timestamp}'
@@ -180,6 +200,7 @@ STATIONS = {
         },
 
         'scanner3DTop_plant_height': {
+            'display': 'scanner3D Plant Height',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_lv1_{station}_{timestamp}'
@@ -187,6 +208,7 @@ STATIONS = {
         },
 
         'scanner3DTop_heightmap': {
+            'display': 'scanner3D Height Map',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_lv1_{station}_{timestamp}'
@@ -428,3 +450,11 @@ class Sensors():
         else:
             return self.stations[self.station].keys()
 
+
+    def get_display_name(self, sensor=''):
+        """Get display name for a sensor."""
+
+        if sensor:
+            return self.self.stations[self.station][sensor]['display']
+        else:
+            return self.self.stations[self.station][self.sensor]['display']
