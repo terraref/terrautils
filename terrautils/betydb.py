@@ -35,7 +35,8 @@ def get_bety_key():
         keyfile = open(keyfile_path, "r")
         return keyfile.readline().strip()
 
-    raise RuntimeError("BETYDB_URL not found. Set environmental variable "
+    else:
+        raise RuntimeError("BETYDB_URL not found. Set environmental variable "
                        "or create $HOME/.betykey.")
 
 
@@ -164,8 +165,14 @@ def get_site_boundaries(**kwargs):
     return bboxes
 
 
-def submit_traits(csv, filetype='csv', betykey=get_bety_key(), betyurl=get_bety_api("traits")):
+def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
     """ Submit traits file to BETY; can be CSV, JSON or XML."""
+
+    # set defaults if necessary
+    if not betykey:
+        betykey = get_bety_key()
+    if not betyurl:
+        betyurl = get_bety_api('traits')
 
     request_payload = { 'key':betykey }
 
