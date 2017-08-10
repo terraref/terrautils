@@ -4,19 +4,26 @@ field names and values to standardized formats required for TERRA-REF.
 
 The "cleaned" metadata will be posted to the Clowder metadata endpoint and
 used downstream by extractors.
+
+TODO:
+    SENSOR_IRRIGATION                                                                                   
+    SENSOR_LIGHTNING
+    SENSOR_ENVIRONMENTAL_LOGGER
+    SENSOR_WEATHER
 """
 
+import argparse
 import json
-import os
-import sys
-import requests
 import logging
+import os
 import pytz, datetime
+import requests
+import sys
 from terrautils.sensors import Sensors
 
-
-station = "ua-mac"
+STATION_NAME = "ua-mac"
 TERRAREF_BASE='/projects/arpae/terraref/sites'
+
 
 # Official sensor names
 PLATFORM_SCANALYZER = "scanalyzer"
@@ -36,6 +43,8 @@ SENSOR_SWIR = "SWIR"
 SENSOR_VNIR = "VNIR"
 SENSOR_WEATHER = "weather"
 
+logging.basicConfig()
+logger = logging.getLogger("terrautils.metadata.lemnatac")
 
 def clean(metadata, sensorId, filepath=""):
     """ 
@@ -79,7 +88,7 @@ def _get_sensor_fixed_metadata_url(sensorId):
     # TODO; We only need this one -- duplicate method in metadata.py
     
     # Get the dataset ID for the sensor by identifier
-    sensors = Sensors(base=TERRAREF_BASE, station=station, level="raw_data", sensor=sensorId)
+    sensors = Sensors(base=TERRAREF_BASE, station=STATION_NAME, level="raw_data", sensor=sensorId)
     datasetid = sensors.get_fixed_datasetid_for_sensor(None, None, None)
     
     properties = {}
@@ -96,7 +105,10 @@ def _get_sensor_fixed_metadata(sensorId):
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     """
-    Standardize the gantry variable metadata
+    Standardize the gantry variable metadata.  Note, the original LemnaTec metadata
+    changes keys over time (e.g., time=Time=timestamp=TimeStamp).  The prop_map
+    contains all keys encountered in the gantry_system_variable_metadata over time,
+    although many of these are never used in the final cleaned metadata.
     """   
     
     prop_map = {
@@ -564,8 +576,7 @@ def _stereoTop_standardize(data, filepath=""):
         },       
         "image format right image" : {
             "standardized": ["image_format", "right"]
-        },           
-          
+        }, 
     }
     
     properties = _standardize_with_validation(SENSOR_STEREO_TOP, data, prop_map, [], filepath)  
@@ -651,19 +662,19 @@ def _standardize_with_validation(name, orig, property_map, required_fields=[], f
         if key in property_map:
             _set_nested_value(standardized, property_map[key]['standardized'], orig[key])
         else:
-            logging.warning("Encountered field \"%s\", missing from map in %s (%s)"  % (key, name, filepath))
+            logger.warning("Encountered field \"%s\", missing from map in %s (%s)"  % (key, name, filepath))
             
     # Step through the keys of the mapping, set default values where appropriate and
     # report an error if a required field is missing.
     for key in property_map:
         if key in required_fields and not _nested_contains(standardized, property_map[key]['standardized']):
             if key in property_map and 'default' in property_map[key]:
-                logging.debug("Setting default value %s for key \"%s\"" % ( property_map[key]['default'], 
+                logger.debug("Setting default value %s for key \"%s\"" % ( property_map[key]['default'], 
                         property_map[key]['standardized']))
                         
                 _set_nested_value(standardized, property_map[key]['standardized'], property_map[key]['default'])
             else:
-                logging.error("missing required field \"%s\" in %s" % (property_map[key]['standardized'], name))
+                logger.error("missing required field \"%s\" in %s" % (property_map[key]['standardized'], name))
     return standardized
     
 def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md): 
@@ -693,7 +704,7 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md
         else:
             point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['z']) + 25.711
     else:
-        logging.error("Cannot calculate point cloud origin -- missing gantry position information")
+        logger.error("Cannot calculate point cloud origin -- missing gantry position information")
 
     return point_cloud_origin
         
@@ -736,14 +747,21 @@ def _get_dict_subset(dic, keys):
     return dict((k, dic[k]) for k in keys if k in dic)
     
 if __name__ == "__main__":
-    #fixed = _get_sensor_fixed_metadata("scanner3DTop")
-    #print json.dumps(fixed, indent=4, sort_keys=True)
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path", type=str, help="Path to metadata json")
+    parser.add_argument("sensor", type=str, help="Sensor name")
+    parser.add_argument("--output", help="Print output", action="store_true")
+    parser.add_argument("--debug", help="Print debug output", action="store_true")
+    args = parser.parse_args()
 
-    path = sys.argv[1]
-    sensor = sys.argv[2]
-    logging.debug("Processing %s" % path)
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        
+    logger.debug("Processing %s" % args.path)
     #with open("/data/terraref/sites/ua-mac/raw_data/scanner3DTop/2017-07-20/2017-07-20__05-40-41-035/7fa3a8d7-294f-4076-81ab-4c191fa9faa0_metadata.json") as file:
-    with open(path) as file:
+    with open(args.path) as file:
         json_data = json.load(file)
-    cleaned = clean(json_data, sensor, path)
-    #print json.dumps(cleaned, indent=4, sort_keys=True)
+    cleaned = clean(json_data, args.sensor, args.path)
+    if args.output:
+        print json.dumps(cleaned, indent=4, sort_keys=True)
