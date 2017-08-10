@@ -1,25 +1,25 @@
-'''
-Create a cleaned/curated metadata object based on the LemnaTec fixed metadata
-Some metadata used for search
-Some metadata used for extractors
+"""
+Given a JSON object containing the original LemnaTec metadata, convert
+field names and values to standardized formats required for TERRA-REF.
 
-TODO: 
-  Add checks for expected fields
-  Date/time standardization
-  Add units to variables?
-  Logging
-
-'''
+The "cleaned" metadata will be posted to the Clowder metadata endpoint and
+used downstream by extractors.
+"""
 
 import json
 import os
 import sys
 import requests
-from terrautils import sensors
+import logging
+import pytz, datetime
+from terrautils.sensors import Sensors
+
 
 station = "ua-mac"
+TERRAREF_BASE='/projects/arpae/terraref/sites'
 
 # Official sensor names
+PLATFORM_SCANALYZER = "scanalyzer"
 SENSOR_CO2 = "co2Sensor"
 SENSOR_CROP_CIRCLE = "cropCircle"
 SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
@@ -38,29 +38,37 @@ SENSOR_WEATHER = "weather"
 
 
 def clean(metadata, sensorId, filepath=""):
-    """ Given a LemnaTec metadata.json object, produces the "cleaned" metadata that 
+    """ 
+    Given a LemnaTec metadata.json object, produces the "cleaned" metadata that 
     will be put in the Clowder jsonld endpoint.
     """
     
     orig_lem_md = metadata['lemnatec_measurement_metadata']
     
     properties = {}
-    properties["gantry_variable"] = _standardize_gantry_system_variable_metadata(orig_lem_md, filepath)
-    properties["sensor_fixed"]    = _get_sensor_fixed_metadata_url(sensorId)
-    properties["sensor_variable"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, properties["gantry_variable"], filepath)
+    properties["gantry_variable_metadata"] = _standardize_gantry_system_variable_metadata(orig_lem_md, filepath)
+    properties["gantry_fixed_metadata"]    = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
+    properties["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata_url(sensorId)
+    properties["sensor_variable_metadata"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, 
+                                                    properties["gantry_variable_metadata"], filepath)
     #_standardize_user_given_metadata(orig_lem_md)
 
     return properties
             
-# Standardize user given metadata
+
 def _standardize_user_given_metadata(lem_md):
-    # Currently not used. Will possibly return reference to user given metadata in BETY
+    """
+    Currently not used. Will possibly return reference to user given metadata in BETY
+    """
     return
 
-# Standardize gantry fixed metadata
 def _standardize_gantry_system_fixed_metadata(orig):
-    # Currently not used. Will possibly return URL to Gantry fixed metadata in Clowder
-    return
+    """
+    Returns an object containing the URL for the Scanalyzer fixed metadata
+    """
+    properties = {}
+    properties["url"] = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
+    return properties
 
 def _get_sensor_fixed_metadata_url(sensorId):
     """
@@ -71,10 +79,11 @@ def _get_sensor_fixed_metadata_url(sensorId):
     # TODO; We only need this one -- duplicate method in metadata.py
     
     # Get the dataset ID for the sensor by identifier
-    datasetid = sensors.get_fixed_datasetid_for_sensor(station, sensorId)
+    sensors = Sensors(base=TERRAREF_BASE, station=station, level="raw_data", sensor=sensorId)
+    datasetid = sensors.get_fixed_datasetid_for_sensor(None, None, None)
     
     properties = {}
-    properties["url"] = os.environ["CLOWDER_HOST"] + "api/datasets/" + datasetid + "/metadata.jsonld"
+    properties["url"] = os.environ.get("CLOWDER_HOST","") + "api/datasets/" + datasetid + "/metadata.jsonld"
     return properties
     
 def _get_sensor_fixed_metadata(sensorId):
@@ -90,210 +99,226 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     Standardize the gantry variable metadata
     """   
     
-    # Map of Lemnatec properties to normalized names
-    # TODO: Check time format
     prop_map = {
         'time': {
-            'normalized': ['time'],
-            'required': True
+            'standardized': ['time']
         },
         'Time': {
-            # "Time": "04/25/2016 12:26:41",
-            'normalized': ['time'],
-            'required': False
+            'standardized': ['time']
         },        
         'timestamp': {
-            #12/05/2016 16:13:08
-            'normalized': ['time'],
-            'required': False
+            'standardized': ['time'] 
         }, 
+        'Timestamp': {
+            'standardized': ['time'] 
+        },         
         'position x [m]': {
-            'normalized': ['position_m', 'x'],
-            'required': True
+            'standardized': ['position_m', 'x']
         },
         'Position x [m]': {
-            'normalized': ['position_m', 'x'],
-            'required': False
+            'standardized': ['position_m', 'x']
         },        
         'position y [m]': {
-            'normalized': ['position_m', 'y'],
-            'required': True
+            'standardized': ['position_m', 'y']
         },
         'Position y [m]': {
-            'normalized': ['position_m', 'y'],
-            'required': False
+            'standardized': ['position_m', 'y']
         },         
         'position z [m]': {
-            'normalized': ['position_m', 'z'],
-            'required': True
+            'standardized': ['position_m', 'z']   
         },
         'Position z [m]': {
-            'normalized': ['position_m', 'z'],
-            'required': False
+            'standardized': ['position_m', 'z']
         },          
         'speed x [m/s]': {
-            'normalized': ['speed_m/s', 'x'],
-            'required': True
+            'standardized': ['speed_m/s', 'x']
+        },
+        'speed y [m/s]': {
+            'standardized': ['speed_m/s', 'y']
+        },  
+        'speed z [m/s]': {
+            'standardized': ['speed_m/s', 'z']
         },
         'Velocity x [m/s]': {
-            'normalized': ['speed_m/s', 'x'],
-            'required': False
+            'standardized': ['velocity_m/s', 'x']
         },          
-        'speed y [m/s]': {
-            'normalized': ['speed_m/s', 'y'],
-            'required': True
-        },  
         'Velocity y [m/s]': {
-            'normalized': ['speed_m/s', 'y'],
-            'required': False
+            'standardized': ['velocity_m/s', 'y']
         },         
-        'speed z [m/s]': {
-            'normalized': ['speed_m/s', 'z'],
-            'required': True
-        },
         'Velocity z [m/s]': {
-            'normalized': ['speed_m/s', 'z'],
-            'required': False
+            'standardized': ['velocity_m/s', 'z']
         },         
         'scanDistance [m]': {
-            'normalized': ['scan_distance_m'],
-            'required': False
+            'standardized': ['scan_distance_m']
         },
         'scanDistanceInM [m]': {
-            'normalized': ['scan_distance_m'],
-            'required': False
+            'standardized': ['scan_distance_m']
         },        
         'scanSpeed [m/s]': {
-            'normalized': ['scan_speed_m/s'],
-            'required': False
+            'standardized': ['scan_speed_m/s']
         }, 
         'scanSpeedInMPerS [m/s]': {
-            'normalized': ['scan_speed_m/s'],
-            'required': False
+            'standardized': ['scan_speed_m/s']
         },         
         'scanMode': {
-            'normalized': ['scan_mode'],
-            'required': False
+            'standardized': ['scan_mode']
         },         
         'camera box light 1 is on': {
-            'normalized': ['camera_box_light_1_on'],
-            'required': False
+            'standardized': ['camera_box_light_1_on']
         }, 
         'Camnera box light 1 is on': {
-            'normalized': ['camera_box_light_1_on'],
-            'required': False
+            'standardized': ['camera_box_light_1_on']
         },          
         'camera box light 2 is on': {
-            'normalized': ['camera_box_light_2_on'],
-            'required': False
+            'standardized': ['camera_box_light_2_on']
         },  
         'Camnera box light 2 is on': {
-            'normalized': ['camera_box_light_2_on'],
-            'required': False
+            'standardized': ['camera_box_light_2_on']
         },        
         'camera box light 3 is on': {
-            'normalized': ['camera_box_light_3_on'],
-            'required': False
+            'standardized': ['camera_box_light_3_on']
         },  
         'Camnera box light 3 is on': {
-            'normalized': ['camera_box_light_3_on'],
-            'required': False
+            'standardized': ['camera_box_light_3_on']
         },        
         'camera box light 4 is on': {
-            'normalized': ['camera_box_light_4_on'],
-            'required': False
+            'standardized': ['camera_box_light_4_on']
         },  
         'Camnera box light 4 is on': {
-            'normalized': ['camera_box_light_4_on'],
-            'required': False
+            'standardized': ['camera_box_light_4_on']
         },         
         'Script copy path on FTP server': {
-            'normalized': ['script_path_ftp_server'],
-            'required': False
+            'standardized': ['script_path_ftp_server']
         },   
         'Script path on local disk': {
-            'normalized': ['script_path_local_disk'],
-            'required': False
+            'standardized': ['script_path_local_disk']
         },           
         'sensor setting file path': {
-            'normalized': ['sensor_setting_file_path'],
-            'required': False,
+            'standardized': ['sensor_setting_file_path']
         },  
         # This is used in the calculation of the point cloud origin
         'scanIsInPositiveDirection': {
-            'normalized': ['scan_direction_is_positive'],
-            'required': True,
+            'standardized': ['scan_direction_is_positive'],
             'default' : "False"
         }, 
         'scanDirectionIsPositive': {
-            'normalized': ['scan_direction_is_positive'],
-            'required': False,
+            'standardized': ['scan_direction_is_positive'],
             'default' : "False"
         },
         'PLC control not available': {
-            'normalized': ['plc_control_not_available'],
-            'required': False
+            'standardized': ['error']
         },
         # Found on co2Sensor
         'x end pos [m]': {
-            'normalized': ['end_position_m', 'x'],
-            'required': False
+            'standardized': ['end_position_m', 'x']
         },     
         'x set velocity [m/s]': {
-            'normalized': ['velocity_m/s', 'x'],
-            'required': False
+            'standardized': ['velocity_m/s', 'x']
         }, 
         'x set acceleration [m/s^2]': {
-            'normalized': ['acceleration_m/s^2', 'x'],
-            'required': False
+            'standardized': ['acceleration_m/s^2', 'x']
         },
         'x set deceleration [m/s^2]': {
-            'normalized': ['deceleration_m/s^2', 'x'],
-            'required': False
+            'standardized': ['deceleration_m/s^2', 'x']
         },          
         # Found on cropCircle
         'y end pos [m]': {
-            'normalized': ['end_position_m', 'y'],
-            'required': False
+            'standardized': ['end_position_m', 'y']
         },  
         'Y end pos [m]': {
-            'normalized': ['end_position_m', 'y'],
-            'required': False
+            'standardized': ['end_position_m', 'y']
         },          
         'y set velocity [m/s]': {
-            'normalized': ['velocity_m/s', 'y'],
-            'required': False
+            'standardized': ['velocity_m/s', 'y']
         },
         'Y set velocity [m/s]': {
-            'normalized': ['velocity_m/s', 'y'],
-            'required': False
+            'standardized': ['velocity_m/s', 'y']
         },         
         'y set acceleration [m/s^2]': {
-            'normalized': ['acceleration_m/s^2', 'y'],
-            'required': False
+            'standardized': ['acceleration_m/s^2', 'y']
         },
         'Y set acceleration [m/s^2]': {
-            'normalized': ['acceleration_m/s^2', 'y'],
-            'required': False
+            'standardized': ['acceleration_m/s^2', 'y']
         },        
-        'y set decceleration [m/s^2]': {
-            'normalized': ['deceleration_m/s^2', 'y'],
-            'required': False
+        'y set deceleration [m/s^2]': {
+            'standardized': ['deceleration_m/s^2', 'y']
         },
+        'y set decceleration [m/s^2]': {
+            'standardized': ['deceleration_m/s^2', 'y']
+        },        
         'Y set decceleration [m/s^2]': {
-            'normalized': ['deceleration_m/s^2', 'y'],
-            'required': False
-        }     
+            'standardized': ['deceleration_m/s^2', 'y']
+        },
+        # FAT Tests?
+        'Measurement purpose [FAT test]' : {
+            'standardized': ['ignored']
+        },
+        'Measurement target [Test object sandbox]' : {
+            'standardized': ['ignored']
+        },
+        'fat measurement [comparison color sensors to hyperspec above green target]' : {
+            'standardized': ['ignored']
+        },
+        'repeats [1 of 1]' : {
+            'standardized': ['ignored']
+        },        
+        'repeats [1 of 3]' : {
+            'standardized': ['ignored']
+        },
+        'repeats [2 of 3]' : {
+            'standardized': ['ignored']
+        },
+        'repeats [3 of 3]' : {
+            'standardized': ['ignored']
+        },
+        'fat measurement [test chart (resting)]' : {
+            'standardized': ['ignored'],
+            'default': "test chart(resting)"
+        },
+        'fat measurement [black body (moving)]' : {
+            'standardized': ['ignored']
+        },
+        'fat measurement [black body (resting)]' : {
+            'standardized': ['ignored']
+        },
+        'only small set of meta data available' : {
+            'standardized': ['ignored']
+        },
+        'Only small set of meta data available' : {
+            'standardized': ['ignored']
+        },        
+        'fat measurement [PS2 on fluo target]': {
+            'standardized': ['ignored']
+        },
+        'fat measurement [3d scan of test target (different directions and different speeds)]': {
+            'standardized': ['ignored']
+        }
         
     }
     
-    # TODO:  we know time is a problem, x,y,z should be a standard object, same for speed
-    
     orig = lem_md['gantry_system_variable_metadata'] 
-    properties = _normalize_with_validation("gantry_system_variable_metadata", orig, prop_map, filepath)  
+    properties = _standardize_with_validation("gantry_system_variable_metadata", orig, prop_map, [], filepath)  
+    
+    # Set default scan_direction_is_positive
+    if 'scan_direction_is_positive' not in properties:
+        if 'position_m' in properties:
+            if properties['position_m']['y'] == 0:
+                properties['scan_direction_is_positive'] = 'True'
+            else:
+                properties['scan_direction_is_posfitive'] = 'False'
+                
 
+    # Standardize time field value
+    if 'time' in properties:
+        properties['time_utc'] = _standardize_time_utc(properties['time'], "%m/%d/%Y %H:%M:%S", "US/Arizona")
+    
+    # Limit output to the following fields for now
+    output_fields = [
+        "time_utc", "position_m", "speed_m/s", "scan_direction_is_positive", "error"
+    ]
 
-    return properties
+    return _get_dict_subset(properties, output_fields)
+
 
 def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_variable_md, filepath=""):
     """
@@ -326,7 +351,8 @@ def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_
     elif sensor == SENSOR_PS2_TOP:
         properties = _ps2_standardize(sensor_variable_metadata, filepath)        
     elif sensor == SENSOR_SCANNER_3D_TOP:
-        properties = _scanner3d_standardize(sensor_variable_metadata, sensor_fixed_metadata, corrected_gantry_variable_md, filepath)
+        properties = _scanner3d_standardize(sensor_variable_metadata, sensor_fixed_metadata, 
+                                                corrected_gantry_variable_md, filepath)
     elif sensor == SENSOR_STEREO_TOP:
         properties = _stereoTop_standardize(sensor_variable_metadata, filepath)
     elif sensor == SENSOR_SWIR:
@@ -337,174 +363,308 @@ def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_
     return properties
 
 
-    
-def _cropCircle_standardize(cropCircle, filepath=""):
-    """
-    See /data/terraref/sites/ua-mac/raw_data/cropCircle/2017-06-27/2017-06-27__13-32-27-989/0333e097-1bf0-4e63-9455-ab787e9fdf43_metadata.json
-
-    Example:
-        "sensor_variable_metadata": {
-          "current setting rotate flip type": "0",
-          "current setting crosshairs": "0"
-        }
-    """
-
+def _cropCircle_standardize(data, filepath=""):
 
     prop_map = {
         "current setting rotate flip type": {
-            "normalized": ["rotate_flip_type"],
-            "required": False
+            "standardized": ["rotate_flip_type"]
         },
         "current setting crosshairs": {
-            "normalized": ["crosshairs"],
-            "required": False
+            "standardized": ["crosshairs"]
         }      
     }
 
-    properties = _normalize_with_validation("cropCircle", cropCircle, prop_map, filepath="")   
-
+    properties = _standardize_with_validation(SENSOR_CROP_CIRCLE, data, prop_map, [], filepath="")   
     return properties
     
-def _flir_standardize(flir, filepath=""):
+def _flir_standardize(data, filepath=""):
 
     prop_map = {
         "current setting AutoFocus": {
-            "normalized": ["autofocus"],
-            "required": False
+            "standardized": ["autofocus"]
         },
         "current setting Manual focal length [cm]": {
-            "normalized": ["manual_focal_length_cm"],
-            "required": False
+            "standardized": ["manual_focal_length_cm"]
         },
         # 2016 data
         "current setting Manual focal length": {
-            "normalized": ["manual_focal_length_cm"],
-            "required": False
+            "standardized": ["manual_focal_length_cm"]
         },        
         "current setting ImageAdjustMode": {
-            "normalized": ["image_adjust_mode"],
-            "required": False
+            "standardized": ["image_adjust_mode"]
         },            
         "camera info": {
-            "normalized": ["camera_info"],
-            "required": False
+            "standardized": ["camera_info"]
         },
         "focus distance [m]": {
-            "normalized": ["focus_distance_m"],
-            "required": False
+            "standardized": ["focus_distance_m"]
         },
         "lens temperature [K]": {
-            "normalized": ["lens_temperature_K"],
-            "required": False
+            "standardized": ["lens_temperature_K"]
         },
         "shutter temperature [K]": {
-            "normalized": ["shutter_temperature_K"],
-            "required": False
+            "standardized": ["shutter_temperature_K"]
         }, 
         "front temperature [K]": {
-            "normalized": ["front_temperature_K"],
-            "required": False
+            "standardized": ["front_temperature_K"]
         }               
     }
     
-    properties = _normalize_with_validation(SENSOR_FLIR, flir, prop_map, filepath="")    
-
+    properties = _standardize_with_validation(SENSOR_FLIR, data, prop_map, [], filepath)    
     return properties    
     
     
-def _ps2_standardize(ps2, filepath=""):
+def _ps2_standardize(data, filepath=""):
 
     prop_map = {
         "current setting rotate flip type" : {
-            "normalized": ["rotate_flip_type"],
-            "required": False
+            "standardized": ["rotate_flip_type"]
         },
         "current setting crosshairs" : {
-            "normalized": ["crosshairs"],
-            "required": False
+            "standardized": ["crosshairs"]
         },
         "current setting exposure" : {
-            "normalized": ["exposure"],
-            "required": False
+            "standardized": ["exposure"]
         },
         "current setting gain" : {
-            "normalized": ["gain"],
-            "required": False
+            "standardized": ["gain"]
         },        
         "current setting gamma" : {
-            "normalized": ["gamma"],
-            "required": False
+            "standardized": ["gamma"]
         },  
         "current setting ledcurrent" : {
-            "normalized": ["led_current"],
-            "required": False
+            "standardized": ["led_current"]
         }           
     }
-    properties = _normalize_with_validation(SENSOR_PS2_TOP, ps2, prop_map, filepath="")   
+    properties = _standardize_with_validation(SENSOR_PS2_TOP, data, prop_map, [], )   
     return properties    
     
-def _scanner3d_standardize(scanner3d, fixed_md, corrected_gantry_variable_md, filepath=""):
+def _scanner3d_standardize(data, fixed_md, corrected_gantry_variable_md, filepath=""):
     prop_map = {
         "current setting Exposure [microS]": {
-            "normalized": ["exposure_microS"],
-            "required": False
+            "standardized": ["exposure_microS"]
         },
         # 2016 data
         "current setting Exposure": {
-            "normalized": ["exposure_microS"],
-            "required": False
+            "standardized": ["exposure_microS"]
         },        
         "current setting Calculate 3D files": {
-            "normalized": ["calculate_3d_files"],
-            "required": False
+            "standardized": ["calculate_3d_files"]
         }, 
         "current setting Laser detection threshold": {
-            "normalized": ["laser_detection_threshold"],
-            "required": False
+            "standardized": ["laser_detection_threshold"]
         },    
         "current setting Scanlines per output file": {
-            "normalized": ["scanlines_per_output_file"],
-            "required": False
+            "standardized": ["scanlines_per_output_file"]
         },   
         "current setting Scan direction (automatically set at runtime)": {
-            "normalized": ["scan_direction"],
-            "required": False
+            "standardized": ["scan_direction"]
         },   
         "current setting Scan distance (automatically set at runtime) [mm]": {
-            "normalized": ["scan_distance_mm"],
-            "required": False
+            "standardized": ["scan_distance_mm"]
         },  
         "current setting Scan speed (automatically set at runtime) [microMeter/s]": {
-            "normalized": ["scan_speed_microMeter/s"],
-            "required": False
-        },            
-        
+            "standardized": ["scan_speed_microMeter/s"]
+        },
+        "current setting Scan speed (automatically set at runtime)": {
+            "standardized": ["scan_speed_microMeter/s"]
+        },
+        "current setting Scan distance (automatically set at runtime)": {
+            "standardized": ["scan_distance_mm"]
+        },  
     } 
     
-    properties = _normalize_with_validation(SENSOR_SCANNER_3D_TOP, scanner3d, prop_map, filepath="")    
-
-    properties["point_cloud_origin_m"] = _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md)
-
+    properties = _standardize_with_validation(SENSOR_SCANNER_3D_TOP, data, prop_map, [], filepath)    
+    properties["point_cloud_origin_m"] = _calculatePointCloudOrigin(data, fixed_md, corrected_gantry_variable_md)
     return properties  
+
+
+def _stereoTop_standardize(data, filepath=""):
+    prop_map = {
+        "Rotate flip type - left" : {
+            "standardized": ["rotate_flip_type", "left"]
+        },
+        "Rotate flip type - right" : {
+            "standardized": ["rotate_flip_type", "right"]
+        },  
+        "rotate flip type - left" : {
+            "standardized": ["rotate_flip_type", "left"]
+        },
+        "rotate flip type - right" : {
+            "standardized": ["rotate_flip_type", "right"]
+        },          
+        "Crosshairs - left" : {
+            "standardized": ["crosshairs", "left"]
+        },
+        "Crosshairs - right" : {
+            "standardized": ["crosshairs", "right"]
+        },    
+        "crosshairs - left" : {
+            "standardized": ["crosshairs", "left"]
+        },
+        "crosshairs - right" : {
+            "standardized": ["crosshairs", "right"]
+        },         
+        "exposure - left" : {
+            "standardized": ["exposure", "left"]
+        },
+        "exposure - right" : {
+            "standardized": ["exposure", "right"]
+        },        
+        "autoexposure - left" : {
+            "standardized": ["autoexposure", "left"]
+        },
+        "autoexposure - right" : {
+            "standardized": ["autoexposure", "right"]
+        },        
+        "gain - left" : {
+            "standardized": ["gain", "left"]
+        },  
+        "gain - right" : {
+            "standardized": ["gain", "right"]
+        },         
+        "autogain - left" : {
+            "standardized": ["autogain", "left"]
+        },  
+        "autogain - right" : {
+            "standardized": ["autogain", "right"]
+        },          
+        "gamma - left" : {
+            "standardized": ["gamma", "left"]
+        }, 
+        "gamma - right" : {
+            "standardized": ["gamma", "right"]
+        },         
+        "rwhitebalanceratio - left" : {
+            "standardized": ["rwhitebalanceratio", "left"]
+        }, 
+        "rwhitebalanceratio - right" : {
+            "standardized": ["rwhitebalanceratio", "right"]
+        },           
+        "bwhitebalanceratio - left" : {
+            "standardized": ["bwhitebalanceratio", "left"]
+        },  
+        "bwhitebalanceratio - right" : {
+            "standardized": ["bwhitebalanceratio", "right"]
+        },         
+        "height left image [pixel]" : {
+            "standardized": ["height_image_pixels", "left"]
+        },  
+        "width left image [pixel]" : {
+            "standardized": ["width_image_pixels", "left"]
+        },       
+        "image format left image" : {
+            "standardized": ["image_format", "left"]
+        },       
+        "height right image [pixel]" : {
+            "standardized": ["height_image_pixels", "right"]
+        },  
+        "width right image [pixel]" : {
+            "standardized": ["width_image_pixels", "right"]
+        },       
+        "image format right image" : {
+            "standardized": ["image_format", "right"]
+        },           
+          
+    }
     
-def _normalize_with_validation(name, orig, property_map, filepath=""):
-    normalized = {}
+    properties = _standardize_with_validation(SENSOR_STEREO_TOP, data, prop_map, [], filepath)  
+    return properties     
+    
+    
+def _swir_standardize(data, filepath=""):
+    """
+    Standardize SWIR metadata (same format as VNIR)
+    """
+    return _vnir_standardize(data, filepath, SENSOR_SWIR)
+    
+    
+def _vnir_standardize(data, filepath="", name=SENSOR_VNIR):
+    """
+    Standardize VNIR metadata (same format as VNIR)
+    """    
+    prop_map = {
+        "current setting frameperiod": {
+            "standardized": ["frame_period"]
+        },
+        "current setting userotatingmirror": {
+            "standardized": ["use_rotating_mirror"]
+        },
+        "current setting useexternaltrigger": {
+            "standardized": ["use_external_trigger"]
+        },       
+        "current setting exposure": {
+            "standardized": ["exposure"]
+        },
+        "current setting createdatacube": {
+            "standardized": ["create_data_cube"]
+        },      
+        "current setting speed": {
+            "standardized": ["speed"]
+        }, 
+        "current setting constmirrorpos": {
+            "standardized": ["const_mirror_position"]
+        },  
+        "current setting startpos": {
+            "standardized": ["start_position"]
+        }, 
+        "current setting stoppos": {
+            "standardized": ["stop_position"]
+        }
+    }
+    
+    properties = _standardize_with_validation(name, data, prop_map, [], filepath)  
+    return properties
+
+
+def _co2_standardize(data, filepath=""):
+    """
+    Placeholder only, no variable metadata
+    See /data/terraref/sites/ua-mac/raw_data/co2Sensor/2017-06-27/2017-06-27__13-32-28-129/17e118dc-20fb-4b59-9e59-9ee9840f302a_metadata.json
+    """
+    return {}
+
+def _pri_standardize(data, filepath=""):
+    """
+    Placeholder only, no variable metadata
+    See  /data/terraref/sites/ua-mac/raw_data/priSensor/2017-06-27/2017-06-27__13-32-28-039/baa2813f-0634-45df-8e9b-4a978fa93f86_metadata.json
+    """
+    return {}
+    
+def _ndvi_standardize(data, filepath=""):
+    """
+    Placeholder only, no variable metadata
+    See   /data/terraref/sites/ua-mac/raw_data/ndviSensor//2017-03-13/2017-03-13__13-56-55-559/2d4ae02b-3475-42a8-bb73-fe972f256aaf_metadata.json    """
+    return {}    
+    
+
+def _standardize_with_validation(name, orig, property_map, required_fields=[], filepath=""):
+    """
+    Use the property_map to standardize the original metadata, using default values where specified.
+    Log any warnings related to missing fields and errors for expected/required fields.
+    """
+    standardized = {}
+    
+    # Step through the fields in the original metadata and convert to the standardized form.
+    # Warn if we don't have a mapping.
     for key in orig:
         if key in property_map:
-            _set_nested_value(normalized, property_map[key]['normalized'], orig[key])
+            _set_nested_value(standardized, property_map[key]['standardized'], orig[key])
         else:
-            print "Warning: encountered field \"%s\", missing from map in %s" % (key, name)
+            logging.warning("Encountered field \"%s\", missing from map in %s (%s)"  % (key, name, filepath))
             
-            
+    # Step through the keys of the mapping, set default values where appropriate and
+    # report an error if a required field is missing.
     for key in property_map:
-        if property_map[key]['required'] and not _nested_contains(normalized, property_map[key]['normalized']):
+        if key in required_fields and not _nested_contains(standardized, property_map[key]['standardized']):
             if key in property_map and 'default' in property_map[key]:
-                #print "Setting default value %s for key \"%s\"" % ( property_map[key]['default'], property_map[key]['normalized'])
-                _set_nested_value(normalized, property_map[key]['normalized'], property_map[key]['default'])
+                logging.debug("Setting default value %s for key \"%s\"" % ( property_map[key]['default'], 
+                        property_map[key]['standardized']))
+                        
+                _set_nested_value(standardized, property_map[key]['standardized'], property_map[key]['default'])
             else:
-              print "Error: missing required field \"%s\" in %s" % (property_map[key]['normalized'], name)
-    
-    return normalized
+                logging.error("missing required field \"%s\" in %s" % (property_map[key]['standardized'], name))
+    return standardized
     
 def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md): 
     '''
@@ -516,10 +676,16 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md
             * If the scan is done in negative direction is +25711mm in gantry coordinate system.
         The origin is calculated based on the position of the west scanner. 
         So, any further misalignment correction should be applied to the east ply files.
+        If Y is zero, then scan_direction_is_positive
+        plc_control_not_available means there is no logation data (position_m)
     '''
     
     point_cloud_origin = {}
-    if 'position_m' in corrected_gantry_variable_md and 'scanner_west_location_in_camera_box_m' in fixed_md:
+    if (not 'plc_control_not_available' in corrected_gantry_variable_md 
+        and 'position_m' in corrected_gantry_variable_md
+        and 'scan_direction_is_positive' in corrected_gantry_variable_md
+        and 'scanner_west_location_in_camera_box_m' in fixed_md):
+            
         point_cloud_origin["z"] =  float(corrected_gantry_variable_md['position_m']['z']) - 3.445
         point_cloud_origin["x"] =  float(fixed_md["scanner_west_location_in_camera_box_m"]["x"]) - 0.0082
         if (corrected_gantry_variable_md["scan_direction_is_positive"] == "True"):
@@ -527,202 +693,10 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md
         else:
             point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['z']) + 25.711
     else:
-        print "Error: Cannot calculate point cloud origin"
-    
+        logging.error("Cannot calculate point cloud origin -- missing gantry position information")
 
     return point_cloud_origin
-    
-
-def _stereoTop_standardize(stereoTop, filepath=""):
-    prop_map = {
-        "Rotate flip type - left" : {
-            "normalized": ["rotate_flip_type", "left"],
-            "required": False
-        },
-        "Rotate flip type - right" : {
-            "normalized": ["rotate_flip_type", "right"],
-            "required": False
-        },  
-        "rotate flip type - left" : {
-            "normalized": ["rotate_flip_type", "left"],
-            "required": False
-        },
-        "rotate flip type - right" : {
-            "normalized": ["rotate_flip_type", "right"],
-            "required": False
-        },          
-        "Crosshairs - left" : {
-            "normalized": ["crosshairs", "left"],
-            "required": False
-        },
-        "Crosshairs - right" : {
-            "normalized": ["crosshairs", "right"],
-            "required": False
-        },    
-        "crosshairs - left" : {
-            "normalized": ["crosshairs", "left"],
-            "required": False
-        },
-        "crosshairs - right" : {
-            "normalized": ["crosshairs", "right"],
-            "required": False
-        },         
-        "exposure - left" : {
-            "normalized": ["exposure", "left"],
-            "required": False
-        },
-        "exposure - right" : {
-            "normalized": ["exposure", "right"],
-            "required": False
-        },        
-        "autoexposure - left" : {
-            "normalized": ["autoexposure", "left"],
-            "required": False
-        },
-        "autoexposure - right" : {
-            "normalized": ["autoexposure", "right"],
-            "required": False
-        },        
-        "gain - left" : {
-            "normalized": ["gain", "left"],
-            "required": False
-        },  
-        "gain - right" : {
-            "normalized": ["gain", "right"],
-            "required": False
-        },         
-        "autogain - left" : {
-            "normalized": ["autogain", "left"],
-            "required": False
-        },  
-        "autogain - right" : {
-            "normalized": ["autogain", "right"],
-            "required": False
-        },          
-        "gamma - left" : {
-            "normalized": ["gamma", "left"],
-            "required": False
-        }, 
-        "gamma - right" : {
-            "normalized": ["gamma", "right"],
-            "required": False
-        },         
-        "rwhitebalanceratio - left" : {
-            "normalized": ["rwhitebalanceratio", "left"],
-            "required": False
-        }, 
-        "rwhitebalanceratio - right" : {
-            "normalized": ["rwhitebalanceratio", "right"],
-            "required": False
-        },           
-        "bwhitebalanceratio - left" : {
-            "normalized": ["bwhitebalanceratio", "left"],
-            "required": False
-        },  
-        "bwhitebalanceratio - right" : {
-            "normalized": ["bwhitebalanceratio", "right"],
-            "required": False
-        },         
-        "height left image [pixel]" : {
-            "normalized": ["height_image_pixels", "left"],
-            "required": False
-        },  
-        "width left image [pixel]" : {
-            "normalized": ["width_image_pixels", "left"],
-            "required": False
-        },       
-        "image format left image" : {
-            "normalized": ["image_format", "left"],
-            "required": False
-        },       
-        "height right image [pixel]" : {
-            "normalized": ["height_image_pixels", "right"],
-            "required": False
-        },  
-        "width right image [pixel]" : {
-            "normalized": ["width_image_pixels", "right"],
-            "required": False
-        },       
-        "image format right image" : {
-            "normalized": ["image_format", "right"],
-            "required": False
-        },           
-          
-    }
-    
-    properties = _normalize_with_validation(SENSOR_STEREO_TOP, stereoTop, prop_map, filepath)  
-    
-    return properties     
-    
-def _swir_standardize(swir, filepath=""):
-    # Same properties as VNIR
-    return _vnir_standardize(swir, filepath, SENSOR_SWIR)
-    
-def _vnir_standardize(vnir, filepath="", name=SENSOR_VNIR):
-
-    prop_map = {
-        "current setting frameperiod": {
-            "normalized": ["frame_period"], 
-            "required": False
-        },
-        "current setting userotatingmirror": {
-            "normalized": ["use_rotating_mirror"], 
-            "required": False
-        },
-        "current setting useexternaltrigger": {
-            "normalized": ["use_external_trigger"], 
-            "required": False
-        },       
-        "current setting exposure": {
-            "normalized": ["exposure"], 
-            "required": False
-        },
-        "current setting createdatacube": {
-            "normalized": ["create_data_cube"], 
-            "required": False
-        },      
-        "current setting speed": {
-            "normalized": ["speed"], 
-            "required": False
-        }, 
-        "current setting constmirrorpos": {
-            "normalized": ["const_mirror_position"], 
-            "required": False
-        },  
-        "current setting startpos": {
-            "normalized": ["start_position"], 
-            "required": False
-        }, 
-        "current setting stoppos": {
-            "normalized": ["stop_position"], 
-            "required": False
-        }
-    }
-    
-    properties = _normalize_with_validation(name, vnir, prop_map, filepath)  
-    return properties
-
-
-def _co2_standardize(co2, filepath=""):
-    """
-    Placeholder only, no variable metadata
-    See /data/terraref/sites/ua-mac/raw_data/co2Sensor/2017-06-27/2017-06-27__13-32-28-129/17e118dc-20fb-4b59-9e59-9ee9840f302a_metadata.json
-    """
-    return {}
-
-def _pri_standardize(pri, filepath=""):
-    """
-    Placeholder only, no variable metadata
-    See  /data/terraref/sites/ua-mac/raw_data/priSensor/2017-06-27/2017-06-27__13-32-28-039/baa2813f-0634-45df-8e9b-4a978fa93f86_metadata.json
-    """
-    return {}
-    
-def _ndvi_standardize(pri, filepath=""):
-    """
-    Placeholder only, no variable metadata
-    See   /data/terraref/sites/ua-mac/raw_data/ndviSensor//2017-03-13/2017-03-13__13-56-55-559/2d4ae02b-3475-42a8-bb73-fe972f256aaf_metadata.json    """
-    return {}    
-    
+        
 def _nested_contains(dic, keys):
     """
     Returns true if the keys exist
@@ -744,15 +718,32 @@ def _set_nested_value(dic, keys, value):
         dic = dic.setdefault(key, {})
     dic[keys[-1]] = value    
     
+    
+def _standardize_time_utc(timestr, timeformat, timezone):    
+    """
+    Given the timestring, format, and timezone string, return the UTC date/time in ISO format.
+    """
+    tz = pytz.timezone (timezone)
+    time = datetime.datetime.strptime (timestr, timeformat)
+    local_dt = tz.localize(time, is_dst=None)
+    utc_dt = local_dt.astimezone (pytz.utc)
+    return utc_dt.isoformat()
+    
+def _get_dict_subset(dic, keys):
+    """
+    Return a subset of a dictionary containing only the specified keys.
+    """
+    return dict((k, dic[k]) for k in keys if k in dic)
+    
 if __name__ == "__main__":
     #fixed = _get_sensor_fixed_metadata("scanner3DTop")
     #print json.dumps(fixed, indent=4, sort_keys=True)
 
     path = sys.argv[1]
     sensor = sys.argv[2]
-    print "Processing %s" % path
+    logging.debug("Processing %s" % path)
     #with open("/data/terraref/sites/ua-mac/raw_data/scanner3DTop/2017-07-20/2017-07-20__05-40-41-035/7fa3a8d7-294f-4076-81ab-4c191fa9faa0_metadata.json") as file:
     with open(path) as file:
         json_data = json.load(file)
     cleaned = clean(json_data, sensor, path)
-    print json.dumps(cleaned, indent=4, sort_keys=True)
+    #print json.dumps(cleaned, indent=4, sort_keys=True)
