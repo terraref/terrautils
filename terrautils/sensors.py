@@ -134,6 +134,10 @@ STATIONS = {
             
             "weather": {
                   "fixed_metadata_datasetid": "TBD"
+            },
+            
+            "scanalyzer": {
+                 "fixed_metadata_datasetid": "5873eac64f0cad7d81349b0b"
             }
         },
 
