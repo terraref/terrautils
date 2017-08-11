@@ -147,14 +147,14 @@ STATIONS = {
         'stereoTopRGB_canopyCover': {},
 
         'texture_analysis': {
-            'display': 'stereoTop RGB Texture Analysis',
+            'display': 'RGB Texture Analysis',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
         'flir2tif': {
-            'display': 'flirIrCamera GeoTIFFs',
+            'display': 'Thermal IR GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
@@ -168,21 +168,21 @@ STATIONS = {
         },
 
         'vnir_soil_masks': {
-            'display': 'VNIR Soil Removal Masks',
+            'display': 'VNIR Soil Masks',
             'template': '{base}/{station}/Level_2/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'VNIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
         'swir_soil_masks': {
-            'display': 'SWIR Soil Removal Masks',
+            'display': 'SWIR Soil Masks',
             'template': '{base}/{station}/Level_2/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'SWIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
         'scanner3DTop_mergedlas': {
-            'display': '3D Laser Scanner LAS',
+            'display': 'Laser Scanner 3D LAS',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
@@ -194,7 +194,7 @@ STATIONS = {
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
-                       '_height{opts}.npy'
+                       '_height{opts}.tif'
         },
 
         'scanner3DTop_heightmap': {
@@ -202,7 +202,7 @@ STATIONS = {
             'template': '{base}/{station}/Level_2/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}'
-                       '_heightmap{opts}.bmp'
+                       '_heightmap{opts}.tif'
         },
     },
 }
