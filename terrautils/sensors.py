@@ -113,21 +113,25 @@ STATIONS = {
         },
         
         "weather": {
-              "fixed_metadata_datasetid": "TBD"
+            "fixed_metadata_datasetid": "TBD",
+            "geostream": "UA-MAC Weather Station",
+            "url": "link/to/geostreams"
         },
 
         'fullfield': {
             'display': 'Full Field Stitched Mosaics',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{date}{opts}.tif',
+            'pattern': '{sensor}_L1_{station}_{date}{opts}.tif',
+            "bety_trait": "NDVI705"
         },
 
         'vnir_netcdf': {
             'display': 'VNIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
+            "bety_trait": "NDVI705"
         },
 
         'swir_netcdf': {
@@ -135,16 +139,20 @@ STATIONS = {
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
+            "bety_trait": "NDVI705"
         },
 
-        'stereoTopRGB_geotiff': {
+        'rgb_geotiff': {
             'display': 'stereoTop RGB GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
-        'stereoTopRGB_canopyCover': {},
+        'rgb_canopyCover': {
+            'bety_trait': 'canopy_cover',
+            "url": "link/to/bety"
+        },
 
         'texture_analysis': {
             'display': 'RGB Texture Analysis',
@@ -153,7 +161,7 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
-        'flir2tif': {
+        'ir_geotiff': {
             'display': 'Thermal IR GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
@@ -181,7 +189,7 @@ STATIONS = {
             'pattern': 'SWIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
-        'scanner3DTop_mergedlas': {
+        'laser3d_mergedlas': {
             'display': 'Laser Scanner 3D LAS',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
