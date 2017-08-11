@@ -27,12 +27,7 @@ full_date_p = '{}__{}'.format(date_p, full_time_p)
 
 STATIONS = {
     'danforth': {
-        'ddpscIndoorSuite': {
-            'display': 'Average Snapshot Traits',
-            'template': '{base}/{station}/raw_data/'
-                            '{sensor}/{snapshotID}/{filename}',
-            'pattern': 'avg_traits.csv'
-        }
+        'ddpscIndoorSuite': {}
     },
 
     'ksu': {
@@ -128,90 +123,85 @@ STATIONS = {
             'pattern': '{sensor}_lv1_{station}_{date}{opts}.tif',
         },
 
-        'hyperspectral2nc_vnir': {
+        'vnir_netcdf': {
             'display': 'VNIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
         },
 
-        'hyperspectral2nc_swir': {
+        'swir_netcdf': {
             'display': 'SWIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
         },
 
-        'stereoTop_geotiff': {
-            'display': 'stereoTop GeoTIFFs',
+        'stereoTopRGB_geotiff': {
+            'display': 'stereoTop RGB GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
-        'stereoTop_canopyCover': {
-            'display': 'stereoTop Canopy Cover',
-            'template': '{base}/{station}/Level_1/'
-                        '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
-        },
+        'stereoTopRGB_canopyCover': {},
 
         'texture_analysis': {
-            'display': 'stereoTop R Texture Analysis',
+            'display': 'stereoTop RGB Texture Analysis',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.csv',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
         'flir2tif': {
             'display': 'flirIrCamera GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.tif',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
         'EnvironmentLogger': {
             'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_lv1_{station}_{timestamp}{opts}.nc',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
         },
 
-        'soil_removal_vnir': {
+        'vnir_soil_masks': {
             'display': 'VNIR Soil Removal Masks',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_2/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': 'VNIR_lv1_{station}_{timestamp}{opts}.nc'
+            'pattern': 'VNIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
-        'soil_removal_swir': {
+        'swir_soil_masks': {
             'display': 'SWIR Soil Removal Masks',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_2/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': 'SWIR_lv1_{station}_{timestamp}{opts}.nc'
+            'pattern': 'SWIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
         'scanner3DTop_mergedlas': {
-            'display': 'scanner3D Merged LAS',
+            'display': '3D Laser Scanner LAS',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
-            'pattern': 'scanner3DTop_lv1_{station}_{timestamp}'
+            'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
                        '_merged{opts}.las'
         },
 
         'scanner3DTop_plant_height': {
-            'display': 'scanner3D Plant Height',
+            'display': '3D Laser Scanner Plant Height',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
-            'pattern': 'scanner3DTop_lv1_{station}_{timestamp}'
+            'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
                        '_height{opts}.npy'
         },
 
         'scanner3DTop_heightmap': {
-            'display': 'scanner3D Height Map',
+            'display': 'Digital Surface Model GeoTiffs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': 'scanner3DTop_lv1_{station}_{timestamp}'
+            'pattern': 'scanner3DTop_L2_{station}_{timestamp}'
                        '_heightmap{opts}.bmp'
         },
     },
