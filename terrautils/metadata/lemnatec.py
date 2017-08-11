@@ -22,7 +22,6 @@ import sys
 from terrautils.sensors import Sensors
 
 STATION_NAME = "ua-mac"
-#TERRAREF_BASE='/projects/arpae/terraref/sites'
 
 
 # Official sensor names
