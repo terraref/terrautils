@@ -24,10 +24,21 @@ full_time_p = '([0-1]\d|2[0-3])-([0-5]\d)-([0-5]\d)-(\d{3})'
 # 2017-06-28__23-48-28-435
 full_date_p = '{}__{}'.format(date_p, full_time_p)
 
-
+""" If the bety traits that are submitted to bety need to be renamed, only
+    change the value of the dict key/value pair. Extractors will reference
+    the key in their code and use whatever the value is for trait name."""
 STATIONS = {
     'danforth': {
-        'ddpscIndoorSuite': {}
+        'ddpscIndoorSuite': {
+            "bety_traits": {
+                "sv_area": "sv_area",
+                "tv_area": "tv_area",
+                "hull_area": "hull_area",
+                "solidity": "solidity",
+                "height": "height",
+                "permieter": "perimeter"
+            }
+        }
     },
 
     'ksu': {
@@ -46,10 +57,10 @@ STATIONS = {
     'ua-mac': {
         'co2Sensor': {
             "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648",
-            'template': '{base}/{station}/raw_data/'
+            'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': '([0-9a-f]){8}-([0-9a-f]){4}-([0-9'
-                       'a-f]){4}-([0-9a-f]){4}-([0-9a-f])'
+            'pattern': '([0-9a-f]){8}-([0-9a-f]){4}-([0-9' + \
+                       'a-f]){4}-([0-9a-f]){4}-([0-9a-f])' + \
                        '{12}_(metadata.json|rawData0000.bin)'
         },
         
@@ -66,18 +77,20 @@ STATIONS = {
         },
         
         "irrigation": {
-            "fixed_metadata_datasetid": "TBD"
+            "fixed_metadata_datasetid": "TBD",
+            "geostream": ""
         },
         
         'EnvironmentLogger': {
-            'template': '{base}/{station}/raw_data/'
+            'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{filename}',
             'pattern': '{timestamp}_environment_logger.json',
             'fixed_metadata_datasetid': 'TBD'
         },
         
         "lightning": {
-            "fixed_metadata_datasetid": "TBD"
+            "fixed_metadata_datasetid": "TBD",
+            "geostream": ""
         },
         
         "ndviSensor": {
@@ -115,69 +128,74 @@ STATIONS = {
         "weather": {
             "fixed_metadata_datasetid": "TBD",
             "geostream": "UA-MAC Weather Station",
-            "url": "link/to/geostreams"
+            "url": ""
         },
 
         'fullfield': {
             'display': 'Full Field Stitched Mosaics',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{date}{opts}.tif',
-            "bety_trait": "NDVI705"
+            'pattern': '{sensor}_L1_{station}_{date}{opts}.tif'
         },
 
         'vnir_netcdf': {
             'display': 'VNIR Hyperspectral NetCDFs',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
-            "bety_trait": "NDVI705"
+            "bety_traits": {
+                "NDVI705": "NDVI705"
+            }
         },
 
         'swir_netcdf': {
             'display': 'SWIR Hyperspectral NetCDFs',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
-            "bety_trait": "NDVI705"
+            "bety_traits": {
+                "NDVI705": "NDVI705"
+            }
         },
 
         'rgb_geotiff': {
             'display': 'RGB GeoTIFFs',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
         'rgb_canopyCover': {
-            'bety_trait': 'canopy_cover',
-            "url": "link/to/bety"
+            'bety_traits': {
+                'canopy_cover': 'canopy_cover'
+            },
+            "url": ""
         },
 
         'texture_analysis': {
             'display': 'RGB Texture Analysis',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
         'ir_geotiff': {
             'display': 'Thermal IR GeoTIFFs',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
         'EnvironmentLogger': {
             'display': 'EnvironmentLogger netCDFs',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
         },
 
         'vnir_soil_masks': {
             'display': 'VNIR Soil Masks',
-            'template': '{base}/{station}/Level_2/'
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'VNIR_L2_{station}_{timestamp}{opts}.nc'
         },
@@ -191,25 +209,25 @@ STATIONS = {
 
         'laser3d_mergedlas': {
             'display': 'Laser Scanner 3D LAS',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         'scanner3DTop/{date}/{time}/{filename}',
-            'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
+            'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
                        '_merged{opts}.las'
         },
 
         'scanner3DTop_plant_height': {
             'display': 'Laser Scanner 3D Plant Height',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_1/' + \
                         'scanner3DTop/{date}/{time}/{filename}',
-            'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
+            'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
                        '_height{opts}.tif'
         },
 
         'scanner3DTop_heightmap': {
             'display': 'Digital Surface Model GeoTiffs',
-            'template': '{base}/{station}/Level_2/'
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{time}/{filename}',
-            'pattern': 'scanner3DTop_L2_{station}_{timestamp}'
+            'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_heightmap{opts}.tif'
         },
     },
