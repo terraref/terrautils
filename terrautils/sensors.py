@@ -143,7 +143,7 @@ STATIONS = {
         },
 
         'rgb_geotiff': {
-            'display': 'stereoTop RGB GeoTIFFs',
+            'display': 'RGB GeoTIFFs',
             'template': '{base}/{station}/Level_1/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
@@ -198,7 +198,7 @@ STATIONS = {
         },
 
         'scanner3DTop_plant_height': {
-            'display': '3D Laser Scanner Plant Height',
+            'display': 'Laser Scanner 3D Plant Height',
             'template': '{base}/{station}/Level_1/'
                         'scanner3DTop/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}'
