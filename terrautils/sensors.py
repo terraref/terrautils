@@ -199,7 +199,7 @@ STATIONS = {
 
         'scanner3DTop_heightmap': {
             'display': 'Digital Surface Model GeoTiffs',
-            'template': '{base}/{station}/Level_1/'
+            'template': '{base}/{station}/Level_2/'
                         '{sensor}/{date}/{time}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}'
                        '_heightmap{opts}.bmp'
