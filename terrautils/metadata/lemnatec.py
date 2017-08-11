@@ -22,7 +22,7 @@ import sys
 from terrautils.sensors import Sensors
 
 STATION_NAME = "ua-mac"
-TERRAREF_BASE='/projects/arpae/terraref/sites'
+#TERRAREF_BASE='/projects/arpae/terraref/sites'
 
 
 # Official sensor names
@@ -88,7 +88,7 @@ def _get_sensor_fixed_metadata_url(sensorId):
     # TODO; We only need this one -- duplicate method in metadata.py
     
     # Get the dataset ID for the sensor by identifier
-    sensors = Sensors(base=TERRAREF_BASE, station=STATION_NAME, level="raw_data", sensor=sensorId)
+    sensors = Sensors(base="", station=STATION_NAME, level="raw_data", sensor=sensorId)
     datasetid = sensors.get_fixed_datasetid_for_sensor(None, None, None)
     
     properties = {}
