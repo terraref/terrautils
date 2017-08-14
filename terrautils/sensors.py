@@ -58,7 +58,7 @@ STATIONS = {
         'co2Sensor': {
             "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648",
             'template': '{base}/{station}/raw_data/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '([0-9a-f]){8}-([0-9a-f]){4}-([0-9' + \
                        'a-f]){4}-([0-9a-f]){4}-([0-9a-f])' + \
                        '{12}_(metadata.json|rawData0000.bin)'
@@ -141,7 +141,7 @@ STATIONS = {
         'vnir_netcdf': {
             'display': 'VNIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
             "bety_traits": {
                 "NDVI705": "NDVI705"
@@ -151,7 +151,7 @@ STATIONS = {
         'swir_netcdf': {
             'display': 'SWIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
             "bety_traits": {
                 "NDVI705": "NDVI705"
@@ -161,7 +161,7 @@ STATIONS = {
         'rgb_geotiff': {
             'display': 'RGB GeoTIFFs',
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
@@ -175,21 +175,21 @@ STATIONS = {
         'texture_analysis': {
             'display': 'RGB Texture Analysis',
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
         'ir_geotiff': {
             'display': 'Thermal IR GeoTIFFs',
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
         'ps2_png': {
             'display': 'PSII PNGs',
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
         },
 
@@ -203,21 +203,21 @@ STATIONS = {
         'vnir_soil_masks': {
             'display': 'VNIR Soil Masks',
             'template': '{base}/{station}/Level_2/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'VNIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
         'swir_soil_masks': {
             'display': 'SWIR Soil Masks',
             'template': '{base}/{station}/Level_2/'
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'SWIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
         'laser3d_mergedlas': {
             'display': 'Laser Scanner 3D LAS',
             'template': '{base}/{station}/Level_1/' + \
-                        'scanner3DTop/{date}/{time}/{filename}',
+                        'scanner3DTop/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
                        '_merged{opts}.las'
         },
@@ -225,7 +225,7 @@ STATIONS = {
         'scanner3DTop_plant_height': {
             'display': 'Laser Scanner 3D Plant Height',
             'template': '{base}/{station}/Level_1/' + \
-                        'scanner3DTop/{date}/{time}/{filename}',
+                        'scanner3DTop/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
                        '_height{opts}.tif'
         },
@@ -233,7 +233,7 @@ STATIONS = {
         'scanner3DTop_heightmap': {
             'display': 'Digital Surface Model GeoTiffs',
             'template': '{base}/{station}/Level_2/' + \
-                        '{sensor}/{date}/{time}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_heightmap{opts}.tif'
         },
