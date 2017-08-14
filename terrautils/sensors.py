@@ -193,6 +193,13 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
         },
 
+        'ps2_fluorescence': {
+            'display': 'PSII Fluorescence Features',
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
+        },
+
         'EnvironmentLogger': {
             'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/' + \

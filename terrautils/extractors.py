@@ -211,7 +211,7 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
 
 def get_collection_or_create(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/collections?key=%s&title=" % (host, secret_key, cname)
+    url = "%sapi/collections?key=%s&title=%s" % (host, secret_key, cname)
     result = requests.get(url, verify=connector.ssl_verify)
     result.raise_for_status()
 
@@ -224,7 +224,7 @@ def get_collection_or_create(connector, host, secret_key, cname, parent_colln=No
 
 def get_dataset_or_create(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?key=%s&title=" % (host, secret_key, dsname)
+    url = "%sapi/datasets?key=%s&title=%s" % (host, secret_key, dsname)
     result = requests.get(url, verify=connector.ssl_verify)
     result.raise_for_status()
 
