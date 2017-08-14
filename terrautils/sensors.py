@@ -186,6 +186,13 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
+        'ps2_png': {
+            'display': 'PSII PNGs',
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{time}/{filename}',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
+        },
+
         'EnvironmentLogger': {
             'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/' + \

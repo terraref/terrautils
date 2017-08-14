@@ -52,7 +52,7 @@ class TerrarefExtractor(Extractor):
         add_influx_arguments(self.parser)
 
 
-    def setup(self, base='', site='', level='', sensor=''):
+    def setup(self, base='', site='', sensor=''):
 
         super(TerrarefExtractor, self).setup()
 
@@ -62,13 +62,12 @@ class TerrarefExtractor(Extractor):
 
         if not base: base = self.args.terraref_base
         if not site: site = self.args.terraref_site
-        if not level: level = self.args.terraref_level
         if not sensor: sensor = self.args.sensor
 
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
 
-        self.sensors = Sensors(base=base, site=site, level=level, sensor=sensor)
+        self.sensors = Sensors(base=base, station=site, sensor=sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
 
         self.influx = Influx(self.args.influx_host, self.args.influx_port,
