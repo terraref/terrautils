@@ -200,6 +200,13 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
         },
 
+        'ndvipri2csv': {
+            'display': 'NDVI and PRI CSVs',
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
+        },
+
         'EnvironmentLogger': {
             'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/' + \
