@@ -126,9 +126,7 @@ STATIONS = {
         },
         
         "weather": {
-            "fixed_metadata_datasetid": "TBD",
-            "geostream": "UA-MAC Weather Station",
-            "url": ""
+            "fixed_metadata_datasetid": "TBD"
         },
 
         'fullfield': {
@@ -207,7 +205,7 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
-        'EnvironmentLogger': {
+        'envlog2netcdf': {
             'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{filename}',
@@ -251,6 +249,28 @@ STATIONS = {
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_heightmap{opts}.tif'
         },
+
+        'weather_datparser': {
+            "display": "UA-MAC AZMET Weather Station",
+            "url": ""
+        },
+
+        'irrigation_datparser': {
+            "display": "UA-MAC AZMET Weather Station",
+            "url": ""
+        },
+
+        'energyfarm_datparser': {
+            "display": "UIUC Energy Farm",
+            "url": ""
+        },
+
+        'netcdf_metadata': {
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
+                       '_heightmap{opts}.tif'
+        }
     },
 }
 
