@@ -5,6 +5,7 @@ This module provides wrappers to BETY API for getting and posting data.
 
 import os
 import logging
+from datetime import datetime
 
 import requests
 from osgeo import ogr
@@ -97,6 +98,15 @@ def get_experiments(**kwargs):
         return [t["experiment"] for t in query_data['data']]
 
 
+def get_experiments_sites(**kwargs):
+    """Return cleaned up array from query() for the experiments table,
+    including site relationships."""
+
+    query_data = query(endpoint="experiments", associations_mode='full_info', **kwargs)
+    if query_data:
+        return [t["experiment"] for t in query_data['data']]
+
+
 def get_trait(trait_id):
     """Returns python dictionary for a single trait."""
     query_data = get_traits(id=trait_id)
@@ -119,29 +129,48 @@ def get_site(site_id):
         return query_data[0]
 
 
-def get_sites(**kwargs):
+def get_sites(filter_date='', **kwargs):
     """Return a site array from query() from the sites table.
 
     e.g.
             get_sites(city="Maricopa")
             get_sites(sitename="MAC Field Scanner Season 4 Range 4 Column 6")
             get_sites(contains="-111.97496613200647,33.074671230742446")
+
+      filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
-    query_data = query(endpoint="sites", **kwargs)
-    if query_data:
-        return [s["site"] for s in query_data['data']]
+    if not filter_date:
+        query_data = query(endpoint="sites", **kwargs)
+        if query_data:
+            return [t["site"] for t in query_data['data']]
+    else:
+        targ_time = datetime.strptime(filter_date, '%Y-%m-%d')
+        match_sites = []
+        query_data = get_experiments_sites(**kwargs)
+        if query_data:
+            for s in query_data:
+                start = datetime.strptime(s['start_date'], '%Y-%m-%d')
+                end = datetime.strptime(s['end_date'], '%Y-%m-%d')
+                if start <= targ_time <= end:
+                    if 'experiments_sites' in s:
+                        for es in s['experiments_sites']:
+                            site_data = get_sites(id=es['experiments_site']['site_id'],
+                                                  **kwargs)
+                            if site_data:
+                                match_sites += site_data
+        return match_sites
 
-
-def get_sites_by_latlon(latlon, **kwargs):
+def get_sites_by_latlon(latlon, filter_date='', **kwargs):
     """Gets list of sites from BETYdb, filtered by a contained point.
 
       latlon (tuple) -- only sites that contain this point will be returned
+      filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
     latlon_api_arg = "%s,%s" % (latlon[0], latlon[1])
 
-    return get_sites(containing=latlon_api_arg, **kwargs)
+    return get_sites(filter_date=filter_date, containing=latlon_api_arg, **kwargs)
 
 
 def get_site_boundaries(**kwargs):
