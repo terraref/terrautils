@@ -4,10 +4,54 @@ This module provides wrappers to GDAL for manipulating geospatial data.
 """
 
 import os
-from StringIO import StringIO
 from osgeo import gdal, gdalnumeric, ogr
 from PIL import Image, ImageDraw
 import numpy as np
+
+
+def array_to_image(a):
+    """Converts a gdalnumeric array to a PIL Image."""
+    i = Image.fromstring('L',(a.shape[1], a.shape[0]),
+                         (a.astype('b')).tostring())
+    return i
+
+
+def image_to_array(i):
+    """Converts a PIL array to a gdalnumeric image."""
+    a = gdalnumeric.fromstring(i.tobytes(), 'b')
+    a.shape = i.im.size[1], i.im.size[0]
+    return a
+
+
+def world_to_pixel(geo_matrix, x, y):
+    """Use GDAL GeoTransform to calculate pixel location.
+
+    Notes:
+      http://pcjericks.github.io/py-gdalogr-cookbook/\
+          raster_layers.html#clip-a-geotiff-with-shapefile
+    """
+    ulX = geo_matrix[0]
+    ulY = geo_matrix[3]
+    xDist = geo_matrix[1]
+    yDist = geo_matrix[5]
+    rtnX = geo_matrix[2]
+    rtnY = geo_matrix[4]
+    if xDist < 0:
+        xDist = -xDist
+    if yDist < 0:
+        yDist = -yDist
+    pixel = int((x - ulX) / xDist)
+    line = int((ulY - y) / yDist)
+    return (pixel, line)
+
+
+def pixel_to_world(geo_matrix, x, y):
+    """ Calculate new GeoTransform from x and y offset. """
+    gt = list(geo_matrix)
+    gt[0] = geo_matrix[0] + geo_matrix[1] * x
+    gt[3] = geo_matrix[3] + geo_matrix[5] * y
+
+    return gt
 
 
 def clip_raster(rast_path, features_path, nodata=-9999):
@@ -24,47 +68,6 @@ def clip_raster(rast_path, features_path, nodata=-9999):
       OR a geojson string. GDAL seems to figure it out and do
       the right thing.
     """
-
-    def array_to_image(a):
-        """Converts a gdalnumeric array to a PIL Image."""
-        i = Image.fromstring('L',(a.shape[1], a.shape[0]),
-            (a.astype('b')).tostring())
-        return i
-
-    def image_to_array(i):
-        """Converts a PIL array to a gdalnumeric image."""
-        a = gdalnumeric.fromstring(i.tobytes(), 'b')
-        a.shape = i.im.size[1], i.im.size[0]
-        return a
-
-    def world_to_pixel(geo_matrix, x, y):
-        """Use GDAL GeoTransform to calculate pixel location.
- 
-        Notes: 
-          http://pcjericks.github.io/py-gdalogr-cookbook/\
-              raster_layers.html#clip-a-geotiff-with-shapefile
-        """
-        ulX = geo_matrix[0]
-        ulY = geo_matrix[3]
-        xDist = geo_matrix[1]
-        yDist = geo_matrix[5]
-        rtnX = geo_matrix[2]
-        rtnY = geo_matrix[4]
-        if xDist < 0:
-            xDist = -xDist
-        if yDist < 0:
-            yDist = -yDist
-        pixel = int((x - ulX) / xDist)
-        line = int((ulY - y) / yDist)
-        return (pixel, line)
-
-    def pixel_to_world(geo_matrix, x, y):
-        """ Calculate new GeoTransform from x and y offset. """
-        gt = list(geo_matrix)
-        gt[0] = geo_matrix[0] + geo_matrix[1] * x
-        gt[3] = geo_matrix[3] + geo_matrix[5] * y
-
-        return gt
 
     rast = gdal.Open(rast_path)
     gt = rast.GetGeoTransform()
@@ -165,3 +168,11 @@ def get_raster_extents(fname):
     center = ((ulx+lrx)/2, (uly+lry)/2)
 
     return (extent, center)
+
+
+def centroid_from_geojson(geojson):
+    """Return centroid lat/lon of a geojson object."""
+    geom_poly = ogr.CreateGeometryFromJson(geojson)
+    centroid = geom_poly.Centroid()
+
+    return centroid.ExportToJson()

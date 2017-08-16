@@ -161,6 +161,7 @@ def get_sites(filter_date='', **kwargs):
                                 match_sites += site_data
         return match_sites
 
+
 def get_sites_by_latlon(latlon, filter_date='', **kwargs):
     """Gets list of sites from BETYdb, filtered by a contained point.
 
@@ -173,8 +174,10 @@ def get_sites_by_latlon(latlon, filter_date='', **kwargs):
     return get_sites(filter_date=filter_date, containing=latlon_api_arg, **kwargs)
 
 
-def get_site_boundaries(**kwargs):
+def get_site_boundaries(filter_date='', **kwargs):
     """Get a dictionary of site GeoJSON bounding boxes filtered by standard arguments.
+
+    filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
 
     Returns:
         {
@@ -184,7 +187,7 @@ def get_site_boundaries(**kwargs):
          }
     """
 
-    sitelist = get_sites(**kwargs)
+    sitelist = get_sites(filter_date, **kwargs)
     bboxes = {}
 
     for s in sitelist:
