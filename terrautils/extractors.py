@@ -90,7 +90,7 @@ class TerrarefExtractor(Extractor):
 
 
 # BASIC UTILS -------------------------------------
-def build_metadata(clowderhost, extractorname, target_id, content, target_type='file', context=[]):
+def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='file', context=[]):
     """Construct extractor metadata object ready for submission to a Clowder file/dataset.
 
         clowderhost -- root URL of Clowder target instance (before /api)
@@ -103,14 +103,15 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
     if context == []:
         context = ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"]
 
-    # TODO: Include version of extractor as standard
+    content['extractor_version'] = extractorinfo['version']
+
     md = {
         # TODO: Generate JSON-LD context for additional fields
         "@context": context,
         "content": content,
         "agent": {
             "@type": "cat:extractor",
-            "extractor_id": clowderhost + "/api/extractors/" + extractorname
+            "extractor_id": clowderhost + "/api/extractors/" + extractorinfo['name']
         }
     }
 
