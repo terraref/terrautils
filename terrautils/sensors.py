@@ -130,6 +130,10 @@ STATIONS = {
             "geostream": "UA-MAC Weather Station",
             "url": ""
         },
+      
+        "scanalyzer": {
+              "fixed_metadata_datasetid": "5873eac64f0cad7d81349b0b"
+        },
 
         'fullfield': {
             'display': 'Full Field Stitched Mosaics',
