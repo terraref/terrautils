@@ -127,7 +127,7 @@ def create_datapoint(connector, host, key, streamid, geom, starttime, endtime, p
 
 
 def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlon, starttime, endtime,
-                                       metadata={}, filter_date=''):
+                                       metadata={}, filter_date='', geom=None):
     """Create a new datapoint in Geostreams. Will create sensor and stream as necessary.
 
     Keyword arguments:
@@ -176,9 +176,12 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
         stream_id = stream_data['id']
 
     logging.info("posting datapoint to stream %s" % stream_id)
-    create_datapoint(connector, host, key, stream_id, {
-        "type": "Point",
-        "coordinates": [latlon[1], latlon[0], 0]},
+    if not geom:
+        geom = {
+            "type": "Point",
+            "coordinates": [latlon[1], latlon[0], 0]
+        }
+    create_datapoint(connector, host, key, stream_id, geom,
                      starttime, endtime, metadata)
 
 

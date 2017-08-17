@@ -272,8 +272,13 @@ STATIONS = {
         'netcdf_metadata': {
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
-                       '_heightmap{opts}.tif'
+            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.tif'
+        },
+
+        'ir_meanTemp': {
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.tif'
         }
     },
 }
