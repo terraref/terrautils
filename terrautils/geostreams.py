@@ -126,7 +126,8 @@ def create_datapoint(connector, host, key, streamid, geom, starttime, endtime, p
     return dpid
 
 
-def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlon, starttime, endtime, metadata={}):
+def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlon, starttime, endtime,
+                                       metadata={}, filter_date=''):
     """Create a new datapoint in Geostreams. Will create sensor and stream as necessary.
 
     Keyword arguments:
@@ -144,7 +145,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
     sensor_data = get_sensors_by_circle(connector, host, key, latlon[1], latlon[0], 0.01)
     if not sensor_data:
         # TODO: How to filter this call to reduce number of intersecting plots by time/season?
-        sitelist = get_sites_by_latlon(latlon)
+        sitelist = get_sites_by_latlon(latlon, filter_date)
         for s in sitelist:
             plot_name = s['sitename']
             logging.info("...found plot: "+plot_name)
