@@ -171,17 +171,13 @@ def get_sites(filter_date='', **kwargs):
                     start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
                     end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
                     if start <= targ_date <= end:
-                        print("matched exp: %s" % exp['id'])
                         matching_experiments.append(exp['id'])
 
             # Get sites in chunks and only keep those associated with experiments
             intersect_sites = get_sites(associations_mode='full_info', limit='none', **kwargs)
-            print("found %s intersections" % len(intersect_sites))
             for s in intersect_sites:
-                print('checking %s' % s['sitename'])
                 if 'experiments' in s:
                     for exp in s['experiments']:
-                        print("...%s" % exp['experiment']['id'])
                         if exp['experiment']['id'] in matching_experiments:
                             small_site = s
                             del small_site['experiments_sites']
