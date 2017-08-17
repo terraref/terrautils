@@ -98,15 +98,6 @@ def get_experiments(**kwargs):
         return [t["experiment"] for t in query_data['data']]
 
 
-def get_experiments_sites(**kwargs):
-    """Return cleaned up array from query() for the experiments table,
-    including site relationships."""
-
-    query_data = query(endpoint="experiments", associations_mode='full_info', **kwargs)
-    if query_data:
-        return [t["experiment"] for t in query_data['data']]
-
-
 def get_trait(trait_id):
     """Returns python dictionary for a single trait."""
     query_data = get_traits(id=trait_id)
@@ -140,26 +131,64 @@ def get_sites(filter_date='', **kwargs):
       filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
+    """
+    SCENARIO I - NO FILTER DATE
+    Basic query, efficient even with 'containing' parameter.
+    """
     if not filter_date:
         query_data = query(endpoint="sites", **kwargs)
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
-        targ_time = datetime.strptime(filter_date, '%Y-%m-%d')
-        match_sites = []
-        query_data = get_experiments_sites(**kwargs)
-        if query_data:
-            for s in query_data:
-                start = datetime.strptime(s['start_date'], '%Y-%m-%d')
-                end = datetime.strptime(s['end_date'], '%Y-%m-%d')
-                if start <= targ_time <= end:
-                    if 'experiments_sites' in s:
-                        for es in s['experiments_sites']:
-                            site_data = get_sites(id=es['experiments_site']['site_id'],
-                                                  **kwargs)
-                            if site_data:
-                                match_sites += site_data
-        return match_sites
+        targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
+
+        if 'containing' not in kwargs:
+            """ SCENARIO II - YES FILTER DATE, NO LAT/LON
+            Get experiments by date and return all associated sites.
+            """
+            query_data = get_experiments(associations_mode='full_info', **kwargs)
+            if query_data:
+                for exp in query_data:
+                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                    if start <= targ_date <= end:
+                        if 'sites' in exp:
+                            return [t['site'] for t in exp['sites']]
+
+        else:
+            """ SCENARIO III - YES FILTER DATE, YES LAT/LON
+            We cannot filter sites returned in experiments query by 'containing'
+            parameter, so instead we get all sites for that lat/lon including
+            associated experiments and filter by appropriate experiment.
+            """
+            matching_experiments = []
+            matching_sites = []
+
+            # Only get experiment IDs that were active during filter_date
+            query_data = get_experiments(**kwargs)
+            if query_data:
+                for exp in query_data:
+                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                    if start <= targ_date <= end:
+                        print("matched exp: %s" % exp['id'])
+                        matching_experiments.append(exp['id'])
+
+            # Get sites in chunks and only keep those associated with experiments
+            intersect_sites = get_sites(associations_mode='full_info', limit='none', **kwargs)
+            print("found %s intersections" % len(intersect_sites))
+            for s in intersect_sites:
+                print('checking %s' % s['sitename'])
+                if 'experiments' in s:
+                    for exp in s['experiments']:
+                        print("...%s" % exp['experiment']['id'])
+                        if exp['experiment']['id'] in matching_experiments:
+                            small_site = s
+                            del small_site['experiments_sites']
+                            del small_site['experiments']
+                            matching_sites.append(small_site)
+
+            return matching_sites
 
 
 def get_sites_by_latlon(latlon, filter_date='', **kwargs):
