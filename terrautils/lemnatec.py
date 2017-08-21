@@ -91,7 +91,7 @@ def _get_sensor_fixed_metadata_url(sensorId):
     datasetid = sensors.get_fixed_datasetid_for_sensor()
     
     properties = {}
-    properties["url"] = os.environ.get("CLOWDER_HOST","") + "api/datasets/" + datasetid + "/metadata.jsonld"
+    properties["url"] = os.environ.get("CLOWDER_HOST","http://terraref.ncsa.illinois.edu/clowder/") + "api/datasets/" + datasetid + "/metadata.jsonld"
     return properties
     
 def _get_sensor_fixed_metadata(sensorId):
