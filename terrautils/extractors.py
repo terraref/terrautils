@@ -188,15 +188,18 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
 
     if year:
         # Create year-level collection
-        year_collect = get_collection_or_create(connector, host, secret_key, year,
-                                                parent_collect, root_space)
+        year_collect = get_collection_or_create(connector, host, secret_key,
+                                                "%s - %s" % (root_coll_name, year),
+                                                parent_collect)
         if month:
             # Create month-level collection
-            month_collect = get_collection_or_create(connector, host, secret_key, month,
-                                                     year_collect, root_space)
+            month_collect = get_collection_or_create(connector, host, secret_key,
+                                                     "%s - %s-%s" % (root_coll_name, year, month),
+                                                     year_collect)
             if date:
-                targ_collect = get_collection_or_create(connector, host, secret_key, date,
-                                                        month_collect, root_space)
+                targ_collect = get_collection_or_create(connector, host, secret_key,
+                                                        "%s - %s-%s-%s" % (root_coll_name, year, month, date),
+                                                        month_collect)
             else:
                 targ_collect = month_collect
         else:
