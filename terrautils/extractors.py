@@ -536,7 +536,7 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
         cambox_z = sf_meta['location_in_camera_box_m']['z']
 
         # FIELD OF VIEW (FOV)
-        for fov_field in ['field_of_view_2m_m', 'field_of_view_degrees']:
+        for fov_field in ['field_of_view_at_2m_m', 'field_of_view_degrees']:
             if fov_field in sf_meta:
                 fov_x = sf_meta[fov_field]['x'] if 'x' in sf_meta[fov_field] else fov_x
                 fov_y = sf_meta[fov_field]['y'] if 'y' in sf_meta[fov_field] else fov_y
