@@ -307,16 +307,19 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
     cam_height = center_position[2]
 
     if sensor=="stereoTop":
+        var_se = float(metadata['sensor_fixed_metadata']['slope_estimation'])
+        var_rho = float(metadata['sensor_fixed_metadata']['rail_height_offset'])
+        var_sofc = float(metadata['sensor_fixed_metadata']['stereo_offsets_from_center'])
+
         # Use height of camera * slope_estimation to estimate expected canopy height
-        predicted_plant_height = metadata['slope_estimation'] * cam_height
+        predicted_plant_height = var_se * cam_height
         # Subtract expected plant height from (cam height + rail height offset) to get canopy height
-        cam_height_above_canopy = cam_height + metadata['rail_height_offset'] - predicted_plant_height
+        cam_height_above_canopy = cam_height + var_rho - predicted_plant_height
         fov_x = float(fov_x * (cam_height_above_canopy/2))
         fov_y = float(fov_y * (cam_height_above_canopy/2))
         # Account for experimentally determined distance from center to each stereo lens for left/right
-        stereo_off = metadata['stereo_offsets_from_center']
-        left_position = [center_position[0]+stereo_off, center_position[1], center_position[2]]
-        right_position = [center_position[0]-stereo_off, center_position[1], center_position[2]]
+        left_position = [center_position[0]+var_sofc, center_position[1], center_position[2]]
+        right_position = [center_position[0]-var_sofc, center_position[1], center_position[2]]
         # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
@@ -533,7 +536,7 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
         cambox_z = sf_meta['location_in_camera_box_m']['z']
 
         # FIELD OF VIEW (FOV)
-        for fov_field in ['field_of_view_m', 'field_of_view_degrees']:
+        for fov_field in ['field_of_view_2m_m', 'field_of_view_degrees']:
             if fov_field in sf_meta:
                 fov_x = sf_meta[fov_field]['x'] if 'x' in sf_meta[fov_field] else fov_x
                 fov_y = sf_meta[fov_field]['y'] if 'y' in sf_meta[fov_field] else fov_y
