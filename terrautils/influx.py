@@ -4,6 +4,7 @@ This module provides methods for logging to an InfluxDB instance.
 """
 
 import os
+from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
 
 
