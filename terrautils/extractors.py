@@ -168,7 +168,7 @@ def load_json_file(filepath):
         return None
 
 # CLOWDER UTILS -------------------------------------
-# TODO: Move these to pyClowder 2 eventually, once pull requests are being merged timely
+# TODO: Add support for user/password in addition to secret_key
 def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_name,
                             year='', month='', date='', leaf_ds_name=''):
     """This will build collections for year, month, date level if needed in parent space.
@@ -515,24 +515,28 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
         elif not cambox_z:
             cambox_z = 0
 
-    elif 'position_m' in metadata:
-        gantry_x = metadata['position_m']['x'] if 'x' in metadata['position_m'] else gantry_x
-        gantry_y = metadata['position_m']['y'] if 'y' in metadata['position_m'] else gantry_y
-        gantry_z = metadata['position_m']['z'] if 'z' in metadata['position_m'] else gantry_z
+    elif 'gantry_variable_metadata' in metadata:
+        gv_meta = metadata['gantry_variable_metadata']
+        gantry_x = gv_meta['position_m']['x'] if 'x' in gv_meta['position_m'] else gantry_x
+        gantry_y = gv_meta['position_m']['y'] if 'y' in gv_meta['position_m'] else gantry_y
+        gantry_z = gv_meta['position_m']['z'] if 'z' in gv_meta['position_m'] else gantry_z
 
-        sensor_fixed = get_sensor_fixed_metadata(metadata['station'],
-                                                 metadata['sensor'])
+        if 'sensor_fixed_metadata' in metadata:
+            sf_meta = metadata['sensor_fixed_metadata']
+        else:
+            sf_meta = get_sensor_fixed_metadata(metadata['station'],
+                                                     metadata['sensor'])
 
         # LOCATION IN CAMERA BOX
-        cambox_x = sensor_fixed['location_in_camera_box_m']['x']
-        cambox_y = sensor_fixed['location_in_camera_box_m']['y']
-        cambox_z = sensor_fixed['location_in_camera_box_m']['z']
+        cambox_x = sf_meta['location_in_camera_box_m']['x']
+        cambox_y = sf_meta['location_in_camera_box_m']['y']
+        cambox_z = sf_meta['location_in_camera_box_m']['z']
 
         # FIELD OF VIEW (FOV)
         for fov_field in ['field_of_view_m', 'field_of_view_degrees']:
-            if fov_field in sensor_fixed:
-                fov_x = sensor_fixed[fov_field]['x'] if 'x' in sensor_fixed[fov_field] else fov_x
-                fov_y = sensor_fixed[fov_field]['y'] if 'y' in sensor_fixed[fov_field] else fov_y
+            if fov_field in sf_meta:
+                fov_x = sf_meta[fov_field]['x'] if 'x' in sf_meta[fov_field] else fov_x
+                fov_y = sf_meta[fov_field]['y'] if 'y' in sf_meta[fov_field] else fov_y
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 
