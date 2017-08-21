@@ -27,7 +27,8 @@ def get_terraref_metadata(clowder_md, old_ok=False):
     for sub_metadata in clowder_md:
         if 'content' in sub_metadata:
             sub_md = sub_metadata['content']
-            if 'gantry_variable' in sub_md and 'sensor_fixed' in sub_md and 'sensor_variable' in sub_md:
+            if ('sensor_fixed_metadata' in sub_md or 'gantry_fixed_metadata' in sub_md
+                or 'sensor_variable_metadata' in sub_md or 'gantry_variable_metadata' in sub_md):
                 return sub_md
             elif old_ok and 'lemnatec_measurement_metadata' in sub_md:
                 return sub_md
