@@ -6,7 +6,6 @@ import json
 import os
 import pyclowder.datasets
 
-import sensors
 import lemnatec
 from terrautils.sensors import Sensors
 
