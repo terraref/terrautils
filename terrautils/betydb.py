@@ -37,7 +37,7 @@ def get_bety_key():
         return keyfile.readline().strip()
 
     else:
-        raise RuntimeError("BETYDB_URL not found. Set environmental variable "
+        raise RuntimeError("BETYDB_KEY not found. Set environmental variable "
                        "or create $HOME/.betykey.")
 
 
