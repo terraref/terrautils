@@ -111,14 +111,14 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     gt2 = list(gt)
     gt2[0] = minX
     gt2[3] = maxY
-    points = []
     pixels = []
     geom = poly.GetGeometryRef()
     pts = geom.GetGeometryRef(0)
+    while pts.GetPointCount() == 0:
+        pts = pts.GetGeometryRef(0)
     for p in range(pts.GetPointCount()):
-        points.append((pts.GetX(p), pts.GetY(p)))
-    for p in points:
-        pixels.append(world_to_pixel(gt2, p[0], p[1]))
+        pixels.append(world_to_pixel(gt2, pts.GetX(p), pts.GetY(p)))
+
     raster_poly = Image.new('L', (pxWidth, pxHeight), 1)
     rasterize = ImageDraw.Draw(raster_poly)
     rasterize.polygon(pixels, 0) # Fill with zeroes
@@ -141,7 +141,6 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     # If the clipping features extend out-of-bounds and 
     # BELOW the raster...
     except ValueError:
-
         # We have to cut the clipping features to the raster!
         rshp = list(mask.shape)
         if mask.shape[-2] != clip.shape[-2]:
@@ -176,3 +175,8 @@ def centroid_from_geojson(geojson):
     centroid = geom_poly.Centroid()
 
     return centroid.ExportToJson()
+
+
+def wkt_to_geojson(wkt):
+    geom = ogr.CreateGeometryFromWkt(wkt)
+    return geom.ExportToJson()

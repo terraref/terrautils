@@ -153,7 +153,14 @@ def get_sites(filter_date='', **kwargs):
                     end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
                     if start <= targ_date <= end:
                         if 'sites' in exp:
-                            return [t['site'] for t in exp['sites']]
+                            results = []
+                            for t in exp['sites']:
+                                # TODO: Eventually find better solution for S4 half-plots
+                                if not (exp['name'].find("Season 4") > -1 and
+                                            (t['site']["sitename"].endswith(" W") or
+                                                 t['site']["sitename"].endswith(" E"))):
+                                    results.append(t['site'])
+                            return results
 
         else:
             """ SCENARIO III - YES FILTER DATE, YES LAT/LON
@@ -179,6 +186,10 @@ def get_sites(filter_date='', **kwargs):
                 if 'experiments' in s:
                     for exp in s['experiments']:
                         if exp['experiment']['id'] in matching_experiments:
+                            # TODO: Eventually find better solution for S4 half-plots
+                            if (exp['experiment']['name'].find("Season 4") > -1 and
+                                    (s["sitename"].endswith(" W") or s["sitename"].endswith(" E"))):
+                                continue
                             small_site = s
                             del small_site['experiments_sites']
                             del small_site['experiments']
@@ -194,7 +205,7 @@ def get_sites_by_latlon(latlon, filter_date='', **kwargs):
       filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
-    latlon_api_arg = "%s,%s" % (latlon[0], latlon[1])
+    latlon_api_arg = "%s,%s" % (latlon[1], latlon[0])
 
     return get_sites(filter_date=filter_date, containing=latlon_api_arg, **kwargs)
 

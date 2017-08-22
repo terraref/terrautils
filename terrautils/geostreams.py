@@ -10,6 +10,7 @@ import os
 import requests
 
 from terrautils.betydb import get_sites_by_latlon
+from terrautils.gdal import wkt_to_geojson
 
 
 def create_sensor(connector, host, key, sensorname, geom, type, region):
@@ -144,15 +145,15 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
     # SENSOR is the plot - try by location first to see if this already exists in geostream
     sensor_data = get_sensors_by_circle(connector, host, key, latlon[1], latlon[0], 0.01)
     if not sensor_data:
-        # TODO: How to filter this call to reduce number of intersecting plots by time/season?
         sitelist = get_sites_by_latlon(latlon, filter_date)
         for s in sitelist:
             plot_name = s['sitename']
-            logging.info("...found plot: "+plot_name)
+            plot_geom = json.loads(wkt_to_geojson(s['geometry']))
+
             # Get existing sensor with this plot name from geostreams, or create if it doesn't exist
             sensor_data = get_sensor_by_name(connector, host, key, plot_name)
             if not sensor_data:
-                sensor_id = create_sensor(connector, host, key, plot_name, s['geometry'],
+                sensor_id = create_sensor(connector, host, key, plot_name, plot_geom,
                                           {"id": "MAC Field Scanner", "title": "MAC Field Scanner", "sensorType": 4},
                                           "Maricopa")
                 continue
@@ -171,7 +172,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
     stream_name = streamprefix + " - " + plot_name
     stream_data = get_stream_by_name(connector, host, key, stream_name)
     if not stream_data:
-        stream_id = create_stream(connector, host, key, stream_name, sensor_id, s['geometry'])
+        stream_id = create_stream(connector, host, key, stream_name, sensor_id, plot_geom)
     else:
         stream_id = stream_data['id']
 
