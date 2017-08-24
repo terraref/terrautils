@@ -202,14 +202,14 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
         },
 
-        'ndvipri2csv': {
-            'display': 'NDVI and PRI CSVs',
+        'spectral_index_csvs': {
+            'display': 'Multispectral Index CSVs',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
         },
 
-        'envlog2netcdf': {
+        'envlog_netcdf': {
             'display': 'EnvironmentLogger netCDFs',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{filename}',
