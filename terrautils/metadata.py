@@ -39,7 +39,8 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
     # Add sensor fixed metadata
     if sensor_id:
         sensor_fixed = get_sensor_fixed_metadata(station, sensor_id)
-        sensor_fixed['url'] = terra_md['sensor_fixed_metadata']['url']
+        if 'sensor_fixed_metadata' in terra_md:
+            sensor_fixed['url'] = terra_md['sensor_fixed_metadata']['url']
         terra_md['sensor_fixed_metadata'] = sensor_fixed
 
     return terra_md

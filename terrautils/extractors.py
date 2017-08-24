@@ -330,6 +330,10 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         fov_x = float(fov_x * (cam_height_above_canopy/2))
         fov_y = float(fov_y * (cam_height_above_canopy/2))
 
+    else:
+        fov_x = float(fov_x) if fov_x else 0
+        fov_y = float(fov_y) if fov_y else 0
+
     return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
 
@@ -348,8 +352,8 @@ def calculate_scan_time(metadata):
             # timestamp, e.g. "2016-05-15T00:30:00-05:00"
             scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time", "timestamp"])
 
-    elif 'time' in metadata:
-        scan_time = metadata['time']
+    elif 'gantry_variable_metadata' in metadata:
+        scan_time = metadata['gantry_variable_metadata']['time_utc']
 
     return scan_time
 
@@ -458,7 +462,7 @@ def create_image(pixels, out_path, scaled=False):
         Image.fromarray(pixels).save(out_path)
 
 
-def geom_from_metadata(metadata, sensor="stereoTop"):
+def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
     """Parse location elements from metadata.
 
         Returns:
@@ -531,12 +535,21 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
                                                      metadata['sensor'])
 
         # LOCATION IN CAMERA BOX
-        cambox_x = sf_meta['location_in_camera_box_m']['x']
-        cambox_y = sf_meta['location_in_camera_box_m']['y']
-        cambox_z = sf_meta['location_in_camera_box_m']['z']
+        if 'location_in_camera_box_m' in sf_meta:
+            cambox_x = sf_meta['location_in_camera_box_m']['x']
+            cambox_y = sf_meta['location_in_camera_box_m']['y']
+            cambox_z = sf_meta['location_in_camera_box_m']['z']
+        elif side=='west' and 'scanner_west_location_in_camera_box_m' in sf_meta:
+            cambox_x = sf_meta['scanner_west_location_in_camera_box_m']['x']
+            cambox_y = sf_meta['scanner_west_location_in_camera_box_m']['y']
+            cambox_z = sf_meta['scanner_west_location_in_camera_box_m']['z']
+        elif side=='east' and 'scanner_east_location_in_camera_box_m' in sf_meta:
+            cambox_x = sf_meta['scanner_east_location_in_camera_box_m']['x']
+            cambox_y = sf_meta['scanner_east_location_in_camera_box_m']['y']
+            cambox_z = sf_meta['scanner_east_location_in_camera_box_m']['z']
 
         # FIELD OF VIEW (FOV)
-        for fov_field in ['field_of_view_at_2m_m', 'field_of_view_degrees']:
+        for fov_field in ['field_of_view_m', 'field_of_view_at_2m_m', 'field_of_view_degrees']:
             if fov_field in sf_meta:
                 fov_x = sf_meta[fov_field]['x'] if 'x' in sf_meta[fov_field] else fov_x
                 fov_y = sf_meta[fov_field]['y'] if 'y' in sf_meta[fov_field] else fov_y

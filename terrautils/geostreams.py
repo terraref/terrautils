@@ -142,31 +142,22 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
     metadata -- JSON object with any desired properties
     """
 
-    # SENSOR is the plot - try by location first to see if this already exists in geostream
-    sensor_data = get_sensors_by_circle(connector, host, key, latlon[1], latlon[0], 0.01)
-    if not sensor_data:
-        sitelist = get_sites_by_latlon(latlon, filter_date)
-        for s in sitelist:
-            plot_name = s['sitename']
-            plot_geom = json.loads(wkt_to_geojson(s['geometry']))
+    # SENSOR is the plot
+    sitelist = get_sites_by_latlon(latlon, filter_date)
+    for s in sitelist:
+        plot_name = s['sitename']
+        plot_geom = json.loads(wkt_to_geojson(s['geometry']))
 
-            # Get existing sensor with this plot name from geostreams, or create if it doesn't exist
-            sensor_data = get_sensor_by_name(connector, host, key, plot_name)
-            if not sensor_data:
-                sensor_id = create_sensor(connector, host, key, plot_name, plot_geom,
-                                          {"id": "MAC Field Scanner", "title": "MAC Field Scanner", "sensorType": 4},
-                                          "Maricopa")
-                continue
-            else:
-                sensor_id = sensor_data['id']
-                continue
-    else:
-        if len(sensor_data) > 1:
-            sensor_id = sensor_data[0]['id']
-            plot_name = sensor_data[0]['name']
+        # Get existing sensor with this plot name from geostreams, or create if it doesn't exist
+        sensor_data = get_sensor_by_name(connector, host, key, plot_name)
+        if not sensor_data:
+            sensor_id = create_sensor(connector, host, key, plot_name, plot_geom,
+                                      {"id": "MAC Field Scanner", "title": "MAC Field Scanner", "sensorType": 4},
+                                      "Maricopa")
+            continue
         else:
             sensor_id = sensor_data['id']
-            plot_name = sensor_data['name']
+            continue
 
     # STREAM is plot x instrument
     stream_name = streamprefix + " - " + plot_name

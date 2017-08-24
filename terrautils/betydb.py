@@ -205,7 +205,7 @@ def get_sites_by_latlon(latlon, filter_date='', **kwargs):
       filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
-    latlon_api_arg = "%s,%s" % (latlon[1], latlon[0])
+    latlon_api_arg = "%s,%s" % latlon
 
     return get_sites(filter_date=filter_date, containing=latlon_api_arg, **kwargs)
 
