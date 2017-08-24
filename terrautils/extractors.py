@@ -326,9 +326,9 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         return (left_gps_bounds, right_gps_bounds)
 
     elif sensor=="flirIrCamera":
-        cam_height_above_canopy = cam_height + metadata['rail_height_offset']
-        fov_x = float(fov_x * (cam_height_above_canopy/2))
-        fov_y = float(fov_y * (cam_height_above_canopy/2))
+        cam_height_above_canopy = cam_height + float(metadata['sensor_fixed_metadata']['rail_height_offset'])
+        fov_x = float(fov_x) * (cam_height_above_canopy/2)
+        fov_y = float(fov_y) * (cam_height_above_canopy/2)
 
     else:
         fov_x = float(fov_x) if fov_x else 0
