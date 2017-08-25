@@ -24,9 +24,9 @@ RUN apt-get -q -y update \
 
 # TODO: Create intermediary NCO Container for subset of extractors
 
-COPY terrautils /tmp/terrautils/terrautils
 COPY setup.py requirements.txt /tmp/terrautils/
+RUN pip install --upgrade  -r /tmp/terrautils/requirements.txt
 
-RUN pip install --upgrade  -r /tmp/terrautils/requirements.txt \
-    && pip install --upgrade /tmp/terrautils \
+COPY terrautils /tmp/terrautils/terrautils
+RUN pip install --upgrade /tmp/terrautils \
     && rm -rf /tmp/terrautils

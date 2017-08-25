@@ -25,6 +25,8 @@ from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
 
+logging.basicConfig(format='%(asctime)s %(message)s')
+
 def add_arguments(parser):
 
     # TODO: Move defaults into a level-based dict
@@ -37,7 +39,7 @@ def add_arguments(parser):
             help='enable overwriting of existing files')
 
     parser.add_argument('--debug', '-d', action='store_const',
-            default=logging.WARN, const=logging.DEBUG,
+            default=logging.INFO, const=logging.DEBUG,
             help='enable debugging (default=WARN)')
 
 
@@ -52,7 +54,7 @@ class TerrarefExtractor(Extractor):
         add_influx_arguments(self.parser)
 
 
-    def setup(self, base='', site='', level='', sensor=''):
+    def setup(self, base='', site='', sensor=''):
 
         super(TerrarefExtractor, self).setup()
 
@@ -62,13 +64,12 @@ class TerrarefExtractor(Extractor):
 
         if not base: base = self.args.terraref_base
         if not site: site = self.args.terraref_site
-        if not level: level = self.args.terraref_level
         if not sensor: sensor = self.args.sensor
 
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
 
-        self.sensors = Sensors(base=base, site=site, level=level, sensor=sensor)
+        self.sensors = Sensors(base=base, station=site, sensor=sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
 
         self.influx = Influx(self.args.influx_host, self.args.influx_port,
@@ -91,7 +92,7 @@ class TerrarefExtractor(Extractor):
 
 
 # BASIC UTILS -------------------------------------
-def build_metadata(clowderhost, extractorname, target_id, content, target_type='file', context=[]):
+def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='file', context=[]):
     """Construct extractor metadata object ready for submission to a Clowder file/dataset.
 
         clowderhost -- root URL of Clowder target instance (before /api)
@@ -104,14 +105,15 @@ def build_metadata(clowderhost, extractorname, target_id, content, target_type='
     if context == []:
         context = ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"]
 
-    # TODO: Include version of extractor as standard
+    content['extractor_version'] = extractorinfo['version']
+
     md = {
         # TODO: Generate JSON-LD context for additional fields
         "@context": context,
         "content": content,
         "agent": {
             "@type": "cat:extractor",
-            "extractor_id": clowderhost + "/api/extractors/" + extractorname
+            "extractor_id": clowderhost + "/api/extractors/" + extractorinfo['name']
         }
     }
 
@@ -168,7 +170,7 @@ def load_json_file(filepath):
         return None
 
 # CLOWDER UTILS -------------------------------------
-# TODO: Move these to pyClowder 2 eventually, once pull requests are being merged timely
+# TODO: Add support for user/password in addition to secret_key
 def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_name,
                             year='', month='', date='', leaf_ds_name=''):
     """This will build collections for year, month, date level if needed in parent space.
@@ -188,15 +190,18 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
 
     if year:
         # Create year-level collection
-        year_collect = get_collection_or_create(connector, host, secret_key, year,
-                                                parent_collect, root_space)
+        year_collect = get_collection_or_create(connector, host, secret_key,
+                                                "%s - %s" % (root_coll_name, year),
+                                                parent_collect)
         if month:
             # Create month-level collection
-            month_collect = get_collection_or_create(connector, host, secret_key, month,
-                                                     year_collect, root_space)
+            month_collect = get_collection_or_create(connector, host, secret_key,
+                                                     "%s - %s-%s" % (root_coll_name, year, month),
+                                                     year_collect)
             if date:
-                targ_collect = get_collection_or_create(connector, host, secret_key, date,
-                                                        month_collect, root_space)
+                targ_collect = get_collection_or_create(connector, host, secret_key,
+                                                        "%s - %s-%s-%s" % (root_coll_name, year, month, date),
+                                                        month_collect)
             else:
                 targ_collect = month_collect
         else:
@@ -212,7 +217,7 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
 
 def get_collection_or_create(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/collections?key=%s&title=" % (host, secret_key, cname)
+    url = "%sapi/collections?key=%s&title=%s" % (host, secret_key, cname)
     result = requests.get(url, verify=connector.ssl_verify)
     result.raise_for_status()
 
@@ -225,7 +230,7 @@ def get_collection_or_create(connector, host, secret_key, cname, parent_colln=No
 
 def get_dataset_or_create(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?key=%s&title=" % (host, secret_key, dsname)
+    url = "%sapi/datasets?key=%s&title=%s" % (host, secret_key, dsname)
     result = requests.get(url, verify=connector.ssl_verify)
     result.raise_for_status()
 
@@ -285,7 +290,7 @@ def calculate_centroid_from_wkt(wkt):
     )
 
 
-def calculate_gps_bounds(metadata, sensor="stereoTop"):
+def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
     """Extract bounding box geometry, depending on sensor type.
 
         Gets geometry from metadata for center position and FOV, applies some
@@ -296,7 +301,7 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
             tuple of GeoTIFF coordinates, each one as:
             (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
-    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata)
+    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata, side=side)
 
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
@@ -304,25 +309,32 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
     cam_height = center_position[2]
 
     if sensor=="stereoTop":
+        var_se = float(metadata['sensor_fixed_metadata']['slope_estimation'])
+        var_rho = float(metadata['sensor_fixed_metadata']['rail_height_offset'])
+        var_sofc = float(metadata['sensor_fixed_metadata']['stereo_offsets_from_center'])
+
         # Use height of camera * slope_estimation to estimate expected canopy height
-        predicted_plant_height = metadata['slope_estimation'] * cam_height
+        predicted_plant_height = var_se * cam_height
         # Subtract expected plant height from (cam height + rail height offset) to get canopy height
-        cam_height_above_canopy = cam_height + metadata['rail_height_offset'] - predicted_plant_height
-        fov_x = float(fov_x * (cam_height_above_canopy/2))
-        fov_y = float(fov_y * (cam_height_above_canopy/2))
+        cam_height_above_canopy = float(cam_height + var_rho - predicted_plant_height)
+        fov_x = float(fov_x) * (cam_height_above_canopy/2)
+        fov_y = float(fov_y) * (cam_height_above_canopy/2)
         # Account for experimentally determined distance from center to each stereo lens for left/right
-        stereo_off = metadata['stereo_offsets_from_center']
-        left_position = [center_position[0]+stereo_off, center_position[1], center_position[2]]
-        right_position = [center_position[0]-stereo_off, center_position[1], center_position[2]]
+        left_position = [center_position[0]+var_sofc, center_position[1], center_position[2]]
+        right_position = [center_position[0]-var_sofc, center_position[1], center_position[2]]
         # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
         return (left_gps_bounds, right_gps_bounds)
 
     elif sensor=="flirIrCamera":
-        cam_height_above_canopy = cam_height + metadata['rail_height_offset']
-        fov_x = float(fov_x * (cam_height_above_canopy/2))
-        fov_y = float(fov_y * (cam_height_above_canopy/2))
+        cam_height_above_canopy = cam_height + float(metadata['sensor_fixed_metadata']['rail_height_offset'])
+        fov_x = float(fov_x) * (cam_height_above_canopy/2)
+        fov_y = float(fov_y) * (cam_height_above_canopy/2)
+
+    else:
+        fov_x = float(fov_x) if fov_x else 0
+        fov_y = float(fov_y) if fov_y else 0
 
     return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
 
@@ -342,8 +354,8 @@ def calculate_scan_time(metadata):
             # timestamp, e.g. "2016-05-15T00:30:00-05:00"
             scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time", "timestamp"])
 
-    elif 'time' in metadata:
-        scan_time = metadata['time']
+    elif 'gantry_variable_metadata' in metadata:
+        scan_time = metadata['gantry_variable_metadata']['time_utc']
 
     return scan_time
 
@@ -452,7 +464,7 @@ def create_image(pixels, out_path, scaled=False):
         Image.fromarray(pixels).save(out_path)
 
 
-def geom_from_metadata(metadata, sensor="stereoTop"):
+def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
     """Parse location elements from metadata.
 
         Returns:
@@ -512,24 +524,37 @@ def geom_from_metadata(metadata, sensor="stereoTop"):
         elif not cambox_z:
             cambox_z = 0
 
-    elif 'position_m' in metadata:
-        gantry_x = metadata['position_m']['x'] if 'x' in metadata['position_m'] else gantry_x
-        gantry_y = metadata['position_m']['y'] if 'y' in metadata['position_m'] else gantry_y
-        gantry_z = metadata['position_m']['z'] if 'z' in metadata['position_m'] else gantry_z
+    elif 'gantry_variable_metadata' in metadata:
+        gv_meta = metadata['gantry_variable_metadata']
+        gantry_x = gv_meta['position_m']['x'] if 'x' in gv_meta['position_m'] else gantry_x
+        gantry_y = gv_meta['position_m']['y'] if 'y' in gv_meta['position_m'] else gantry_y
+        gantry_z = gv_meta['position_m']['z'] if 'z' in gv_meta['position_m'] else gantry_z
 
-        sensor_fixed = get_sensor_fixed_metadata(metadata['station'],
-                                                 metadata['sensor'])
+        if 'sensor_fixed_metadata' in metadata:
+            sf_meta = metadata['sensor_fixed_metadata']
+        else:
+            sf_meta = get_sensor_fixed_metadata(metadata['station'],
+                                                     metadata['sensor'])
 
         # LOCATION IN CAMERA BOX
-        cambox_x = sensor_fixed['location_in_camera_box_m']['x']
-        cambox_y = sensor_fixed['location_in_camera_box_m']['y']
-        cambox_z = sensor_fixed['location_in_camera_box_m']['z']
+        if 'location_in_camera_box_m' in sf_meta:
+            cambox_x = sf_meta['location_in_camera_box_m']['x']
+            cambox_y = sf_meta['location_in_camera_box_m']['y']
+            cambox_z = sf_meta['location_in_camera_box_m']['z']
+        elif side=='west' and 'scanner_west_location_in_camera_box_m' in sf_meta:
+            cambox_x = sf_meta['scanner_west_location_in_camera_box_m']['x']
+            cambox_y = sf_meta['scanner_west_location_in_camera_box_m']['y']
+            cambox_z = sf_meta['scanner_west_location_in_camera_box_m']['z']
+        elif side=='east' and 'scanner_east_location_in_camera_box_m' in sf_meta:
+            cambox_x = sf_meta['scanner_east_location_in_camera_box_m']['x']
+            cambox_y = sf_meta['scanner_east_location_in_camera_box_m']['y']
+            cambox_z = sf_meta['scanner_east_location_in_camera_box_m']['z']
 
         # FIELD OF VIEW (FOV)
-        for fov_field in ['field_of_view_m', 'field_of_view_degrees']:
-            if fov_field in sensor_fixed:
-                fov_x = sensor_fixed[fov_field]['x'] if 'x' in sensor_fixed[fov_field] else fov_x
-                fov_y = sensor_fixed[fov_field]['y'] if 'y' in sensor_fixed[fov_field] else fov_y
+        for fov_field in ['field_of_view_m', 'field_of_view_at_2m_m', 'field_of_view_degrees']:
+            if fov_field in sf_meta:
+                fov_x = sf_meta[fov_field]['x'] if 'x' in sf_meta[fov_field] else fov_x
+                fov_y = sf_meta[fov_field]['y'] if 'y' in sf_meta[fov_field] else fov_y
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 

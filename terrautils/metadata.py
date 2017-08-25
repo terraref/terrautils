@@ -2,12 +2,12 @@
 This module provides useful reference methods for accessing and cleaning TERRA-REF metadata.
 """
 
-import pyclowder.datasets
-import os
-import sensors
-import metadata.lemnatec
 import json
+import os
+import pyclowder.datasets
 
+import lemnatec
+from terrautils.sensors import Sensors
 
 
 def clean_metadata(json, sensorId):
@@ -15,24 +15,35 @@ def clean_metadata(json, sensorId):
         and names.
     """
     if 'lemnatec_measurement_metadata' in json.keys():
-        return metadata.lemnatec.clean(json, sensorId)
+        cleaned = lemnatec.clean(json, sensorId)
     else:
         return None
 
+    cleaned["terraref_cleaned_metadata"] = True
+    return cleaned
 
-def get_terraref_metadata(clowder_md, old_ok=False):
+
+def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
     """Crawl Clowder metadata object and return TERRARef metadata or None.
 
-    If old_ok, will return old lemnatec_measurement_metadata object."""
+    If sensor_id given, will attach fixed sensor metadata from that sensor."""
+
+    terra_md = {}
+
     for sub_metadata in clowder_md:
         if 'content' in sub_metadata:
             sub_md = sub_metadata['content']
-            if 'gantry_variable' in sub_md and 'sensor_fixed' in sub_md and 'sensor_variable' in sub_md:
-                return sub_md
-            elif old_ok and 'lemnatec_measurement_metadata' in sub_md:
-                return sub_md
+            if 'terraref_cleaned_metadata' in sub_md and sub_md['terraref_cleaned_metadata']:
+                terra_md = sub_md
 
-    return None
+    # Add sensor fixed metadata
+    if sensor_id:
+        sensor_fixed = get_sensor_fixed_metadata(station, sensor_id)
+        if 'sensor_fixed_metadata' in terra_md:
+            sensor_fixed['url'] = terra_md['sensor_fixed_metadata']['url']
+        terra_md['sensor_fixed_metadata'] = sensor_fixed
+
+    return terra_md
 
 
 def get_extractor_metadata(clowder_md, extractor_name):
@@ -51,17 +62,21 @@ def get_preferred_synonym(variable):
     pass
 
 
-def get_sensor_fixed_metadata(station, sensorId, host='', key=''):
+def get_sensor_fixed_metadata(station, sensor_id, host='', key=''):
     """Get fixed sensor metadata from Clowder."""
     if not host:
         host = os.getenv("CLOWDER_HOST", 'https://terraref.ncsa.illinois.edu/clowder/')
     if not key:
         key = os.getenv("CLOWDER_KEY", '')
 
-    datasetid = sensors.get_fixed_datasetid_for_sensor(station, sensorId)
+    s = Sensors(base="", station=station, sensor=sensor_id)
+    datasetid = s.get_fixed_datasetid_for_sensor(station, sensor_id)
     jsonld = pyclowder.datasets.download_metadata(None, host, key, datasetid)
 
-    return jsonld
+    for sub_metadata in jsonld:
+        if 'content' in sub_metadata:
+            # TODO: Currently assumes only one metadata object attached to formal sensor metadata dataset
+            return sub_metadata['content']
 
 
 if __name__ == "__main__":

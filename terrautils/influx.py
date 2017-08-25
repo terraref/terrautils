@@ -4,6 +4,7 @@ This module provides methods for logging to an InfluxDB instance.
 """
 
 import os
+from dateutil.parser import parse
 from influxdb import InfluxDBClient, SeriesHelper
 
 
@@ -19,7 +20,7 @@ def add_arguments(parser):
                         default=os.getenv("INFLUXDB_USER", "terra"),
                         help="InfluxDB username")
     parser.add_argument('--influxPass', dest="influx_pass", type=str, nargs='?',
-                        default=os.getenv("INFLUXDB_PASSWORD", ""),
+                        default=os.getenv("INFLUXDB_PASSWORD", ''),
                         help="InfluxDB password")
     parser.add_argument('--influxDB', dest="influx_db", type=str, nargs='?',
                         default=os.getenv("INFLUXDB_DB", "extractor_db"),
@@ -41,25 +42,26 @@ class Influx():
 
         f_completed_ts = int(parse(endtime).strftime('%s'))*1000000000
         f_duration = f_completed_ts - int(parse(starttime).strftime('%s'))*1000000000
-    
-        client = InfluxDBClient(self.host, self.port, self.user,
-                                self.pass_, self.db)
-    
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": f_duration}
-        }], tags={"extractor": extractorname, "type": "duration"})
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": int(filecount)}
-        }], tags={"extractor": extractorname, "type": "filecount"})
-        client.write_points([{
-            "measurement": "file_processed",
-            "time": f_completed_ts,
-            "fields": {"value": int(bytecount)}
-        }], tags={"extractor": extractorname, "type": "bytes"})
+
+        if self.pass_:
+            client = InfluxDBClient(self.host, self.port, self.user,
+                                    self.pass_, self.db)
+
+            client.write_points([{
+                "measurement": "file_processed",
+                "time": f_completed_ts,
+                "fields": {"value": f_duration}
+            }], tags={"extractor": extractorname, "type": "duration"})
+            client.write_points([{
+                "measurement": "file_processed",
+                "time": f_completed_ts,
+                "fields": {"value": int(filecount)}
+            }], tags={"extractor": extractorname, "type": "filecount"})
+            client.write_points([{
+                "measurement": "file_processed",
+                "time": f_completed_ts,
+                "fields": {"value": int(bytecount)}
+            }], tags={"extractor": extractorname, "type": "bytes"})
 
 
     def error(self):

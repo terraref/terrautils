@@ -5,6 +5,7 @@ This module provides wrappers to BETY API for getting and posting data.
 
 import os
 import logging
+from datetime import datetime
 
 import requests
 from osgeo import ogr
@@ -36,7 +37,7 @@ def get_bety_key():
         return keyfile.readline().strip()
 
     else:
-        raise RuntimeError("BETYDB_URL not found. Set environmental variable "
+        raise RuntimeError("BETYDB_KEY not found. Set environmental variable "
                        "or create $HOME/.betykey.")
 
 
@@ -119,33 +120,100 @@ def get_site(site_id):
         return query_data[0]
 
 
-def get_sites(**kwargs):
+def get_sites(filter_date='', **kwargs):
     """Return a site array from query() from the sites table.
 
     e.g.
             get_sites(city="Maricopa")
             get_sites(sitename="MAC Field Scanner Season 4 Range 4 Column 6")
             get_sites(contains="-111.97496613200647,33.074671230742446")
+
+      filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
-    query_data = query(endpoint="sites", **kwargs)
-    if query_data:
-        return [s["site"] for s in query_data['data']]
+    """
+    SCENARIO I - NO FILTER DATE
+    Basic query, efficient even with 'containing' parameter.
+    """
+    if not filter_date:
+        query_data = query(endpoint="sites", **kwargs)
+        if query_data:
+            return [t["site"] for t in query_data['data']]
+    else:
+        targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
+
+        if 'containing' not in kwargs:
+            """ SCENARIO II - YES FILTER DATE, NO LAT/LON
+            Get experiments by date and return all associated sites.
+            """
+            query_data = get_experiments(associations_mode='full_info', **kwargs)
+            if query_data:
+                for exp in query_data:
+                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                    if start <= targ_date <= end:
+                        if 'sites' in exp:
+                            results = []
+                            for t in exp['sites']:
+                                # TODO: Eventually find better solution for S4 half-plots
+                                if not (exp['name'].find("Season 4") > -1 and
+                                            (t['site']["sitename"].endswith(" W") or
+                                                 t['site']["sitename"].endswith(" E"))):
+                                    results.append(t['site'])
+                            return results
+
+        else:
+            """ SCENARIO III - YES FILTER DATE, YES LAT/LON
+            We cannot filter sites returned in experiments query by 'containing'
+            parameter, so instead we get all sites for that lat/lon including
+            associated experiments and filter by appropriate experiment.
+            """
+            matching_experiments = []
+            matching_sites = []
+
+            # Only get experiment IDs that were active during filter_date
+            query_data = get_experiments(**kwargs)
+            if query_data:
+                for exp in query_data:
+                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                    if start <= targ_date <= end:
+                        matching_experiments.append(exp['id'])
+
+            # Get sites in chunks and only keep those associated with experiments
+            intersect_sites = get_sites(associations_mode='full_info', limit='none', **kwargs)
+            for s in intersect_sites:
+                if 'experiments' in s:
+                    for exp in s['experiments']:
+                        if exp['experiment']['id'] in matching_experiments:
+                            # TODO: Eventually find better solution for S4 half-plots
+                            if (exp['experiment']['name'].find("Season 4") > -1 and
+                                    (s["sitename"].endswith(" W") or s["sitename"].endswith(" E"))):
+                                continue
+                            small_site = s
+                            del small_site['experiments_sites']
+                            del small_site['experiments']
+                            matching_sites.append(small_site)
+
+            return matching_sites
 
 
-def get_sites_by_latlon(latlon, **kwargs):
+def get_sites_by_latlon(latlon, filter_date='', **kwargs):
     """Gets list of sites from BETYdb, filtered by a contained point.
 
       latlon (tuple) -- only sites that contain this point will be returned
+      filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
     latlon_api_arg = "%s,%s" % (latlon[0], latlon[1])
 
-    return get_sites(containing=latlon_api_arg, **kwargs)
+    return get_sites(filter_date=filter_date, containing=latlon_api_arg, **kwargs)
 
 
-def get_site_boundaries(**kwargs):
+def get_site_boundaries(filter_date='', **kwargs):
     """Get a dictionary of site GeoJSON bounding boxes filtered by standard arguments.
+
+    filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
 
     Returns:
         {
@@ -155,7 +223,7 @@ def get_site_boundaries(**kwargs):
          }
     """
 
-    sitelist = get_sites(**kwargs)
+    sitelist = get_sites(filter_date, **kwargs)
     bboxes = {}
 
     for s in sitelist:
