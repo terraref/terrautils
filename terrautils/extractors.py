@@ -301,9 +301,6 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
             tuple of GeoTIFF coordinates, each one as:
             (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
-    print("!!")
-    print(metadata)
-    print(geom_from_metadata(metadata, side=side))
     gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata, side=side)
 
     center_position = ( float(gantry_x) + float(cambox_x),
