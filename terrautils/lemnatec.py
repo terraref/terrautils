@@ -697,7 +697,7 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md
         and 'scanner_west_location_in_camera_box_m' in fixed_md):
             
         point_cloud_origin["z"] =  float(corrected_gantry_variable_md['position_m']['z']) - 3.445
-        point_cloud_origin["x"] =  float(fixed_md["scanner_west_location_in_camera_box_m"]["x"]) - 0.0082
+        point_cloud_origin["x"] =  float(fixed_md["scanner_west_location_in_camera_box_m"]["x"]) - 0.082
         if (corrected_gantry_variable_md["scan_direction_is_positive"] == "True"):
             point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['y']) + 3.450
         else:
