@@ -251,7 +251,7 @@ STATIONS = {
             'template': '{base}/{station}/Level_1/' + \
                         'scanner3DTop/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
-                       '_heightmap{opts}.bmp'
+                       '_heightmap{opts}.tif'
         },
 
         'weather_datparser': {

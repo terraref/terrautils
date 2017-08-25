@@ -70,6 +70,9 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     """
 
     rast = gdal.Open(rast_path)
+    band = rast.GetRasterBand(1)
+    rast_xsize = band.XSize
+    rast_ysize = band.YSize
     gt = rast.GetGeoTransform()
 
     #Open Features and get all the necessary data for clipping
@@ -98,6 +101,14 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     if gt[3] < maxY:
         iY = ulY
         ulY = 0
+
+    # Ensure bounding box doesn't exceed the boundary of the geoTIFF
+    if ulX < 0: ulX = 0
+    if ulY < 0: ulY = 0
+    if ulX + pxWidth > rast_xsize:
+        pxWidth = rast_xsize - ulX
+    if ulY + pxHeight > rast_ysize:
+        pxHeight = rast_ysize - ulY
 
     clip = rast.ReadAsArray(ulX, ulY, pxWidth, pxHeight)
 

@@ -25,6 +25,8 @@ from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
 
+logging.basicConfig(format='%(asctime)s %(message)s')
+
 def add_arguments(parser):
 
     # TODO: Move defaults into a level-based dict
@@ -37,7 +39,7 @@ def add_arguments(parser):
             help='enable overwriting of existing files')
 
     parser.add_argument('--debug', '-d', action='store_const',
-            default=logging.WARN, const=logging.DEBUG,
+            default=logging.INFO, const=logging.DEBUG,
             help='enable debugging (default=WARN)')
 
 
@@ -299,6 +301,9 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
             tuple of GeoTIFF coordinates, each one as:
             (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
+    print("!!")
+    print(metadata)
+    print(geom_from_metadata(metadata))
     gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata)
 
     center_position = ( float(gantry_x) + float(cambox_x),

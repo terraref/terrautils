@@ -169,10 +169,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
 
     logging.info("posting datapoint to stream %s" % stream_id)
     if not geom:
-        geom = {
-            "type": "Point",
-            "coordinates": [latlon[1], latlon[0], 0]
-        }
+        geom = plot_geom
     create_datapoint(connector, host, key, stream_id, geom,
                      starttime, endtime, metadata)
 
