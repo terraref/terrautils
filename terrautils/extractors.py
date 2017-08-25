@@ -290,7 +290,7 @@ def calculate_centroid_from_wkt(wkt):
     )
 
 
-def calculate_gps_bounds(metadata, sensor="stereoTop"):
+def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
     """Extract bounding box geometry, depending on sensor type.
 
         Gets geometry from metadata for center position and FOV, applies some
@@ -303,8 +303,8 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """
     print("!!")
     print(metadata)
-    print(geom_from_metadata(metadata))
-    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata)
+    print(geom_from_metadata(metadata, side=side))
+    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata, side=side)
 
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
