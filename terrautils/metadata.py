@@ -30,11 +30,14 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
 
     terra_md = {}
 
-    for sub_metadata in clowder_md:
-        if 'content' in sub_metadata:
-            sub_md = sub_metadata['content']
-            if 'terraref_cleaned_metadata' in sub_md and sub_md['terraref_cleaned_metadata']:
-                terra_md = sub_md
+    if 'terraref_cleaned_metadata' in clowder_md:
+        terra_md = clowder_md
+    else:
+        for sub_metadata in clowder_md:
+            if 'content' in sub_metadata:
+                sub_metadata = sub_metadata['content']
+            if 'terraref_cleaned_metadata' in sub_metadata and sub_metadata['terraref_cleaned_metadata']:
+                terra_md = sub_metadata
 
     # Add sensor fixed metadata
     if sensor_id:
