@@ -161,10 +161,8 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
             matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
 
     for sensor_id in matched_sites:
-        # STREAM is plot x instrument
-        plot_name = matched_sites[sensor_id]["name"]
         plot_geom = matched_sites[sensor_id]["geom"]
-        stream_name = streamprefix + " - " + plot_name
+        stream_name = "%s (#%s)" % (streamprefix, sensor_id)
         stream_data = get_stream_by_name(connector, host, key, stream_name)
         if not stream_data:
             stream_id = create_stream(connector, host, key, stream_name, sensor_id, plot_geom)
