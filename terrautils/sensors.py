@@ -491,7 +491,10 @@ class Sensors():
         return self.stations.keys()
 
 
-    def get_season(self, date):
+    def get_experiment(self, date):
+        """
+        Return the experiment metadata associated with the specified date.
+        """
         experiments = get_experiments()
 
         # We only care about date portion if timestamp is given
@@ -504,7 +507,11 @@ class Sensors():
             end = datetime.datetime.strptime(exp['end_date'], "%Y-%m-%d")
 
             if ds_time >= begin and ds_time <= end:
-                return exp['name'][:exp['name'].find(':')]
+                return exp
+                
+    def get_season(self, date):
+        exp = self.get_experiment(date)
+        return exp['name'][:exp['name'].find(':')]
 
 
     def get_sensors(self, station=''):
