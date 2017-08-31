@@ -13,20 +13,17 @@ extractors.py:
 * get\_output\_filename() -- Determine output filename given input information.
 * is\_latest\_file() -- Check whether the extractor-triggering file is the latest file in the dataset.
 * load\_json\_file() -- Load contents of a .json file on disk into a JSON object.
-* calculate\_bounding\_box() -- Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
-* calculate\_centroid() -- Given a set of GPS boundaries, return lat/lon of centroid.
-* calculate\_gps\_bounds() -- Extract bounding box geometry, depending on sensor type.
 * calculate\_scan\_time() -- 
-* create\_geotiff() -- Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
-* create\_netcdf() -- Generate output netCDF file given an input numpy pixel array.
-* create\_image() -- Generate output JPG/PNG file given an input numpy pixel array.
-* geom\_from\_metadata() -- Parse location elements from metadata.
 * error\_notification() -- Send an error message notification, e.g. to Slack.
 * log\_to\_influxdb() -- Send extractor job detail summary to InfluxDB instance.
 * trigger\_file\_extractions\_by\_dataset() -- Manually trigger an extraction on all files in a dataset.
 * trigger\_dataset\_extractions\_by\_collection() -- Manually trigger an extraction on all datasets in a collection.
-* \_get\_bounding\_box\_with\_formula() -- Convert scannerbox center position & sensor field-of-view to actual bounding box.
 * \_search\_for\_key() -- Check for presence of any key variants in metadata. Does basic capitalization check.
+
+formats.py
+* create\_geotiff() -- Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
+* create\_netcdf() -- Generate output netCDF file given an input numpy pixel array.
+* create\_image() -- Generate output JPG/PNG file given an input numpy pixel array.
 
 gdal.py:
 * array\_to\_image() -- Converts a gdalnumeric array to a Python Imaging Library (PIL) Image.
@@ -36,6 +33,12 @@ gdal.py:
 * clip\_raster(rast\_path, features\_path, gt=None, nodata=-9999) -- Clip a raster and return the clipped
     result in form of numpy array.
 * get\_raster\_extents(fname) -- Calculates the extent and the center of the given raster.
+
+metadata.py:
+* clean\_metadata() -- Returns a standarized metadata object.
+* get\_terraref\_metadata() -- Combines cleaned metadata with fixed metadata.
+* get\_extractor\_metadata() -- Returns Clowder extractor metadata.
+* get\_sensor\_fixed\_metadata() -- Returns fixed metadata from Clowder.
 
 sensors.py:
 * get\_sensors(station) -- Get all sensors for a given station.
@@ -53,3 +56,10 @@ sensors.py:
     unique attachment name.
 * plot\_attachment\_name(sitename, sensor, date, product) -- Encodes sitename, sensor, and date to 
     create a unqiue attachment name.
+
+spatial.py
+* calculate\_bounding\_box() -- Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
+* calculate\_centroid() -- Given a set of GPS boundaries, return lat/lon of centroid.
+* calculate\_gps\_bounds() -- Extract bounding box geometry, depending on sensor type.
+* geom\_from\_metadata() -- Parse location elements from metadata.
+* \_get\_bounding\_box\_with\_formula() -- Convert scannerbox center position & sensor field-of-view to actual bounding box.
