@@ -364,7 +364,7 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
             if properties['position_m']['y'] == 0:
                 properties['scan_direction_is_positive'] = 'True'
             else:
-                properties['scan_direction_is_posfitive'] = 'False'
+                properties['scan_direction_is_positive'] = 'False'
                     
     # Standardize time field value
     if 'time' in properties:
