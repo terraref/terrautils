@@ -71,21 +71,39 @@ def clean(metadata, sensorId, filepath=""):
     full_md["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata(sensorId)
 
     cleaned_md["experiment_metadata"] = _get_experiment_metadata(date, sensorId)
-    cleaned_md["sites"] = _get_sites(full_md, date, sensorId)
+    cleaned_md["site_metadata"] = _get_sites(full_md, date, sensorId)
+    cleaned_md["spatial_metadata"] = _get_spatial_metadata(full_md, sensorId)
     return cleaned_md
          
-def _get_sites(cleaned_md, date, sensorId):
-    gps_bounds =  calculate_gps_bounds(cleaned_md, sensorId, "west")  
-    centroid = calculate_centroid(gps_bounds)
+def _get_spatial_metadata(cleaned_md, sensorId):
+    gps_bounds = calculate_gps_bounds(cleaned_md, sensorId) 
 
-    sites = []
-    bety_sites = betydb.get_sites_by_latlon(centroid, date)
-    for bety_site in bety_sites:
-        site = {}
-        site["sitename"] = bety_site["sitename"]
-        site["url"] = bety_site["view_url"]
-        sites.append(site)
-    return sites
+    spatial_metadata = {}
+    for label, bounds in gps_bounds.iteritems():
+        spatial_metadata[label] = {}
+        spatial_metadata[label]["bounding_box"] = bounds
+        spatial_metadata[label]["centroid"] = calculate_centroid(bounds)
+        
+    return spatial_metadata
+    
+def _get_sites(cleaned_md, date, sensorId):
+    """
+    Returns the site name and URL for all sites associated with the centroid.
+    """
+    gps_bounds = calculate_gps_bounds(cleaned_md, sensorId) 
+
+    sites = {}
+    for label, bounds in gps_bounds.iteritems():
+        centroid = calculate_centroid(bounds)
+    
+        bety_sites = betydb.get_sites_by_latlon(centroid, date)
+        for bety_site in bety_sites:
+            site_id = str(bety_site["id"])
+            sites[site_id] = {}
+            sites[site_id]["sitename"] = bety_site["sitename"]
+            sites[site_id]["url"] = bety_site["view_url"]
+
+    return sites.values()
 
 def _get_experiment_metadata(date, sensorId): 
     sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
