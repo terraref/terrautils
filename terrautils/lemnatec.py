@@ -1,4 +1,7 @@
-"""
+"""LemnaTec
+
+This module is used to standardize LemnaTec metadata.
+
 Given a JSON object containing the original LemnaTec metadata, convert
 field names and values to standardized formats required for TERRA-REF.
 
@@ -19,7 +22,9 @@ import os
 import pytz, datetime
 import requests
 import sys
-from terrautils.sensors import Sensors
+from sensors import Sensors
+import betydb
+from spatial import calculate_gps_bounds, geom_from_metadata, calculate_centroid
 
 STATION_NAME = "ua-mac"
 
@@ -53,22 +58,47 @@ def clean(metadata, sensorId, filepath=""):
     
     orig_lem_md = metadata['lemnatec_measurement_metadata']
     
-    properties = {}
-    properties["gantry_variable_metadata"] = _standardize_gantry_system_variable_metadata(orig_lem_md, filepath)
-    properties["gantry_fixed_metadata"]    = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
-    properties["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata_url(sensorId)
-    properties["sensor_variable_metadata"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, 
-                                                    properties["gantry_variable_metadata"], filepath)
-    #_standardize_user_given_metadata(orig_lem_md)
+    cleaned_md = {}
+    cleaned_md["gantry_variable_metadata"] = _standardize_gantry_system_variable_metadata(orig_lem_md, filepath)
+    cleaned_md["gantry_fixed_metadata"]    = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
+    cleaned_md["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata_url(sensorId)
+    cleaned_md["sensor_variable_metadata"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, 
+                                                    cleaned_md["gantry_variable_metadata"], filepath)
+    date = cleaned_md["gantry_variable_metadata"]["date"]
+    
+    # calculate_gps_bounds requires the fixed metadata FOV
+    full_md = cleaned_md.copy()
+    full_md["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata(sensorId)
 
-    return properties
-            
+    cleaned_md["experiment_metadata"] = _get_experiment_metadata(date, sensorId)
+    cleaned_md["sites"] = _get_sites(full_md, date, sensorId)
+    return cleaned_md
+         
+def _get_sites(cleaned_md, date, sensorId):
+    gps_bounds =  calculate_gps_bounds(cleaned_md, sensorId, "west")  
+    centroid = calculate_centroid(gps_bounds)
 
-def _standardize_user_given_metadata(lem_md):
-    """
-    Currently not used. Will possibly return reference to user given metadata in BETY
-    """
-    return
+    sites = []
+    bety_sites = betydb.get_sites_by_latlon(centroid, date)
+    for bety_site in bety_sites:
+        site = {}
+        site["sitename"] = bety_site["sitename"]
+        site["url"] = bety_site["view_url"]
+        sites.append(site)
+    return sites
+
+def _get_experiment_metadata(date, sensorId): 
+    sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
+    exp = sensors.get_experiment(date)
+    
+    experiment_md = {}
+    experiment_md["name"] = exp["name"]
+    experiment_md["start_date"] = exp["start_date"]
+    experiment_md["end_date"] = exp["end_date"]
+    experiment_md["url"] = exp["view_url"]
+
+    return experiment_md    
+
 
 def _standardize_gantry_system_fixed_metadata(orig):
     """
@@ -309,7 +339,7 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     
     orig = lem_md['gantry_system_variable_metadata'] 
     properties = _standardize_with_validation("gantry_system_variable_metadata", orig, prop_map, [], filepath)  
-    
+
     # Set default scan_direction_is_positive
     if 'scan_direction_is_positive' not in properties:
         if 'position_m' in properties:
@@ -317,15 +347,17 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
                 properties['scan_direction_is_positive'] = 'True'
             else:
                 properties['scan_direction_is_posfitive'] = 'False'
-                
-
+                    
     # Standardize time field value
     if 'time' in properties:
-        properties['time_utc'] = _standardize_time_utc(properties['time'], "%m/%d/%Y %H:%M:%S", "US/Arizona")
-    
+        datetime_local = _standardize_time(properties['time'], "%m/%d/%Y %H:%M:%S", "US/Arizona")
+        properties["datetime"] = datetime_local.isoformat()
+        properties["date"] = datetime_local.date().isoformat()
+        
+        
     # Limit output to the following fields for now
     output_fields = [
-        "time_utc", "position_m", "speed_m/s", "scan_direction_is_positive", "error"
+        "datetime", "date", "position_m", "speed_m/s", "scan_direction_is_positive", "error"
     ]
 
     return _get_dict_subset(properties, output_fields)
@@ -729,21 +761,23 @@ def _set_nested_value(dic, keys, value):
     dic[keys[-1]] = value    
     
     
-def _standardize_time_utc(timestr, timeformat, timezone):    
+def _standardize_time(timestr, timeformat, timezone):    
     """
-    Given the timestring, format, and timezone string, return the UTC date/time in ISO format.
+    Given the timestring, format, and timezone string, return the date/time in ISO 8601 format.
     """
     tz = pytz.timezone (timezone)
     time = datetime.datetime.strptime (timestr, timeformat)
     local_dt = tz.localize(time, is_dst=None)
-    utc_dt = local_dt.astimezone (pytz.utc)
-    return utc_dt.isoformat()
+    #utc_dt = local_dt.astimezone (pytz.utc)
+    return (local_dt)
     
 def _get_dict_subset(dic, keys):
     """
     Return a subset of a dictionary containing only the specified keys.
     """
     return dict((k, dic[k]) for k in keys if k in dic)
+    
+
     
 if __name__ == "__main__":
     
@@ -758,9 +792,12 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         
     logger.debug("Processing %s" % args.path)
-    #with open("/data/terraref/sites/ua-mac/raw_data/scanner3DTop/2017-07-20/2017-07-20__05-40-41-035/7fa3a8d7-294f-4076-81ab-4c191fa9faa0_metadata.json") as file:
+
     with open(args.path) as file:
         json_data = json.load(file)
-    cleaned = clean(json_data, args.sensor, args.path)
+
+    clean_md = [{"content":  clean(json_data, args.sensor)}]
+    
     if args.output:
-        print json.dumps(cleaned, indent=4, sort_keys=True)
+        print json.dumps(clean_md, indent=4, sort_keys=False)
+    
