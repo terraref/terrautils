@@ -91,7 +91,7 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
         # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
-        return (left_gps_bounds, right_gps_bounds)
+        return { "left" : left_gps_bounds, "right" : right_gps_bounds }
 
     elif sensor=="flirIrCamera":
         cam_height_above_canopy = cam_height + float(metadata['sensor_fixed_metadata']['rail_height_offset'])
@@ -102,7 +102,7 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
         fov_x = float(fov_x) if fov_x else 0
         fov_y = float(fov_y) if fov_y else 0
 
-    return (_get_bounding_box_with_formula(center_position, [fov_x, fov_y]))
+    return { sensor : _get_bounding_box_with_formula(center_position, [fov_x, fov_y]) }
     
 def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
     """Parse location elements from metadata.
