@@ -456,7 +456,7 @@ class Sensors():
         return self.get_sensor_path(time, sensor=sensor, opts=opts, ext=ext)
 
 
-    def get_fixed_datasetid_for_sensor(self, site='', sensor=''):
+    def get_fixed_datasetid_for_sensor(self, site=None, sensor=None):
         """Return the Clowder dataset ID for the fixed sensor information"""
 
         if not site:
