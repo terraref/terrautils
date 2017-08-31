@@ -61,9 +61,10 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
     
     if (extractor_info != None):
         extra_metadata["extractor_name"] = str(extractor_info.get("name", ""))
-        extra_metadata["extractor_version"] = str(extractor_info.get("name", ""))
+        extra_metadata["extractor_version"] = str(extractor_info.get("version", ""))
         extra_metadata["extractor_author"] = str(extractor_info.get("author", ""))
         extra_metadata["extractor_description"] = str(extractor_info.get("description", ""))
+        extra_metadata["extractor_repo"] = str(extractor_info["repository"]["repUrl"])
 
 
     output_raster.SetMetadata(extra_metadata)
