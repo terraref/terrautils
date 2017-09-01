@@ -332,6 +332,10 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
         fov_x = float(fov_x) * (cam_height_above_canopy/2)
         fov_y = float(fov_y) * (cam_height_above_canopy/2)
 
+    elif sensor=='scanner3DTop':
+        fox_x = 12
+        fov_y = float(fov_y)
+
     else:
         fov_x = float(fov_x) if fov_x else 0
         fov_y = float(fov_y) if fov_y else 0

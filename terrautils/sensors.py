@@ -377,7 +377,8 @@ class Sensors():
         if timestamp.find('__') > -1:
             date, hms = timestamp.split('__')
         else:
-            raise RuntimeError('sensor {} does not exist'.format(sensor))
+            date = timestamp
+            hms = ''
 
         # Get regex patterns for this site/sensor
         try:
