@@ -11,7 +11,6 @@ from matplotlib import cm, pyplot as plt
 from PIL import Image
 
 
-
 def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 

@@ -5,8 +5,6 @@ This module provides simple wrappers around the clowder Geostreams API
 
 import json
 import logging
-import os
-
 import requests
 
 from terrautils.betydb import get_sites_by_latlon

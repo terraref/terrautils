@@ -9,7 +9,6 @@ from osgeo import ogr
 from terrautils.metadata import get_sensor_fixed_metadata
 
 
-# FORMAT CONVERSION -------------------------------------
 def calculate_bounding_box(gps_bounds, z_value=0):
     """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
 

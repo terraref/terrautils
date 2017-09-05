@@ -26,8 +26,8 @@ from sensors import Sensors
 import betydb
 from spatial import calculate_gps_bounds, geom_from_metadata, calculate_centroid
 
-STATION_NAME = "ua-mac"
 
+STATION_NAME = "ua-mac"
 
 # Official sensor names
 PLATFORM_SCANALYZER = "scanalyzer"
@@ -49,6 +49,7 @@ SENSOR_WEATHER = "weather"
 
 logging.basicConfig()
 logger = logging.getLogger("terrautils.metadata.lemnatac")
+
 
 def clean(metadata, sensorId, filepath=""):
     """ 
@@ -74,7 +75,9 @@ def clean(metadata, sensorId, filepath=""):
     cleaned_md["site_metadata"] = _get_sites(full_md, date, sensorId)
     cleaned_md["spatial_metadata"] = _get_spatial_metadata(full_md, sensorId)
     return cleaned_md
-         
+
+
+# SHARED -------------------------------------
 def _get_spatial_metadata(cleaned_md, sensorId):
     gps_bounds = calculate_gps_bounds(cleaned_md, sensorId) 
 
@@ -85,7 +88,8 @@ def _get_spatial_metadata(cleaned_md, sensorId):
         spatial_metadata[label]["centroid"] = calculate_centroid(bounds)
         
     return spatial_metadata
-    
+
+
 def _get_sites(cleaned_md, date, sensorId):
     """
     Returns the site name and URL for all sites associated with the centroid.
@@ -104,6 +108,7 @@ def _get_sites(cleaned_md, date, sensorId):
             sites[site_id]["url"] = bety_site["view_url"]
 
     return sites.values()
+
 
 def _get_experiment_metadata(date, sensorId): 
     sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
@@ -126,6 +131,7 @@ def _standardize_gantry_system_fixed_metadata(orig):
     properties["url"] = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
     return properties
 
+
 def _get_sensor_fixed_metadata_url(sensorId):
     """
     Assumes that the sensor fixed metadata stored in Clowder is authoritative
@@ -141,7 +147,8 @@ def _get_sensor_fixed_metadata_url(sensorId):
     properties = {}
     properties["url"] = os.environ.get("CLOWDER_HOST","http://terraref.ncsa.illinois.edu/clowder/") + "api/datasets/" + datasetid + "/metadata.jsonld"
     return properties
-    
+
+
 def _get_sensor_fixed_metadata(sensorId):
     md = _get_sensor_fixed_metadata_url(sensorId)
     r = requests.get(md["url"])
@@ -424,6 +431,77 @@ def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_
     return properties
 
 
+def _standardize_with_validation(name, orig, property_map, required_fields=[], filepath=""):
+    """
+    Use the property_map to standardize the original metadata, using default values where specified.
+    Log any warnings related to missing fields and errors for expected/required fields.
+    """
+    standardized = {}
+
+    # Step through the fields in the original metadata and convert to the standardized form.
+    # Warn if we don't have a mapping.
+    for key in orig:
+        if key in property_map:
+            _set_nested_value(standardized, property_map[key]['standardized'], orig[key])
+        else:
+            logger.warning("Encountered field \"%s\", missing from map in %s (%s)"  % (key, name, filepath))
+
+    # Step through the keys of the mapping, set default values where appropriate and
+    # report an error if a required field is missing.
+    for key in property_map:
+        if key in required_fields and not _nested_contains(standardized, property_map[key]['standardized']):
+            if key in property_map and 'default' in property_map[key]:
+                logger.debug("Setting default value %s for key \"%s\"" % ( property_map[key]['default'],
+                                                                           property_map[key]['standardized']))
+
+                _set_nested_value(standardized, property_map[key]['standardized'], property_map[key]['default'])
+            else:
+                logger.error("missing required field \"%s\" in %s" % (property_map[key]['standardized'], name))
+    return standardized
+
+
+def _nested_contains(dic, keys):
+    """
+    Returns true if the keys exist
+    """
+    for key in keys[:-1]:
+        if key in dic:
+            dic = dic.get(key)
+        else:
+            return False
+
+    return (keys[-1] in dic)
+
+
+def _set_nested_value(dic, keys, value):
+    """
+    Given a set of keys as an array, sets a nested dictionary value. This is used to convert properties
+    such as "position_x" or "position_y" to "position[x]" and "position[y]"
+    """
+    for key in keys[:-1]:
+        dic = dic.setdefault(key, {})
+    dic[keys[-1]] = value
+
+
+def _standardize_time(timestr, timeformat, timezone):
+    """
+    Given the timestring, format, and timezone string, return the date/time in ISO 8601 format.
+    """
+    tz = pytz.timezone (timezone)
+    time = datetime.datetime.strptime (timestr, timeformat)
+    local_dt = tz.localize(time, is_dst=None)
+    #utc_dt = local_dt.astimezone (pytz.utc)
+    return (local_dt)
+
+
+def _get_dict_subset(dic, keys):
+    """
+    Return a subset of a dictionary containing only the specified keys.
+    """
+    return dict((k, dic[k]) for k in keys if k in dic)
+
+
+# SENSOR-SPECIFIC -------------------------------------
 def _cropCircle_standardize(data, filepath=""):
 
     prop_map = {
@@ -437,7 +515,8 @@ def _cropCircle_standardize(data, filepath=""):
 
     properties = _standardize_with_validation(SENSOR_CROP_CIRCLE, data, prop_map, [], filepath="")   
     return properties
-    
+
+
 def _flir_standardize(data, filepath=""):
 
     prop_map = {
@@ -499,45 +578,6 @@ def _ps2_standardize(data, filepath=""):
     }
     properties = _standardize_with_validation(SENSOR_PS2_TOP, data, prop_map, [], )   
     return properties    
-    
-def _scanner3d_standardize(data, fixed_md, corrected_gantry_variable_md, filepath=""):
-    prop_map = {
-        "current setting Exposure [microS]": {
-            "standardized": ["exposure_microS"]
-        },
-        # 2016 data
-        "current setting Exposure": {
-            "standardized": ["exposure_microS"]
-        },        
-        "current setting Calculate 3D files": {
-            "standardized": ["calculate_3d_files"]
-        }, 
-        "current setting Laser detection threshold": {
-            "standardized": ["laser_detection_threshold"]
-        },    
-        "current setting Scanlines per output file": {
-            "standardized": ["scanlines_per_output_file"]
-        },   
-        "current setting Scan direction (automatically set at runtime)": {
-            "standardized": ["scan_direction"]
-        },   
-        "current setting Scan distance (automatically set at runtime) [mm]": {
-            "standardized": ["scan_distance_mm"]
-        },  
-        "current setting Scan speed (automatically set at runtime) [microMeter/s]": {
-            "standardized": ["scan_speed_microMeter/s"]
-        },
-        "current setting Scan speed (automatically set at runtime)": {
-            "standardized": ["scan_speed_microMeter/s"]
-        },
-        "current setting Scan distance (automatically set at runtime)": {
-            "standardized": ["scan_distance_mm"]
-        },  
-    } 
-    
-    properties = _standardize_with_validation(SENSOR_SCANNER_3D_TOP, data, prop_map, [], filepath)    
-    properties["point_cloud_origin_m"] = _calculatePointCloudOrigin(data, fixed_md, corrected_gantry_variable_md)
-    return properties  
 
 
 def _stereoTop_standardize(data, filepath=""):
@@ -684,49 +724,63 @@ def _co2_standardize(data, filepath=""):
     """
     return {}
 
+
 def _pri_standardize(data, filepath=""):
     """
     Placeholder only, no variable metadata
     See  /data/terraref/sites/ua-mac/raw_data/priSensor/2017-06-27/2017-06-27__13-32-28-039/baa2813f-0634-45df-8e9b-4a978fa93f86_metadata.json
     """
     return {}
-    
+
+
 def _ndvi_standardize(data, filepath=""):
     """
     Placeholder only, no variable metadata
     See   /data/terraref/sites/ua-mac/raw_data/ndviSensor//2017-03-13/2017-03-13__13-56-55-559/2d4ae02b-3475-42a8-bb73-fe972f256aaf_metadata.json    """
-    return {}    
-    
+    return {}
 
-def _standardize_with_validation(name, orig, property_map, required_fields=[], filepath=""):
-    """
-    Use the property_map to standardize the original metadata, using default values where specified.
-    Log any warnings related to missing fields and errors for expected/required fields.
-    """
-    standardized = {}
-    
-    # Step through the fields in the original metadata and convert to the standardized form.
-    # Warn if we don't have a mapping.
-    for key in orig:
-        if key in property_map:
-            _set_nested_value(standardized, property_map[key]['standardized'], orig[key])
-        else:
-            logger.warning("Encountered field \"%s\", missing from map in %s (%s)"  % (key, name, filepath))
-            
-    # Step through the keys of the mapping, set default values where appropriate and
-    # report an error if a required field is missing.
-    for key in property_map:
-        if key in required_fields and not _nested_contains(standardized, property_map[key]['standardized']):
-            if key in property_map and 'default' in property_map[key]:
-                logger.debug("Setting default value %s for key \"%s\"" % ( property_map[key]['default'], 
-                        property_map[key]['standardized']))
-                        
-                _set_nested_value(standardized, property_map[key]['standardized'], property_map[key]['default'])
-            else:
-                logger.error("missing required field \"%s\" in %s" % (property_map[key]['standardized'], name))
-    return standardized
-    
-def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md): 
+
+def _scanner3d_standardize(data, fixed_md, corrected_gantry_variable_md, filepath=""):
+    prop_map = {
+        "current setting Exposure [microS]": {
+            "standardized": ["exposure_microS"]
+        },
+        # 2016 data
+        "current setting Exposure": {
+            "standardized": ["exposure_microS"]
+        },
+        "current setting Calculate 3D files": {
+            "standardized": ["calculate_3d_files"]
+        },
+        "current setting Laser detection threshold": {
+            "standardized": ["laser_detection_threshold"]
+        },
+        "current setting Scanlines per output file": {
+            "standardized": ["scanlines_per_output_file"]
+        },
+        "current setting Scan direction (automatically set at runtime)": {
+            "standardized": ["scan_direction"]
+        },
+        "current setting Scan distance (automatically set at runtime) [mm]": {
+            "standardized": ["scan_distance_mm"]
+        },
+        "current setting Scan speed (automatically set at runtime) [microMeter/s]": {
+            "standardized": ["scan_speed_microMeter/s"]
+        },
+        "current setting Scan speed (automatically set at runtime)": {
+            "standardized": ["scan_speed_microMeter/s"]
+        },
+        "current setting Scan distance (automatically set at runtime)": {
+            "standardized": ["scan_distance_mm"]
+        },
+    }
+
+    properties = _standardize_with_validation(SENSOR_SCANNER_3D_TOP, data, prop_map, [], filepath)
+    properties["point_cloud_origin_m"] = _calculatePointCloudOrigin(data, fixed_md, corrected_gantry_variable_md)
+    return properties
+
+
+def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md):
     '''
         Calculate the origin of the point cloud. 
         Per https://github.com/terraref/reference-data/issues/44
@@ -756,49 +810,9 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md
         logger.error("Cannot calculate point cloud origin -- missing gantry position information")
 
     return point_cloud_origin
-        
-def _nested_contains(dic, keys):
-    """
-    Returns true if the keys exist
-    """
-    for key in keys[:-1]:
-        if key in dic:
-            dic = dic.get(key)
-        else:
-            return False
 
-    return (keys[-1] in dic)
 
-def _set_nested_value(dic, keys, value):
-    """
-    Given a set of keys as an array, sets a nested dictionary value. This is used to convert properties
-    such as "position_x" or "position_y" to "position[x]" and "position[y]"
-    """
-    for key in keys[:-1]:
-        dic = dic.setdefault(key, {})
-    dic[keys[-1]] = value    
-    
-    
-def _standardize_time(timestr, timeformat, timezone):    
-    """
-    Given the timestring, format, and timezone string, return the date/time in ISO 8601 format.
-    """
-    tz = pytz.timezone (timezone)
-    time = datetime.datetime.strptime (timestr, timeformat)
-    local_dt = tz.localize(time, is_dst=None)
-    #utc_dt = local_dt.astimezone (pytz.utc)
-    return (local_dt)
-    
-def _get_dict_subset(dic, keys):
-    """
-    Return a subset of a dictionary containing only the specified keys.
-    """
-    return dict((k, dic[k]) for k in keys if k in dic)
-    
-
-    
 if __name__ == "__main__":
-    
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type=str, help="Path to metadata json")
     parser.add_argument("sensor", type=str, help="Sensor name")
@@ -818,4 +832,3 @@ if __name__ == "__main__":
     
     if args.output:
         print json.dumps(clean_md, indent=4, sort_keys=False)
-    
