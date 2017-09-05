@@ -1,13 +1,14 @@
 """Metadata
+
 This module provides useful reference methods for accessing and cleaning TERRA-REF metadata.
 """
 
 import json
 import os
-import pyclowder.datasets
 
+import pyclowder.datasets
 import lemnatec
-from terrautils.sensors import Sensors
+from sensors import Sensors
 
 
 def clean_metadata(json, sensorId):
@@ -23,6 +24,26 @@ def clean_metadata(json, sensorId):
     return cleaned
 
 
+def calculate_scan_time(metadata):
+    """Parse scan time from metadata.
+
+        Returns:
+            timestamp string
+    """
+    scan_time = None
+
+    if 'terraref_cleaned_metadata' in metadata and metadata['terraref_cleaned_metadata']:
+        scan_time = metadata['gantry_variable_metadata']['time_utc']
+    else:
+        for sub_metadata in metadata:
+            if 'content' in sub_metadata:
+                sub_metadata = sub_metadata['content']
+            if 'terraref_cleaned_metadata' in sub_metadata and sub_metadata['terraref_cleaned_metadata']:
+                scan_time = sub_metadata['gantry_variable_metadata']['time_utc']
+
+    return scan_time
+
+
 def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
     """Crawl Clowder metadata object and return TERRARef metadata or None.
 
@@ -30,7 +51,7 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
 
     terra_md = {}
 
-    if 'terraref_cleaned_metadata' in clowder_md:
+    if 'terraref_cleaned_metadata' in clowder_md and clowder_md['terraref_cleaned_metadata']:
         terra_md = clowder_md
     else:
         for sub_metadata in clowder_md:
@@ -72,8 +93,9 @@ def get_sensor_fixed_metadata(station, sensor_id, host='', key=''):
     if not key:
         key = os.getenv("CLOWDER_KEY", '')
 
-    s = Sensors(base="", station=station, sensor=sensor_id)
-    datasetid = s.get_fixed_datasetid_for_sensor(station, sensor_id)
+    print station, sensor_id
+    sensor = Sensors(base="", station=station, sensor=sensor_id)
+    datasetid = sensor.get_fixed_datasetid_for_sensor()
     jsonld = pyclowder.datasets.download_metadata(None, host, key, datasetid)
 
     for sub_metadata in jsonld:
@@ -84,12 +106,15 @@ def get_sensor_fixed_metadata(station, sensor_id, host='', key=''):
 
 if __name__ == "__main__":
     # TODO: Either formalize these tests a bit or remove
-    fixed = get_sensor_fixed_metadata("ua-mac", "VNIR")
+    sensorId="stereoTop"
+    fixed = get_sensor_fixed_metadata("ua-mac", sensorId)
     print "\nFIXED METADATA"
-    print json.dumps(fixed[0]["content"], indent=4, sort_keys=True)
+    print json.dumps(fixed, indent=4, sort_keys=True)
 
     print "\nCLEANED METADATA"
-    with open("/data/terraref/sites/ua-mac/raw_data/VNIR/2017-05-13/2017-05-13__12-29-21-202/cd2a45b6-4922-48b4-bc29-f2f95e6206ec_metadata.json") as file:
+    
+    #with open("/data/terraref/sites/ua-mac/raw_data/VNIR/2017-05-13/2017-05-13__12-29-21-202/cd2a45b6-4922-48b4-bc29-f2f95e6206ec_metadata.json") as file:
+    with open("/data/terraref/sites/ua-mac/raw_data/stereoTop/2017-07-30/2017-07-30__14-26-11-139/6ba6f62b-3502-4c80-b3ce-db611ea9cf13_metadata.json") as file:
         json_data = json.load(file)
-    cleaned = clean_metadata(json_data, "VNIR")
+    cleaned = clean_metadata(json_data, sensorId)
     print json.dumps(cleaned, indent=4, sort_keys=True)
