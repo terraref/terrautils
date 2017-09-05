@@ -94,7 +94,6 @@ def get_sensor_fixed_metadata(station, sensor_id, host='', key=''):
     if not key:
         key = os.getenv("CLOWDER_KEY", '')
 
-    print station, sensor_id
     sensor = Sensors(base="", station=station, sensor=sensor_id)
     datasetid = sensor.get_fixed_datasetid_for_sensor()
     jsonld = pyclowder.datasets.download_metadata(None, host, key, datasetid)

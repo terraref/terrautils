@@ -13,7 +13,6 @@ Python library for TERRA-REF specific modules and methods, e.g. those shared by 
 * get\_output\_filename() -- Determine output filename given input information.
 * is\_latest\_file() -- Check whether the extractor-triggering file is the latest file in the dataset.
 * load\_json\_file() -- Load contents of a .json file on disk into a JSON object.
-* calculate\_scan\_time() -- 
 * error\_notification() -- Send an error message notification, e.g. to Slack.
 * log\_to\_influxdb() -- Send extractor job detail summary to InfluxDB instance.
 * trigger\_file\_extractions\_by\_dataset() -- Manually trigger an extraction on all files in a dataset.
@@ -39,6 +38,7 @@ Python library for TERRA-REF specific modules and methods, e.g. those shared by 
 * get\_terraref\_metadata() -- Combines cleaned metadata with fixed metadata.
 * get\_extractor\_metadata() -- Returns Clowder extractor metadata.
 * get\_sensor\_fixed\_metadata() -- Returns fixed metadata from Clowder.
+* calculate\_scan\_time() -- 
 
 **sensors.py**
 * get\_sensors(station) -- Get all sensors for a given station.
