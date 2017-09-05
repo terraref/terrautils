@@ -6,6 +6,7 @@ RUN apt-get -q -y update \
     && apt-get install -y --no-install-recommends build-essential \
         software-properties-common \
         gcc make wget byacc \
+        exiftool imagemagick \
         libpng-dev \
         libjpeg8-dev \
         libfreetype6-dev \
@@ -15,6 +16,7 @@ RUN apt-get -q -y update \
         liblapack-dev \
         libatlas-base-dev \
         libgdal-dev \
+        netcdf-bin \
         python-dev \
         python-tk \
     && add-apt-repository ppa:ubuntugis/ubuntugis-unstable \

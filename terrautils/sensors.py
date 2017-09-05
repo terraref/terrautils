@@ -456,7 +456,7 @@ class Sensors():
         return self.get_sensor_path(time, sensor=sensor, opts=opts, ext=ext)
 
 
-    def get_fixed_datasetid_for_sensor(self, site='', sensor=''):
+    def get_fixed_datasetid_for_sensor(self, site=None, sensor=None):
         """Return the Clowder dataset ID for the fixed sensor information"""
 
         if not site:
@@ -491,7 +491,10 @@ class Sensors():
         return self.stations.keys()
 
 
-    def get_season(self, date):
+    def get_experiment(self, date):
+        """
+        Return the experiment metadata associated with the specified date.
+        """
         experiments = get_experiments()
 
         # We only care about date portion if timestamp is given
@@ -504,7 +507,11 @@ class Sensors():
             end = datetime.datetime.strptime(exp['end_date'], "%Y-%m-%d")
 
             if ds_time >= begin and ds_time <= end:
-                return exp['name'][:exp['name'].find(':')]
+                return exp
+                
+    def get_season(self, date):
+        exp = self.get_experiment(date)
+        return exp['name'][:exp['name'].find(':')]
 
 
     def get_sensors(self, station=''):
