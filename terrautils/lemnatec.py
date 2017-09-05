@@ -21,10 +21,9 @@ import logging
 import os
 import pytz, datetime
 import requests
-import sys
 from sensors import Sensors
 import betydb
-from spatial import calculate_gps_bounds, geom_from_metadata, calculate_centroid
+from spatial import calculate_gps_bounds, calculate_centroid
 
 
 STATION_NAME = "ua-mac"
@@ -66,6 +65,7 @@ def clean(metadata, sensorId, filepath=""):
     cleaned_md["sensor_variable_metadata"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, 
                                                     cleaned_md["gantry_variable_metadata"], filepath)
     date = cleaned_md["gantry_variable_metadata"]["date"]
+    cleaned_md["terraref_cleaned_metadata"] = True
     
     # calculate_gps_bounds requires the fixed metadata FOV
     full_md = cleaned_md.copy()
@@ -94,7 +94,7 @@ def _get_sites(cleaned_md, date, sensorId):
     """
     Returns the site name and URL for all sites associated with the centroid.
     """
-    gps_bounds = calculate_gps_bounds(cleaned_md, sensorId) 
+    gps_bounds = calculate_gps_bounds(cleaned_md, sensorId)
 
     sites = {}
     for label, bounds in gps_bounds.iteritems():

@@ -6,8 +6,6 @@ This module provides useful methods for spatial referencing.
 import utm
 from osgeo import ogr
 
-from terrautils.metadata import get_sensor_fixed_metadata
-
 
 def calculate_bounding_box(gps_bounds, z_value=0):
     """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
@@ -133,8 +131,6 @@ def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
 
         if 'sensor_fixed_metadata' in metadata:
             sf_meta = metadata['sensor_fixed_metadata']
-        elif 'station' in metadata:
-            sf_meta = get_sensor_fixed_metadata(metadata['station'], sensor)
 
         # LOCATION IN CAMERA BOX
         if 'location_in_camera_box_m' in sf_meta:

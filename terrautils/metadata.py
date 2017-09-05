@@ -20,7 +20,8 @@ def clean_metadata(json, sensorId):
     else:
         return None
 
-    cleaned["terraref_cleaned_metadata"] = True
+    if 'terraref_cleaned_metadata' not in cleaned:
+        cleaned["terraref_cleaned_metadata"] = True
     return cleaned
 
 

@@ -1,13 +1,13 @@
 # terrautils
 Python library for TERRA-REF specific modules and methods, e.g. those shared by multiple extractors.
 
-betydb.py:
+**betydb.py**
 * get\_sites() -- Gets list of stations from BETYdb, filtered by city or sitename prefix if provided.
 * submit\_traits() -- Submit a CSV containing traits to the BETYdb API.
 * get\_sitename\_boundary() -- Retrieve the clip boundary dynamically from betyDB API given sitename
     and turns the obtained json data into a geojson polygon.
 
-extractors.py:
+**extractors.py**
 * build\_metadata() -- Construct extractor metadata object ready for submission to a Clowder file/dataset.
 * get\_output\_directory() -- Determine output directory path given root path and dataset name.
 * get\_output\_filename() -- Determine output filename given input information.
@@ -20,12 +20,12 @@ extractors.py:
 * trigger\_dataset\_extractions\_by\_collection() -- Manually trigger an extraction on all datasets in a collection.
 * \_search\_for\_key() -- Check for presence of any key variants in metadata. Does basic capitalization check.
 
-formats.py
+**formats.py**
 * create\_geotiff() -- Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 * create\_netcdf() -- Generate output netCDF file given an input numpy pixel array.
 * create\_image() -- Generate output JPG/PNG file given an input numpy pixel array.
 
-gdal.py:
+**gdal.py**
 * array\_to\_image() -- Converts a gdalnumeric array to a Python Imaging Library (PIL) Image.
 * image\_to\_array() -- Converts a Python Imaging Library (PIL) array to a gdalnumeric image.
 * world\_to\_pixel(geo\_matrix, x, y) -- Uses a gdal geomatrix (gdal.GetGeoTransform()) to calculate the 
@@ -34,13 +34,13 @@ gdal.py:
     result in form of numpy array.
 * get\_raster\_extents(fname) -- Calculates the extent and the center of the given raster.
 
-metadata.py:
+**metadata.py**
 * clean\_metadata() -- Returns a standarized metadata object.
 * get\_terraref\_metadata() -- Combines cleaned metadata with fixed metadata.
 * get\_extractor\_metadata() -- Returns Clowder extractor metadata.
 * get\_sensor\_fixed\_metadata() -- Returns fixed metadata from Clowder.
 
-sensors.py:
+**sensors.py**
 * get\_sensors(station) -- Get all sensors for a given station.
 * get\_sensor\_filename(station, sensor, date, mode="full") -- Gets the filename for the image for the 
     given date, sensor and station from the database. If the mode is full, choose the full resolution 
@@ -57,7 +57,7 @@ sensors.py:
 * plot\_attachment\_name(sitename, sensor, date, product) -- Encodes sitename, sensor, and date to 
     create a unqiue attachment name.
 
-spatial.py
+**spatial.py**
 * calculate\_bounding\_box() -- Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
 * calculate\_centroid() -- Given a set of GPS boundaries, return lat/lon of centroid.
 * calculate\_gps\_bounds() -- Extract bounding box geometry, depending on sensor type.
