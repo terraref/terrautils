@@ -65,11 +65,18 @@ STATIONS = {
         },
         
         'stereoTop': {
-            "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e"
+            "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e",
+            'template': '{base}/{station}/raw_data/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': 'hashid{opts}.bin'
+
         },
         
         'flirIrCamera': {
-            "fixed_metadata_datasetid": "5873a7184f0cad7d8131994a"
+            "fixed_metadata_datasetid": "5873a7184f0cad7d8131994a",
+            'template': '{base}/{station}/raw_data/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': 'hashid_ir.bin'
         },
         
         "cropCircle": {
@@ -110,11 +117,10 @@ STATIONS = {
         },
         
         "scanner3DTop": {
-            "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b"
-        },
-        
-        "stereoTop": {
-            "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e"
+            "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b",
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': 'hashid__Top-heading-{opts}_0.ply'
         },
         
         "SWIR": {
