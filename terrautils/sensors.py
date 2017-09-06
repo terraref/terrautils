@@ -294,6 +294,8 @@ def add_arguments(parser):
 
     if os.path.exists('/projects/arpae/terraref/sites'):
         TERRAREF_BASE = '/projects/arpae/terraref/sites'
+    elif os.path.exists('/home/clowder/sites'):
+        TERRAREF_BASE = '/home/clowder/sites'
     else:
         TERRAREF_BASE = '/home/extractor/sites'
 
