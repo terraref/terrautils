@@ -413,7 +413,7 @@ class Sensors():
                                 ext.lstrip('.')])
 
         path = s['template'].format(base=self.base, station=self.station,
-                                    sensor=self.sensor, timestamp=timestamp,
+                                    sensor=sensor, timestamp=timestamp,
                                     date=date, time=hms, filename=filename)
         return path
 
