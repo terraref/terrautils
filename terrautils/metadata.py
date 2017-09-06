@@ -34,13 +34,13 @@ def calculate_scan_time(metadata):
     scan_time = None
 
     if 'terraref_cleaned_metadata' in metadata and metadata['terraref_cleaned_metadata']:
-        scan_time = metadata['gantry_variable_metadata']['time_utc']
+        scan_time = metadata['gantry_variable_metadata']['datetime']
     else:
         for sub_metadata in metadata:
             if 'content' in sub_metadata:
                 sub_metadata = sub_metadata['content']
             if 'terraref_cleaned_metadata' in sub_metadata and sub_metadata['terraref_cleaned_metadata']:
-                scan_time = sub_metadata['gantry_variable_metadata']['time_utc']
+                scan_time = sub_metadata['gantry_variable_metadata']['datetime']
 
     return scan_time
 
