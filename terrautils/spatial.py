@@ -100,7 +100,35 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
     elif sensor=='scanner3DTop':
         # Swap X and Y because we rotate 90 degress
         fov_x = float(fov_y) if fov_y else 0
-        fov_y = 12
+        scan_distance = float(metadata['sensor_variable_metadata']['scan_distance_mm'])/1000
+        fov_y = scan_distance
+        scandirection = int(metadata['sensor_variable_metadata']['scan_direction'])
+
+        # TODO: These constants should live in fixed metadata once finalized
+
+        #Negative scan: West Scanner:
+        if side == 'west' and scandirection == 0:
+            center_position = ( float(gantry_x) + float(cambox_x) + 0.082,
+                                float(gantry_y) + float(2*cambox_y) - scan_distance/2 - 4.263, #Might be less than this
+                                float(gantry_z) + float(cambox_z) )
+
+        #Negative scan: East Scanner:
+        elif side == 'east' and scandirection == 0:
+            center_position = ( float(gantry_x) + float(cambox_x) + 0.082,
+                                float(gantry_y) + float(2*cambox_y) - scan_distance/2 - 0.046,
+                                float(gantry_z) + float(cambox_z) )
+
+        #Positive scan: West Scanner
+        elif side == 'west' and scandirection == 1:
+            center_position = ( float(gantry_x) + float(cambox_x) + 0.082,
+                                float(gantry_y) + float(2*cambox_y) + scan_distance/2 + 3.23  ,
+                                float(gantry_z) + float(cambox_z) )
+
+        #Positive scan: East Scanner
+        elif side == 'east' and scandirection == 1:
+            center_position = ( float(gantry_x) + float(cambox_x) + 0.082,
+                                float(gantry_y) + float(2*cambox_y) + scan_distance/2 - 1.44 ,
+                                float(gantry_z) + float(cambox_z) )
 
     else:
         fov_x = float(fov_x) if fov_x else 0
