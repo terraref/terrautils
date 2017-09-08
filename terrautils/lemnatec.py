@@ -106,6 +106,7 @@ def _get_sites(cleaned_md, date, sensorId):
             sites[site_id] = {}
             sites[site_id]["sitename"] = bety_site["sitename"]
             sites[site_id]["url"] = bety_site["view_url"]
+            sites['notes'] = "sitename is the plot that contains the image centroid"
 
     return sites.values()
 
