@@ -85,8 +85,8 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
         fov_x = float(fov_x) * (cam_height_above_canopy/2)
         fov_y = float(fov_y) * (cam_height_above_canopy/2)
         # Account for experimentally determined distance from center to each stereo lens for left/right
-        left_position = [center_position[0]+var_sofc, center_position[1], center_position[2]]
-        right_position = [center_position[0]-var_sofc, center_position[1], center_position[2]]
+        left_position = [center_position[0]-var_sofc, center_position[1], center_position[2]]
+        right_position = [center_position[0]+var_sofc, center_position[1], center_position[2]]
         # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
