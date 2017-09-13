@@ -817,7 +817,7 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, gantvar_md):
         if (gantvar_md["scan_direction_is_positive"] == "True"):
             yv = float(gantvar_md['position_m']['y']) + 3.450
         else:
-            yv = float(gantvar_md['position_m']['y']) + 2.571
+            yv = float(gantvar_md['position_m']['y']) + 25.711
         point_cloud_origin['east']["y"] = yv + float(cambox_e['y'])*2
         point_cloud_origin['west']["y"] = yv + float(cambox_w['y'])*2
 
