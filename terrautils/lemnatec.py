@@ -781,7 +781,7 @@ def _scanner3d_standardize(data, fixed_md, corrected_gantry_variable_md, filepat
     return properties
 
 
-def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md):
+def _calculatePointCloudOrigin(scanner3d, fixed_md, gantvar_md):
     '''
         Calculate the origin of the point cloud. 
         Per https://github.com/terraref/reference-data/issues/44
@@ -793,20 +793,34 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, corrected_gantry_variable_md
         So, any further misalignment correction should be applied to the east ply files.
         If Y is zero, then scan_direction_is_positive
         plc_control_not_available means there is no logation data (position_m)
+
+        gantvar_md = corrected gantry variable metadata
     '''
     
-    point_cloud_origin = {}
-    if (not 'plc_control_not_available' in corrected_gantry_variable_md 
-        and 'position_m' in corrected_gantry_variable_md
-        and 'scan_direction_is_positive' in corrected_gantry_variable_md
-        and 'scanner_west_location_in_camera_box_m' in fixed_md):
-            
-        point_cloud_origin["z"] =  float(corrected_gantry_variable_md['position_m']['z']) - 3.445
-        point_cloud_origin["x"] =  float(fixed_md["scanner_west_location_in_camera_box_m"]["x"]) - 0.082
-        if (corrected_gantry_variable_md["scan_direction_is_positive"] == "True"):
-            point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['y']) + 3.450
+    point_cloud_origin = {"east": {}, "west": {}}
+    if (not 'plc_control_not_available' in gantvar_md
+            and 'position_m' in gantvar_md
+            and 'scan_direction_is_positive' in gantvar_md
+            and 'scanner_west_location_in_camera_box_m' in fixed_md):
+
+        cambox_e = fixed_md['scanner_east_location_in_camera_box_m']
+        cambox_w = fixed_md['scanner_west_location_in_camera_box_m']
+
+        xv = float(gantvar_md["position_m"]["x"]) + 0.082
+        point_cloud_origin['east']["x"] = xv + float(cambox_e['x'])
+        point_cloud_origin['west']["x"] = xv + float(cambox_w['x'])
+
+        zv = float(gantvar_md['position_m']['z']) - 3.445
+        point_cloud_origin['east']["z"] = zv + float(cambox_e['z'])
+        point_cloud_origin['west']["z"] = zv + float(cambox_w['z'])
+
+        if (gantvar_md["scan_direction_is_positive"] == "True"):
+            yv = float(gantvar_md['position_m']['y']) + 3.450
         else:
-            point_cloud_origin["y"] = float(corrected_gantry_variable_md['position_m']['z']) + 25.711
+            yv = float(gantvar_md['position_m']['y']) + 2.571
+        point_cloud_origin['east']["y"] = yv + float(cambox_e['y'])*2
+        point_cloud_origin['west']["y"] = yv + float(cambox_w['y'])*2
+
     else:
         logger.error("Cannot calculate point cloud origin -- missing gantry position information")
 
