@@ -179,6 +179,41 @@ def geom_from_metadata(metadata, side='west'):
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 
 
+def tuples_to_geojson(bounds):
+    """
+    Given bounding box in tuple format, returns GeoJSON polygon
+    
+    Input bounds: (lat(y) min, lat(y) max, long(x) min, long(x) max)
+    """
+    lat_min = bounds[0]
+    lat_max = bounds[1]
+    long_min = bounds[2]
+    long_max = bounds[3]
+    
+    bounding_box = {}
+    bounding_box["type"] = "Polygon"
+    bounding_box["coordinates"]  =  [ 
+            [lat_max, long_min], # NW
+            [lat_max, long_max], # NE
+            [lat_min, long_max], # SE
+            [lat_min, long_min]  # SW
+        ]
+
+    return bounding_box
+
+def geojson_to_tuples(bounding_box):
+    """
+    Given a GeoJSON polygon, returns in tuple format
+     (lat(y) min, lat(y) max, long(x) min, long(x) max)
+    """
+    lat_max = bounding_box["coordinates"][0][0]
+    long_min = bounding_box["coordinates"][0][1]
+    long_max = bounding_box["coordinates"][1][1]
+    lat_min = bounding_box["coordinates"][2][0]
+    
+    return (lat_min, lat_max, long_min, long_max)
+
+
 # PRIVATE -------------------------------------
 def _get_bounding_box_with_formula(center_position, fov):
     """Convert scannerbox center position & sensor field-of-view to actual bounding box

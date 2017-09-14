@@ -23,7 +23,7 @@ import pytz, datetime
 import requests
 from sensors import Sensors
 import betydb
-from spatial import calculate_gps_bounds, calculate_centroid
+from spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
 
 
 STATION_NAME = "ua-mac"
@@ -50,6 +50,7 @@ logging.basicConfig()
 logger = logging.getLogger("terrautils.metadata.lemnatac")
 
 
+# SHARED -------------------------------------
 def clean(metadata, sensorId, filepath=""):
     """ 
     Given a LemnaTec metadata.json object, produces the "cleaned" metadata that 
@@ -77,14 +78,14 @@ def clean(metadata, sensorId, filepath=""):
     return cleaned_md
 
 
-# SHARED -------------------------------------
+# PRIVATE -------------------------------------
 def _get_spatial_metadata(cleaned_md, sensorId):
     gps_bounds = calculate_gps_bounds(cleaned_md, sensorId) 
 
     spatial_metadata = {}
     for label, bounds in gps_bounds.iteritems():
         spatial_metadata[label] = {}
-        spatial_metadata[label]["bounding_box"] = bounds
+        spatial_metadata[label]["bounding_box"] = tuples_to_geojson(bounds)
         spatial_metadata[label]["centroid"] = calculate_centroid(bounds)
         
     return spatial_metadata
@@ -383,7 +384,7 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
         
     # Limit output to the following fields for now
     output_fields = [
-        "datetime", "date", "position_m", "speed_m/s", "scan_direction_is_positive", "error"
+        "datetime", "date", "position_m", "scan_direction_is_positive", "error"
     ]
 
     return _get_dict_subset(properties, output_fields)
