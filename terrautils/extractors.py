@@ -106,7 +106,7 @@ def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='
         "content": content,
         "agent": {
             "@type": "cat:extractor",
-            "extractor_id": urljoin(clowderhost, "/api/extractors/", extractorinfo['name'])
+            "extractor_id": urljoin(clowderhost, "/api/extractors/") + extractorinfo['name']
         }
     }
 
