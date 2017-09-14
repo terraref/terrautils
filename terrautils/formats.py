@@ -11,7 +11,6 @@ from matplotlib import cm, pyplot as plt
 from PIL import Image
 
 
-
 def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 
@@ -75,7 +74,7 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
         # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
         for chan in range(channels):
             band = chan + 1
-            output_raster.GetRasterBand(band).WriteArray(pixels[:,:,chan].astype('uint8')) # write red channel to raster file
+            output_raster.GetRasterBand(band).WriteArray(pixels[:,:,chan].astype('uint8'))
             output_raster.GetRasterBand(band).FlushCache()
             if nodata:
                 output_raster.GetRasterBand(band).SetNoDataValue(nodata)

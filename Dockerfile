@@ -15,13 +15,12 @@ RUN apt-get -q -y update \
         libblas-dev \
         liblapack-dev \
         libatlas-base-dev \
-        libgdal-dev \
         netcdf-bin \
         python-dev \
         python-tk \
     && add-apt-repository ppa:ubuntugis/ubuntugis-unstable \
     && apt-get -q -y update \
-    && apt-get install -y python-gdal \
+    && apt-get install -y libgdal-dev gdal-bin python-gdal \
     && rm -rf /var/lib/apt/lists/*
 
 # TODO: Create intermediary NCO Container for subset of extractors

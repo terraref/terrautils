@@ -3,10 +3,10 @@
 This module provides useful methods for spatial referencing.
 """
 
-
 import utm
+from osgeo import ogr
 
-# FORMAT CONVERSION -------------------------------------
+
 def calculate_bounding_box(gps_bounds, z_value=0):
     """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
 
@@ -55,8 +55,7 @@ def calculate_centroid_from_wkt(wkt):
     )
 
 
-
-def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
+def calculate_gps_bounds(metadata, sensor="stereoTop"):
     """Extract bounding box geometry, depending on sensor type.
 
         Gets geometry from metadata for center position and FOV, applies some
@@ -67,7 +66,7 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
             tuple of GeoTIFF coordinates, each one as:
             (lat(y) min, lat(y) max, long(x) min, long(x) max)
     """
-    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata, side=side)
+    gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y = geom_from_metadata(metadata)
 
     center_position = ( float(gantry_x) + float(cambox_x),
                         float(gantry_y) + float(cambox_y),
@@ -86,8 +85,8 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
         fov_x = float(fov_x) * (cam_height_above_canopy/2)
         fov_y = float(fov_y) * (cam_height_above_canopy/2)
         # Account for experimentally determined distance from center to each stereo lens for left/right
-        left_position = [center_position[0]+var_sofc, center_position[1], center_position[2]]
-        right_position = [center_position[0]-var_sofc, center_position[1], center_position[2]]
+        left_position = [center_position[0]-var_sofc, center_position[1], center_position[2]]
+        right_position = [center_position[0]+var_sofc, center_position[1], center_position[2]]
         # Return two separate bounding boxes for left/right
         left_gps_bounds = _get_bounding_box_with_formula(left_position, [fov_x, fov_y])
         right_gps_bounds = _get_bounding_box_with_formula(right_position, [fov_x, fov_y])
@@ -98,13 +97,43 @@ def calculate_gps_bounds(metadata, sensor="stereoTop", side='west'):
         fov_x = float(fov_x) * (cam_height_above_canopy/2)
         fov_y = float(fov_y) * (cam_height_above_canopy/2)
 
+    elif sensor=='scanner3DTop':
+        # Default geom refers to west side, so get east side cambox as well
+        gx, gy, gz, e_cambox_x, e_cambox_y, e_cambox_z, fx, fy = geom_from_metadata(metadata, 'east')
+
+        pco_wx = metadata['sensor_variable_metadata']['point_cloud_origin_m']['west']['x']
+        pco_wy = metadata['sensor_variable_metadata']['point_cloud_origin_m']['west']['y']
+        pco_wz = metadata['sensor_variable_metadata']['point_cloud_origin_m']['west']['z']
+        pco_ex = metadata['sensor_variable_metadata']['point_cloud_origin_m']['east']['x']
+        pco_ey = metadata['sensor_variable_metadata']['point_cloud_origin_m']['east']['y']
+        pco_ez = metadata['sensor_variable_metadata']['point_cloud_origin_m']['east']['z']
+
+        # Swap X and Y because we rotate 90 degress
+        fov_x = float(fov_y) if fov_y else 0
+        scan_distance = float(metadata['sensor_variable_metadata']['scan_distance_mm'])/1000
+        fov_y = scan_distance
+        scandirection = int(metadata['sensor_variable_metadata']['scan_direction'])
+
+        # TODO: These constants should live in fixed metadata once finalized
+        if scandirection == 0: # Negative scan
+            west_position = ( pco_wx, pco_wy - scan_distance/2 - 4.263, pco_wz )
+            east_position = ( pco_ex, pco_ey - scan_distance/2 - 0.046, pco_ez )
+        else: # Positive scan
+            west_position = ( pco_wx, pco_wy + scan_distance/2 + 3.23, pco_wz )
+            east_position = ( pco_ex, pco_ey + scan_distance/2 - 1.44, pco_ez )
+
+        east_gps_bounds = _get_bounding_box_with_formula(east_position, [fov_x, fov_y])
+        west_gps_bounds = _get_bounding_box_with_formula(west_position, [fov_x, fov_y])
+        return { "east" : east_gps_bounds, "west" : west_gps_bounds }
+
     else:
         fov_x = float(fov_x) if fov_x else 0
         fov_y = float(fov_y) if fov_y else 0
 
     return { sensor : _get_bounding_box_with_formula(center_position, [fov_x, fov_y]) }
-    
-def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
+
+
+def geom_from_metadata(metadata, side='west'):
     """Parse location elements from metadata.
 
         Returns:
@@ -118,53 +147,7 @@ def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
     cambox_x, cambox_y, cambox_z = None, None, None
     fov_x, fov_y = None, None
 
-    # TODO: Deprecated; can eventually remove
-    if 'lemnatec_measurement_metadata' in metadata:
-        lem_md = metadata['lemnatec_measurement_metadata']
-        if 'gantry_system_variable_metadata' in lem_md:
-            gantry_meta = lem_md['gantry_system_variable_metadata']
-
-            # (x,y,z) position of gantry
-            x_positions = ['position x [m]', 'position X [m]']
-            y_positions = ['position y [m]', 'position Y [m]']
-            z_positions = ['position z [m]', 'position Z [m]']
-            gantry_x = _search_for_key(gantry_meta, x_positions)
-            gantry_y = _search_for_key(gantry_meta, y_positions)
-            gantry_z = _search_for_key(gantry_meta, z_positions)
-
-        if 'sensor_fixed_metadata' in lem_md:
-            sensor_meta = lem_md['sensor_fixed_metadata']
-
-            # sensor location within camera box
-            x_positions = ['location in camera box x [m]', 'location in camera box X [m]']
-            y_positions = ['location in camera box y [m]', 'location in camera box Y [m]']
-            z_positions = ['location in camera box z [m]', 'location in camera box Z [m]']
-            cambox_x = _search_for_key(sensor_meta, x_positions)
-            cambox_y = _search_for_key(sensor_meta, y_positions)
-            cambox_z = _search_for_key(sensor_meta, z_positions)
-
-            # sensor field-of-view
-            x_fovs = ['field of view x [m]', 'field of view X [m]']
-            y_fovs = ['field of view y [m]', 'field of view Y [m]']
-            fov_x = _search_for_key(sensor_meta, x_fovs)
-            fov_y = _search_for_key(sensor_meta, y_fovs)
-            if not (fov_x and fov_y):
-                fovs = _search_for_key(sensor_meta, ['field of view at 2m in X- Y- direction [m]'])
-                if fovs:
-                    fovs = fovs.replace('[','').replace(']','').split(' ')
-                    try:
-                        fov_x = float(fovs[0].encode("utf-8"))
-                        fov_y = float(fovs[1].encode("utf-8"))
-                    except AttributeError:
-                        fov_x = fovs[0]
-                        fov_y = fovs[1]
-
-        if sensor=="stereoTop":
-            cambox_z = 0.578
-        elif not cambox_z:
-            cambox_z = 0
-
-    elif 'gantry_variable_metadata' in metadata:
+    if 'terraref_cleaned_metadata' in metadata and metadata['terraref_cleaned_metadata']:
         gv_meta = metadata['gantry_variable_metadata']
         gantry_x = gv_meta['position_m']['x'] if 'x' in gv_meta['position_m'] else gantry_x
         gantry_y = gv_meta['position_m']['y'] if 'y' in gv_meta['position_m'] else gantry_y
@@ -172,9 +155,6 @@ def geom_from_metadata(metadata, sensor="stereoTop", side='west'):
 
         if 'sensor_fixed_metadata' in metadata:
             sf_meta = metadata['sensor_fixed_metadata']
-        #else:
-        #    sf_meta = get_sensor_fixed_metadata(metadata['station'],
-        #                                             metadata['sensor'])
 
         # LOCATION IN CAMERA BOX
         if 'location_in_camera_box_m' in sf_meta:

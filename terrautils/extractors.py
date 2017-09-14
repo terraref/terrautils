@@ -9,19 +9,15 @@ import json
 import os
 import requests
 
-import numpy
-
 from pyclowder.extractors import Extractor
 from pyclowder.collections import create_empty as create_empty_collection
 from pyclowder.datasets import create_empty as create_empty_dataset
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
-from terrautils.spatial import calculate_bounding_box, calculate_centroid, calculate_centroid_from_wkt, calculate_gps_bounds, geom_from_metadata
-from terrautils.formats import create_geotiff, create_image, create_netcdf
-from terrautils.metadata import get_sensor_fixed_metadata
 
 
 logging.basicConfig(format='%(asctime)s %(message)s')
+
 
 def add_arguments(parser):
 
@@ -165,6 +161,7 @@ def load_json_file(filepath):
         logging.error('could not load .json file %s' % filepath)
         return None
 
+
 # CLOWDER UTILS -------------------------------------
 # TODO: Add support for user/password in addition to secret_key
 def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_name,
@@ -213,7 +210,7 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
 
 def get_collection_or_create(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/collections?key=%s&title=%s" % (host, secret_key, cname)
+    url = "%sapi/collections?key=%s&title=%s&exact=true" % (host, secret_key, cname)
     result = requests.get(url, verify=connector.ssl_verify)
     result.raise_for_status()
 
@@ -226,7 +223,7 @@ def get_collection_or_create(connector, host, secret_key, cname, parent_colln=No
 
 def get_dataset_or_create(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?key=%s&title=%s" % (host, secret_key, dsname)
+    url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
     result = requests.get(url, verify=connector.ssl_verify)
     result.raise_for_status()
 
@@ -237,27 +234,49 @@ def get_dataset_or_create(connector, host, secret_key, dsname, parent_colln=None
         return result.json()[0]['id']
 
 
-def calculate_scan_time(metadata):
-    """Parse scan time from metadata.
+# PRIVATE -------------------------------------
+def _get_bounding_box_with_formula(center_position, fov):
+    """Convert scannerbox center position & sensor field-of-view to actual bounding box
+
+        Linear transformation formula adapted from:
+        https://terraref.gitbooks.io/terraref-documentation/content/user/geospatial-information.html
 
         Returns:
-            timestamp string
+            tuple of coordinates as: (  lat (y) min, lat (y) max,
+                                        long (x) min, long (x) max )
     """
-    scan_time = None
 
-    # TODO: Deprecated; can eventually remove
-    if 'lemnatec_measurement_metadata' in metadata:
-        lem_md = metadata['lemnatec_measurement_metadata']
-        if 'gantry_system_variable_metadata' in lem_md:
-            # timestamp, e.g. "2016-05-15T00:30:00-05:00"
-            scan_time = _search_for_key(lem_md['gantry_system_variable_metadata'], ["time", "timestamp"])
+    # Get UTM information from southeast corner of field
+    SE_utm = utm.from_latlon(33.07451869, -111.97477775)
+    utm_zone = SE_utm[2]
+    utm_num  = SE_utm[3]
 
-    elif 'gantry_variable_metadata' in metadata:
-        scan_time = metadata['gantry_variable_metadata']['time_utc']
+    # TODO: Hard-coded
+    # Linear transformation coefficients
+    ay = 3659974.971; by = 1.0002; cy = 0.0078;
+    ax = 409012.2032; bx = 0.009; cx = - 0.9986;
+    lon_shift = 0.000020308287
+    lat_shift = 0.000015258894
 
-    return scan_time
+    # min/max bounding box x,y values
+    y_w = center_position[1] + fov[1]/2
+    y_e = center_position[1] - fov[1]/2
+    x_n = center_position[0] + fov[0]/2
+    x_s = center_position[0] - fov[0]/2
+    # coordinates of northwest bounding box vertex
+    Mx_nw = ax + bx * x_n + cx * y_w
+    My_nw = ay + by * x_n + cy * y_w
+    # coordinates if southeast bounding box vertex
+    Mx_se = ax + bx * x_s + cx * y_e
+    My_se = ay + by * x_s + cy * y_e
+    # bounding box vertex coordinates
+    bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
+    bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
 
-
+    return ( bbox_se_latlon[0] - lat_shift,
+             bbox_nw_latlon[0] - lat_shift,
+             bbox_nw_latlon[1] + lon_shift,
+             bbox_se_latlon[1] + lon_shift )
 
 
 def _search_for_key(metadata, key_variants):

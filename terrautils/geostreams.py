@@ -5,8 +5,6 @@ This module provides simple wrappers around the clowder Geostreams API
 
 import json
 import logging
-import os
-
 import requests
 
 from terrautils.betydb import get_sites_by_latlon
@@ -144,6 +142,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
 
     # SENSOR is the plot
     sitelist = get_sites_by_latlon(latlon, filter_date)
+    matched_sites = {}
     for s in sitelist:
         plot_name = s['sitename']
         plot_geom = json.loads(wkt_to_geojson(s['geometry']))
@@ -154,24 +153,25 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
             sensor_id = create_sensor(connector, host, key, plot_name, plot_geom,
                                       {"id": "MAC Field Scanner", "title": "MAC Field Scanner", "sensorType": 4},
                                       "Maricopa")
-            continue
+            matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
         else:
             sensor_id = sensor_data['id']
-            continue
+            matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
 
-    # STREAM is plot x instrument
-    stream_name = streamprefix + " - " + plot_name
-    stream_data = get_stream_by_name(connector, host, key, stream_name)
-    if not stream_data:
-        stream_id = create_stream(connector, host, key, stream_name, sensor_id, plot_geom)
-    else:
-        stream_id = stream_data['id']
+    for sensor_id in matched_sites:
+        plot_geom = matched_sites[sensor_id]["geom"]
+        stream_name = "%s (#%s)" % (streamprefix, sensor_id)
+        stream_data = get_stream_by_name(connector, host, key, stream_name)
+        if not stream_data:
+            stream_id = create_stream(connector, host, key, stream_name, sensor_id, plot_geom)
+        else:
+            stream_id = stream_data['id']
 
-    logging.info("posting datapoint to stream %s" % stream_id)
-    if not geom:
-        geom = plot_geom
-    create_datapoint(connector, host, key, stream_id, geom,
-                     starttime, endtime, metadata)
+        logging.info("posting datapoint to stream %s" % stream_id)
+        if not geom:
+            geom = plot_geom
+        create_datapoint(connector, host, key, stream_id, geom,
+                         starttime, endtime, metadata)
 
 
 def get_sensor_by_name(connector, host, key, sensorname):
