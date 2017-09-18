@@ -8,7 +8,6 @@ import logging
 import json
 import os
 import requests
-from urlparse import urljoin
 
 from pyclowder.extractors import Extractor
 from pyclowder.collections import create_empty as create_empty_collection
