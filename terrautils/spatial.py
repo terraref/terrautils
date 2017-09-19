@@ -34,8 +34,8 @@ def calculate_centroid(gps_bounds):
     """
 
     return (
-        gps_bounds[0] + (gps_bounds[1] - gps_bounds[0]),
-        gps_bounds[2] + (gps_bounds[3] - gps_bounds[2]),
+        gps_bounds[0] + float(gps_bounds[1] - gps_bounds[0])/2,
+        gps_bounds[2] + float(gps_bounds[3] - gps_bounds[2])/2,
     )
 
 
