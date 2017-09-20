@@ -160,7 +160,7 @@ def geom_from_metadata(metadata, side='west'):
         if 'location_in_camera_box_m' in sf_meta:
             cambox_x = sf_meta['location_in_camera_box_m']['x']
             cambox_y = sf_meta['location_in_camera_box_m']['y']
-            cambox_z = sf_meta['location_in_camera_box_m']['z']
+            cambox_z = sf_meta['location_in_camera_box_m']['z'] if 'z' in sf_meta['location_in_camera_box_m'] else 0
         elif side=='west' and 'scanner_west_location_in_camera_box_m' in sf_meta:
             cambox_x = sf_meta['scanner_west_location_in_camera_box_m']['x']
             cambox_y = sf_meta['scanner_west_location_in_camera_box_m']['y']
