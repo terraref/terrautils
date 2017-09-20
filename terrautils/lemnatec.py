@@ -114,13 +114,16 @@ def _get_sites(cleaned_md, date, sensorId):
 
 def _get_experiment_metadata(date, sensorId): 
     sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
-    exp = sensors.get_experiment(date)
+    exps = sensors.get_experiment(date)
     
-    experiment_md = {}
-    experiment_md["name"] = exp["name"]
-    experiment_md["start_date"] = exp["start_date"]
-    experiment_md["end_date"] = exp["end_date"]
-    experiment_md["url"] = exp["view_url"]
+    experiment_md = []
+    for exp in exps:
+        curr_exp = {}
+        curr_exp["name"] = exp["name"]
+        curr_exp["start_date"] = exp["start_date"]
+        curr_exp["end_date"] = exp["end_date"]
+        curr_exp["url"] = exp["view_url"]
+        experiment_md.append(curr_exp)
 
     return experiment_md    
 
