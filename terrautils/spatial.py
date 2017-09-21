@@ -101,13 +101,6 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         # Default geom refers to west side, so get east side cambox as well
         gx, gy, gz, e_cambox_x, e_cambox_y, e_cambox_z, fx, fy = geom_from_metadata(metadata, 'east')
 
-        pco_wx = metadata['sensor_variable_metadata']['point_cloud_origin_m']['west']['x']
-        pco_wy = metadata['sensor_variable_metadata']['point_cloud_origin_m']['west']['y']
-        pco_wz = metadata['sensor_variable_metadata']['point_cloud_origin_m']['west']['z']
-        pco_ex = metadata['sensor_variable_metadata']['point_cloud_origin_m']['east']['x']
-        pco_ey = metadata['sensor_variable_metadata']['point_cloud_origin_m']['east']['y']
-        pco_ez = metadata['sensor_variable_metadata']['point_cloud_origin_m']['east']['z']
-
         # Swap X and Y because we rotate 90 degress
         fov_x = float(fov_y) if fov_y else 0
         scan_distance = float(metadata['sensor_variable_metadata']['scan_distance_mm'])/1000
@@ -116,11 +109,21 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
 
         # TODO: These constants should live in fixed metadata once finalized
         if scandirection == 0: # Negative scan
-            west_position = ( pco_wx, pco_wy - scan_distance/2 - 4.263, pco_wz )
-            east_position = ( pco_ex, pco_ey - scan_distance/2 - 0.046, pco_ez )
+            west_position = ( float(gantry_x) + float(cambox_x) + 0.082,
+                              float(gantry_y) + float(2*float(cambox_y)) - scan_distance/2 - 4.263, #Might be less than this
+                              float(gantry_z) + float(cambox_z) )
+
+            east_position = ( float(gantry_x) + float(e_cambox_x) + 0.082,
+                              float(gantry_y) + float(2*float(e_cambox_y)) - scan_distance/2 - 0.046,
+                              float(gantry_z) + float(e_cambox_z) )
         else: # Positive scan
-            west_position = ( pco_wx, pco_wy + scan_distance/2 + 3.23, pco_wz )
-            east_position = ( pco_ex, pco_ey + scan_distance/2 - 1.44, pco_ez )
+            west_position = ( float(gantry_x) + float(cambox_x) + 0.082,
+                              float(gantry_y) + float(2*float(cambox_y)) + scan_distance/2 - 3.23,
+                              float(gantry_z) + float(cambox_z) )
+
+            east_position = ( float(gantry_x) + float(e_cambox_x) + 0.082,
+                              float(gantry_y) + float(2*float(e_cambox_y)) + scan_distance/2 - 1.44,
+                              float(gantry_z) + float(e_cambox_z) )
 
         east_gps_bounds = _get_bounding_box_with_formula(east_position, [fov_x, fov_y])
         west_gps_bounds = _get_bounding_box_with_formula(west_position, [fov_x, fov_y])
