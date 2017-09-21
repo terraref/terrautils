@@ -56,7 +56,10 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
         extra_metadata["datetime"] = str(system_md["gantry_variable_metadata"]["datetime"])
         extra_metadata["sensor_id"] = str(system_md["sensor_fixed_metadata"]["sensor_id"])
         extra_metadata["sensor_url"] = str(system_md["sensor_fixed_metadata"]["url"])
-        extra_metadata["experiment_name"] = str(system_md["experiment_metadata"]["name"])
+        experiment_names = []
+        for e in system_md["experiment_metadata"]:
+            experiment_names.append(e["name"])
+        extra_metadata["experiment_name"] = ", ".join(experiment_names)
     
     if (extractor_info != None):
         extra_metadata["extractor_name"] = str(extractor_info.get("name", ""))
