@@ -511,16 +511,22 @@ class Sensors():
             date = date.split("__")[0]
 
         ds_time = datetime.datetime.strptime(date, "%Y-%m-%d")
+        matched_exps = []
         for exp in experiments:
             begin = datetime.datetime.strptime(exp['start_date'], "%Y-%m-%d")
             end = datetime.datetime.strptime(exp['end_date'], "%Y-%m-%d")
 
             if ds_time >= begin and ds_time <= end:
-                return exp
-                
+                matched_exps.append(exp)
+        return matched_exps
+
+
     def get_season(self, date):
-        exp = self.get_experiment(date)
-        return exp['name'][:exp['name'].find(':')]
+        exps = self.get_experiment(date)
+        if len(exps) > 0:
+            return exps[0]['name'][:exps[0]['name'].find(':')]
+        else:
+            return None
 
 
     def get_sensors(self, station=''):
