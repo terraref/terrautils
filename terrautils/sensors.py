@@ -239,7 +239,7 @@ STATIONS = {
         'laser3d_mergedlas': {
             'display': 'Laser Scanner 3D LAS',
             'template': '{base}/{station}/Level_1/' + \
-                        'scanner3DTop/{date}/{timestamp}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
                        '_merged{opts}.las'
         },
@@ -247,7 +247,7 @@ STATIONS = {
         'laser3d_plant_height': {
             'display': 'Laser Scanner 3D Plant Height',
             'template': '{base}/{station}/Level_1/' + \
-                        'scanner3DTop/{date}/{timestamp}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
                        '_height{opts}.tif'
         },
@@ -255,7 +255,7 @@ STATIONS = {
         'laser3d_heightmap': {
             'display': 'Digital Surface Model GeoTiffs',
             'template': '{base}/{station}/Level_1/' + \
-                        'scanner3DTop/{date}/{timestamp}/{filename}',
+                        '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_heightmap{opts}.tif'
         },
