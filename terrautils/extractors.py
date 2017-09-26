@@ -10,8 +10,6 @@ import os
 import requests
 
 from pyclowder.extractors import Extractor
-from pyclowder.collections import create_empty as create_empty_collection
-from pyclowder.datasets import create_empty as create_empty_dataset
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
@@ -164,7 +162,7 @@ def load_json_file(filepath):
 
 # CLOWDER UTILS -------------------------------------
 # TODO: Add support for user/password in addition to secret_key
-def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_name,
+def build_dataset_hierarchy(host, clowder_user, clowder_pass, root_space, root_coll_name,
                             year='', month='', date='', leaf_ds_name=''):
     """This will build collections for year, month, date level if needed in parent space.
 
@@ -178,21 +176,21 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
 
         Omitting year, month or date will result in dataset being added to next level up.
     """
-    parent_collect = get_collection_or_create(connector, host, secret_key, root_coll_name,
+    parent_collect = get_collection_or_create(host, clowder_user, clowder_pass, root_coll_name,
                                               parent_space=root_space)
 
     if year:
         # Create year-level collection
-        year_collect = get_collection_or_create(connector, host, secret_key,
+        year_collect = get_collection_or_create(host, clowder_user, clowder_pass,
                                                 "%s - %s" % (root_coll_name, year),
                                                 parent_collect)
         if month:
             # Create month-level collection
-            month_collect = get_collection_or_create(connector, host, secret_key,
+            month_collect = get_collection_or_create(host, clowder_user, clowder_pass,
                                                      "%s - %s-%s" % (root_coll_name, year, month),
                                                      year_collect)
             if date:
-                targ_collect = get_collection_or_create(connector, host, secret_key,
+                targ_collect = get_collection_or_create(host, clowder_user, clowder_pass,
                                                         "%s - %s-%s-%s" % (root_coll_name, year, month, date),
                                                         month_collect)
             else:
@@ -202,36 +200,130 @@ def build_dataset_hierarchy(connector, host, secret_key, root_space, root_coll_n
     else:
         targ_collect = parent_collect
 
-    target_dsid = get_dataset_or_create(connector, host, secret_key, leaf_ds_name,
+    target_dsid = get_dataset_or_create(host, clowder_user, clowder_pass, leaf_ds_name,
                                         targ_collect, root_space)
 
     return target_dsid
 
 
-def get_collection_or_create(connector, host, secret_key, cname, parent_colln=None, parent_space=None):
+def get_collection_or_create(host, clowder_user, clowder_pass, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/collections?key=%s&title=%s&exact=true" % (host, secret_key, cname)
-    result = requests.get(url, verify=connector.ssl_verify)
+    url = "%sapi/collections?title=%s&exact=true" % (host, cname)
+    result = requests.get(url, auth=(clowder_user, clowder_pass))
     result.raise_for_status()
 
     if len(result.json()) == 0:
-        return create_empty_collection(connector, host, secret_key, cname, "",
-                                       parent_colln, parent_space)
+        return create_empty_collection(host, clowder_user, clowder_pass, cname, "", parent_colln, parent_space)
     else:
         return result.json()[0]['id']
 
 
-def get_dataset_or_create(connector, host, secret_key, dsname, parent_colln=None, parent_space=None):
+def create_empty_collection(host, clowder_user, clowder_pass, collectionname, description, parentid=None, spaceid=None):
+    """Create a new collection in Clowder.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    collectionname -- name of new dataset to create
+    description -- description of new dataset
+    parentid -- id of parent collection
+    spaceid -- id of the space to add dataset to
+    """
+
+    logger = logging.getLogger(__name__)
+
+    if parentid:
+        if (spaceid):
+            url = '%sapi/collections/newCollectionWithParent' % host
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": collectionname, "description": description,
+                                                    "parentId": [parentid], "space": spaceid}),
+                                   auth=(clowder_user, clowder_pass))
+        else:
+            url = '%sapi/collections/newCollectionWithParent' % host
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": collectionname, "description": description,
+                                                    "parentId": [parentid]}),
+                                   auth=(clowder_user, clowder_pass))
+    else:
+        if (spaceid):
+            url = '%sapi/collections' % host
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": collectionname, "description": description,
+                                                    "space": spaceid}),
+                                   auth=(clowder_user, clowder_pass))
+        else:
+            url = '%sapi/collections' % host
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": collectionname, "description": description}),
+                                   auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    collectionid = result.json()['id']
+    logger.debug("collection id = [%s]", collectionid)
+
+    return collectionid
+
+
+def get_dataset_or_create(host, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
-    result = requests.get(url, verify=connector.ssl_verify)
+    url = "%sapi/datasets?title=%s&exact=true" % (host, dsname)
+    result = requests.get(url, auth=(clowder_user, clowder_pass))
     result.raise_for_status()
 
     if len(result.json()) == 0:
-        return create_empty_dataset(connector, host, secret_key, dsname, "",
+        return create_empty_dataset(host, clowder_user, clowder_pass, dsname, "",
                                     parent_colln, parent_space)
     else:
         return result.json()[0]['id']
+
+
+def create_empty_dataset(host, clowder_user, clowder_pass, datasetname, description, parentid=None, spaceid=None):
+    """Create a new dataset in Clowder.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    datasetname -- name of new dataset to create
+    description -- description of new dataset
+    parentid -- id of parent collection
+    spaceid -- id of the space to add dataset to
+    """
+
+    logger = logging.getLogger(__name__)
+
+    url = '%sapi/datasets/createempty' % host
+
+    if parentid:
+        if spaceid:
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": datasetname, "description": description,
+                                                    "collection": [parentid], "space": [spaceid]}),
+                                   auth=(clowder_user, clowder_pass))
+        else:
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": datasetname, "description": description,
+                                                    "collection": [parentid]}),
+                                   auth=(clowder_user, clowder_pass))
+    else:
+        if spaceid:
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": datasetname, "description": description,
+                                                    "space": [spaceid]}),
+                                   auth=(clowder_user, clowder_pass))
+        else:
+            result = requests.post(url, headers={"Content-Type": "application/json"},
+                                   data=json.dumps({"name": datasetname, "description": description}),
+                                   auth=(clowder_user, clowder_pass))
+
+    result.raise_for_status()
+
+    datasetid = result.json()['id']
+    logger.debug("dataset id = [%s]", datasetid)
+
+    return datasetid
 
 
 # PRIVATE -------------------------------------
