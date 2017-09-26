@@ -8,6 +8,7 @@ import logging
 import json
 import os
 import requests
+from urllib3.filepost import encode_multipart_formdata
 
 from pyclowder.extractors import Extractor
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
@@ -334,6 +335,74 @@ def create_empty_dataset(host, clowder_user, clowder_pass, datasetname, descript
     logger.debug("dataset id = [%s]", datasetid)
 
     return datasetid
+
+
+def upload_to_dataset(connector, host, clowder_user, clowder_pass, datasetid, filepath):
+    """Upload file to existing Clowder dataset.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    datasetid -- the dataset that the file should be associated with
+    filepath -- path to file
+    check_duplicate -- check if filename already exists in dataset and skip upload if so
+    """
+
+    logger = logging.getLogger(__name__)
+
+    for source_path in connector.mounted_paths:
+        if filepath.startswith(connector.mounted_paths[source_path]):
+            return _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datasetid, filepath)
+
+    url = '%sapi/uploadToDataset/%s' % (host, datasetid)
+
+    if os.path.exists(filepath):
+        result = connector.post(url, files={"File": open(filepath, 'rb')},
+                                auth=(clowder_user, clowder_pass))
+
+        uploadedfileid = result.json()['id']
+        logger.debug("uploaded file id = [%s]", uploadedfileid)
+
+        return uploadedfileid
+    else:
+        logger.error("unable to upload file %s (not found)", filepath)
+
+
+def _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datasetid, filepath):
+    """Upload file POINTER to existing Clowder dataset. Does not copy actual file bytes.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    datasetid -- the dataset that the file should be associated with
+    filepath -- path to file
+    """
+
+    logger = logging.getLogger(__name__)
+    url = '%sapi/uploadToDataset/%s' % (host, datasetid)
+
+    if os.path.exists(filepath):
+        # Replace local path with remote path before uploading
+        for source_path in connector.mounted_paths:
+            if filepath.startswith(connector.mounted_paths[source_path]):
+                filepath = filepath.replace(connector.mounted_paths[source_path],
+                                            source_path)
+                break
+
+        (content, header) = encode_multipart_formdata([
+            ("file", '{"path":"%s"}' % filepath)
+        ])
+        result = connector.post(url, data=content, headers={'Content-Type': header},
+                                auth=(clowder_user, clowder_pass))
+
+        uploadedfileid = result.json()['id']
+        logger.debug("uploaded file id = [%s]", uploadedfileid)
+
+        return uploadedfileid
+    else:
+        logger.error("unable to upload local file %s (not found)", filepath)
 
 
 # PRIVATE -------------------------------------
