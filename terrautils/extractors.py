@@ -32,6 +32,14 @@ def add_arguments(parser):
             default=logging.INFO, const=logging.DEBUG,
             help='enable debugging (default=WARN)')
 
+    parser.add_argument('--clowder_user',
+                        default=os.getenv('CLOWDER_USER', "terrarefglobus+uamac@ncsa.illinois.edu"),
+                        help='clowder user to use when creating new datasets')
+
+    parser.add_argument('--clowder_pass',
+                        default=os.getenv('CLOWDER_PASS', ''),
+                        help='clowder password to use when creating new datasets')
+
 
 class TerrarefExtractor(Extractor):
 
@@ -51,6 +59,8 @@ class TerrarefExtractor(Extractor):
         self.clowderspace = self.args.clowderspace
         self.debug = self.args.debug
         self.overwrite = self.args.overwrite
+        self.clowder_user = self.args.clowder_user
+        self.clowder_pass = self.args.clowder_pass
 
         if not base: base = self.args.terraref_base
         if not site: site = self.args.terraref_site
