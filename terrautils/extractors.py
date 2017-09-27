@@ -173,7 +173,7 @@ def load_json_file(filepath):
 
 # CLOWDER UTILS -------------------------------------
 # TODO: Add support for user/password in addition to secret_key
-def build_dataset_hierarchy(host, clowder_user, clowder_pass, root_space, root_coll_name,
+def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_space, root_coll_name,
                             year='', month='', date='', leaf_ds_name=''):
     """This will build collections for year, month, date level if needed in parent space.
 
@@ -187,21 +187,21 @@ def build_dataset_hierarchy(host, clowder_user, clowder_pass, root_space, root_c
 
         Omitting year, month or date will result in dataset being added to next level up.
     """
-    parent_collect = get_collection_or_create(host, clowder_user, clowder_pass, root_coll_name,
+    parent_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
                                               parent_space=root_space)
 
     if year:
         # Create year-level collection
-        year_collect = get_collection_or_create(host, clowder_user, clowder_pass,
+        year_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                 "%s - %s" % (root_coll_name, year),
                                                 parent_collect)
         if month:
             # Create month-level collection
-            month_collect = get_collection_or_create(host, clowder_user, clowder_pass,
+            month_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                      "%s - %s-%s" % (root_coll_name, year, month),
                                                      year_collect)
             if date:
-                targ_collect = get_collection_or_create(host, clowder_user, clowder_pass,
+                targ_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                         "%s - %s-%s-%s" % (root_coll_name, year, month, date),
                                                         month_collect)
             else:
@@ -211,16 +211,16 @@ def build_dataset_hierarchy(host, clowder_user, clowder_pass, root_space, root_c
     else:
         targ_collect = parent_collect
 
-    target_dsid = get_dataset_or_create(host, clowder_user, clowder_pass, leaf_ds_name,
+    target_dsid = get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, leaf_ds_name,
                                         targ_collect, root_space)
 
     return target_dsid
 
 
-def get_collection_or_create(host, clowder_user, clowder_pass, cname, parent_colln=None, parent_space=None):
+def get_collection_or_create(host, secret_key, clowder_user, clowder_pass, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/collections?title=%s&exact=true" % (host, cname)
-    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    url = "%sapi/collections?key=%s&title=%s&exact=true" % (host, secret_key, cname)
+    result = requests.get(url)
     result.raise_for_status()
 
     if len(result.json()) == 0:
@@ -277,10 +277,10 @@ def create_empty_collection(host, clowder_user, clowder_pass, collectionname, de
     return collectionid
 
 
-def get_dataset_or_create(host, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
+def get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?title=%s&exact=true" % (host, dsname)
-    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
+    result = requests.get(url)
     result.raise_for_status()
 
     if len(result.json()) == 0:
