@@ -217,10 +217,10 @@ def build_dataset_hierarchy(host, clowder_user, clowder_pass, root_space, root_c
     return target_dsid
 
 
-def get_collection_or_create(host, clowder_user, clowder_pass, cname, parent_colln=None, parent_space=None):
+def get_collection_or_create(host, secret_key, clowder_user, clowder_pass, cname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/collections?title=%s&exact=true" % (host, cname)
-    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    url = "%sapi/collections?key=%s&title=%s&exact=true" % (host, secret_key, cname)
+    result = requests.get(url)
     result.raise_for_status()
 
     if len(result.json()) == 0:
@@ -277,10 +277,10 @@ def create_empty_collection(host, clowder_user, clowder_pass, collectionname, de
     return collectionid
 
 
-def get_dataset_or_create(host, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
+def get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?title=%s&exact=true" % (host, dsname)
-    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
+    result = requests.get(url)
     result.raise_for_status()
 
     if len(result.json()) == 0:
