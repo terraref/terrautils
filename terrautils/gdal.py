@@ -7,6 +7,10 @@ import os
 from osgeo import gdal, gdalnumeric, ogr
 from PIL import Image, ImageDraw
 import numpy as np
+import geojson
+from shapely import geometry
+import betydb
+from shapely.wkt import loads
 
 
 def array_to_image(a):
@@ -54,16 +58,24 @@ def pixel_to_world(geo_matrix, x, y):
     return gt
 
 
-def list_raster(boundary, tile_indexes):
+def list_raster(boundary_poly, tile_indexes_path):
     """ List rasters within the boundary
     
     Args:
-        boundary (str): geojson string
-        tile_indexes (str): path to a list of geojson strings
+        boundary (MultiPolygon): boundary, a multipolygon object
+        tile_indexes (str): path to a list of geojson collection
 
-    Returns: (List)
+    Returns: intersection (List of Polygon strings)
     """
-    
+    # load each tile index and check intersection with boundary_poly
+    tile_indexes_js = geojson.loads(open(tile_indexes_path).read())
+    intersection = []
+    for feature in tile_indexes_js['features']:
+        tile_index_poly = geometry.asShape(feature['geometry'])
+        if boundary_poly.intersects(tile_index_poly):
+            intersection.append(str(tile_index_poly))
+       
+    return intersection
 
 
 def clip_raster(rast_path, features_path, nodata=-9999):
@@ -203,3 +215,10 @@ def centroid_from_geojson(geojson):
 def wkt_to_geojson(wkt):
     geom = ogr.CreateGeometryFromWkt(wkt)
     return geom.ExportToJson()
+
+
+if __name__ == "__main__":
+    # list_raster sample test
+    site_info = betydb.get_sites(sitename="MAC Field Scanner Season 4 Range 10 Column 10")
+    boundary_poly = loads(site_info[0]['geometry'])   # extract and load boundary multipoly string
+    list_raster(boundary_poly, '/projects/arpae/terraref/sites/ua-mac/Level_1/fullfield/2017-05-29/rgb_tile_index_L1_ua-mac_2017-05-29_left.geojson')
