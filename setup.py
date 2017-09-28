@@ -8,5 +8,6 @@ setup(name='terrautils',
           'utm', 
           'python-dateutil',
           'influxdb',
+          'shapely',
       ]
       )

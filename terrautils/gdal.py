@@ -54,6 +54,18 @@ def pixel_to_world(geo_matrix, x, y):
     return gt
 
 
+def list_raster(boundary, tile_indexes):
+    """ List rasters within the boundary
+    
+    Args:
+        boundary (str): geojson string
+        tile_indexes (str): path to a list of geojson strings
+
+    Returns: (List)
+    """
+    
+
+
 def clip_raster(rast_path, features_path, nodata=-9999):
     """Clip raster to polygon.
 
