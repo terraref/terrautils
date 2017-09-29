@@ -191,8 +191,10 @@ def get_sites(filter_date='', **kwargs):
                                     (s["sitename"].endswith(" W") or s["sitename"].endswith(" E"))):
                                 continue
                             small_site = s
-                            del small_site['experiments_sites']
-                            del small_site['experiments']
+                            if 'experiments_sites' in small_site:
+                                del small_site['experiments_sites']
+                            if 'experiments' in small_site:
+                                del small_site['experiments']
                             matching_sites.append(small_site)
 
             return matching_sites
