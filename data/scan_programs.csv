@@ -1,0 +1,81 @@
+program_name,fullfield_eligible
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_0.8mps.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_wheat_winter_ranges 0.33m.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sensors_emergence full plot 0.33m.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sensors_FullField_StartSouth_Sorghum3_Shade.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sensors_FullField_Sorghum3_Shade.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sorghum2_sun_ranges 0.33m.cs,Y
+C:\LemnaTec\StoredScripts\Circadian_Block_14Plot-Test.cs,N
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_Row_0.8mps.cs,Y
+C:\LemnaTec\StoredScripts\StomatalRegulation_Sorghum4_ranges 0.33m.cs,see description
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sorghum2_shade_ranges 0.33m.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_wheat_winter_ranges 0.27m.cs,Y
+C:\LemnaTec\StoredScripts\Circadian_Range27_Sorghum4_V2.cs,N
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_0.5mps_NOOFFSET.cs,Y (see description)
+C:\LemnaTec\StoredScripts\Hyperspec_5RangeValid.cs,N
+C:\LemnaTec\StoredScripts\SWIR_VNIR_Day1.cs,N
+C:\LemnaTec\StoredScripts\SWIR_VNIR_Day2.cs,N
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_Ranges_0.8mps.cs,Y?
+C:\LemnaTec\StoredScripts\StomatalRegulationNorthStart.cs,N (see description)
+C:\LemnaTec\StoredScripts\CircadianAndCalibration_Sorghum4_V2.cs,N
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sensors_FullField_StartSouth_Sorghum3_FullSun.cs,Y
+C:\LemnaTec\StoredScripts\3D_Scan_Field_033MperS.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_0.8mpsRESTART.cs,see description
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_Column_0.8mps.cs,Y?
+C:\LemnaTec\StoredScripts\3D_Scan_Field_SouthStart_033MperS.cs,Y
+C:\LemnaTec\StoredScripts\SWIR_VNIR_Day1Untriggered.cs,N
+C:\LemnaTec\StoredScripts\SWIR_VNIR_CC_CalibrationRun_test1.cs,N
+C:\LemnaTec\StoredScripts\fallback\FLIR_Scan_Field_XAxis-Triggerd_Cloudy.cs,Y
+C:\LemnaTec\StoredScripts\StereoVIS_IR_X-Axis_Sorghum4_0.5mps.cs,Y
+C:\LemnaTec\StoredScripts\Scan_6m_immatest_2.cs,N
+C:\LemnaTec\StoredScripts\fallback\FLIR_Scan_Field_XAxis-Triggerd.cs,
+C:\LemnaTec\StoredScripts\StereoVIS_IR_Sorghum2_shade_ranges 0.33m_test.cs,Y
+C:\LemnaTec\StoredScripts\3D_Scan_Field_027bMperS.cs,Y
+C:\LemnaTec\StoredScripts\3D_Scan_6m.cs,N
+C:\LemnaTec\StoredScripts\3D_Scan_Field_033MperSDelay.cs,Y
+C:\LemnaTec\StoredScripts\Scan_6m_immatest.cs,N
+C:\LemnaTec\StoredScripts\SWIR_VNIR.cs,N
+C:\LemnaTec\StoredScripts\3D_Scan_Field_SouthStart_033MperS_Jun2version.cs,Y
+C:\LemnaTec\StoredScripts\test.cs,N
+C:\LemnaTec\StoredScripts\SWIR_VNIR_stereoVIS_IR_Sensors_whiteTarget_lightsOFF.cs,N?
+C:\LemnaTec\StoredScripts\SWIR_VNIR_CC_CalibrationRun_RJS.cs,N
+C:\LemnaTec\StoredScripts\DEMO.cs,N
+C:\LemnaTec\StoredScripts\FAT-StereoVisTop.cs,N
+C:\LemnaTec\StoredScripts\3D_Scan_Field_033MperS_PSII.cs,Y
+C:\LemnaTec\StoredScripts\3D_Scan_Field_027MperS.cs,Y
+C:\LemnaTec\StoredScripts\Markus_FATScript.cs,N
+C:\LemnaTec\StoredScripts\SideScript.cs,N
+C:\LemnaTec\StoredScripts\RJS_FATScript.cs,N
+C:\LemnaTec\StoredScripts\doNothing.cs,N
+C:\LemnaTec\StoredScripts\PsuedoFAT.cs,N
+C:\LemnaTec\StoredScripts\FAT-VNIR-NDVI-PRI-Ref_2.cs,N
+C:\LemnaTec\StoredScripts\FAT-SimpleScanSide.cs,N
+C:\LemnaTec\StoredScripts\FAT-SimplePs2.cs,N
+C:\LemnaTec\StoredScripts\SWIR_VNIR_Day2Untriggered.cs,N
+C:\LemnaTec\StoredScripts\Side3DTestScriptRJS.cs,N
+C:\LemnaTec\StoredScripts\PS2Test.cs,N
+c:\LemnaTec\SchedulerScripts\4898b29c-1bea-498b-9b26-917cb6ffddc7.cs,?
+c:\LemnaTec\SchedulerScripts\8e918958-3e04-4b28-8416-7204ea6223e5.cs,?
+c:\LemnaTec\SchedulerScripts\b69cc3a6-3ff9-4cea-abcf-9fd404ce2256.cs,?
+C:\LemnaTec\StoredScripts\FAT-VNIR-CropCircle-Ref_2.cs,N
+C:\LemnaTec\StoredScripts\Lettuce_Scan_Box.cs,N
+C:\LemnaTec\StoredScripts\FAT-FLIR.cs,N
+C:\LemnaTec\StoredScripts\fallback\MarkusFATSideScannerCalibration.cs,N
+C:\LemnaTec\StoredScripts\FAT-Simple3DScanTop.cs,N
+C:\LemnaTec\StoredScripts\FAT_SWIR_VNIR.cs,N
+C:\LemnaTec\StoredScripts\SH_FAT_TEST.cs,N
+C:\LemnaTec\StoredScripts\FAT-SimpleStereoSideStopwatch.cs,N
+C:\LemnaTec\StoredScripts\MarkusFATSideScannerCalibratio.cs,N
+C:\LemnaTec\StoredScripts\3D_Scan_Field_033MperS_test.cs,Y
+C:\LemnaTec\StoredScripts\FAT-SimpleStereoSide.cs,N
+C:\LemnaTec\StoredScripts\FAT-SimpleStereoSide_noMove.cs,N
+C:\LemnaTec\StoredScripts\exampleXScanFetchingSensors.cs,N
+C:\LemnaTec\StoredScripts\SWIR_Continuity_RJS.cs,N
+C:\LemnaTec\StoredScripts\FAT-StereoVisTopStopWatch.cs,N
+C:\LemnaTec\StoredScripts\VNIR_Stereo_Full_Field_0.02m.cs,
+C:\LemnaTec\StoredScripts\MarkusFATSideScannerCalibration.cs,N
+C:\LemnaTec\StoredScripts\fallback\PS2Test.cs,N
+C:\LemnaTec\StoredScripts\SideScriptAt4m.cs,N
+C:\LemnaTec\StoredScripts\FatScript.cs,N
+C:\LemnaTec\StoredScripts\FAT-VNIR_SWIR_Training.cs,N
+C:\LemnaTec\StoredScripts\SampleScriptSimpleMeasurement.cs,N

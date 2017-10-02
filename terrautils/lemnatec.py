@@ -17,8 +17,10 @@ TODO:
 
 import argparse
 import json
+import csv
 import logging
 import os
+import re
 import pytz, datetime
 import requests
 from sensors import Sensors
@@ -27,6 +29,8 @@ from spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
 
 
 STATION_NAME = "ua-mac"
+
+scan_programs = {}
 
 # Official sensor names
 PLATFORM_SCANALYZER = "scanalyzer"
@@ -48,6 +52,7 @@ SENSOR_WEATHER = "weather"
 
 logging.basicConfig()
 logger = logging.getLogger("terrautils.metadata.lemnatac")
+
 
 
 # SHARED -------------------------------------
@@ -262,7 +267,7 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
             'standardized': ['script_path_ftp_server']
         },   
         'Script path on local disk': {
-            'standardized': ['script_path_local_disk']
+            'standardized': ['script_path_on_disk']
         },           
         'sensor setting file path': {
             'standardized': ['sensor_setting_file_path']
@@ -367,6 +372,7 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
         
     }
     
+    
     orig = lem_md['gantry_system_variable_metadata'] 
     properties = _standardize_with_validation("gantry_system_variable_metadata", orig, prop_map, [], filepath)  
 
@@ -384,10 +390,22 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
         properties["datetime"] = datetime_local.isoformat()
         properties["date"] = datetime_local.date().isoformat()
         
+    # 
+    read_scan_program_map()
+    if 'script_path_on_disk' in properties:
+        script_path = properties['script_path_on_disk']
+        scan_program = scan_programs.get(script_path, "unknown_program")
+        match = re.search('^.*\\\\(.*?)\\.cs', script_path)   
+        if len(match.groups()) == 1:
+            script_name = match.group(1).lower()
+            script_name = re.sub(" ", "_", script_name)
+            properties['script_name'] = script_name
+            properties['fullfield_eligible'] = scan_program["fullfield_eligible"]
+
         
     # Limit output to the following fields for now
     output_fields = [
-        "datetime", "date", "position_m", "scan_direction_is_positive", "error"
+        "datetime", "date", "position_m", "scan_direction_is_positive", "script_path_on_disk", "script_name", "fullfield_eligible", "error"
     ]
 
     return _get_dict_subset(properties, output_fields)
@@ -829,6 +847,17 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, gantvar_md):
         logger.error("Cannot calculate point cloud origin -- missing gantry position information")
 
     return point_cloud_origin
+
+
+def read_scan_program_map():
+
+    if not scan_programs:
+        with open('data/scan_programs.csv', 'rb') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                scan_programs[row["program_name"]] = {
+                    "fullfield_eligible": "True" if row["fullfield_eligible"] == "Y" else "False"
+                }
 
 
 if __name__ == "__main__":
