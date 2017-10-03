@@ -454,6 +454,15 @@ def delete_dataset(host, clowder_user, clowder_pass, datasetid):
     return json.loads(result.text)
 
 
+def delete_dataset_metadata(host, clowder_user, clowder_pass, datasetid):
+    url = "%sapi/datasets/%s/metadata.jsonld" % (host, datasetid)
+
+    result = requests.delete(url, stream=True, auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    return json.loads(result.text)
+
+
 def delete_collection(host, clowder_user, clowder_pass, collectionid):
     url = "%sapi/collections/%s" % (host, collectionid)
 
@@ -463,12 +472,27 @@ def delete_collection(host, clowder_user, clowder_pass, collectionid):
     return json.loads(result.text)
 
 
+def delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, collectionid, recursive=True):
+    dslist = get_datasets(host, clowder_user, clowder_pass, collectionid)
+
+    logging.info("deleting dataset metadata in collection %s" % collectionid)
+    for ds in dslist:
+        delete_dataset_metadata(host, clowder_user, clowder_pass, ds['id'])
+    logging.info("completed %s datasets" % len(dslist))
+
+    if recursive:
+        childcolls = get_child_collections(host, clowder_user, clowder_pass, collectionid)
+        for coll in childcolls:
+            delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, coll['id'], recursive)
+
+
 def delete_datasets_in_collection(host, clowder_user, clowder_pass, collectionid, recursive=True, delete_colls=True):
     dslist = get_datasets(host, clowder_user, clowder_pass, collectionid)
 
     logging.info("deleting datasets in collection %s" % collectionid)
     for ds in dslist:
         delete_dataset(host, clowder_user, clowder_pass, ds['id'])
+    logging.info("completed %s datasets" % len(dslist))
 
     if recursive:
         childcolls = get_child_collections(host, clowder_user, clowder_pass, collectionid)
@@ -478,7 +502,6 @@ def delete_datasets_in_collection(host, clowder_user, clowder_pass, collectionid
     if delete_colls:
         logging.info("deleting collection %s" % collectionid)
         delete_collection(host, clowder_user, clowder_pass, collectionid)
-
 
 
 
