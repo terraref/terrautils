@@ -176,7 +176,7 @@ def load_json_file(filepath):
 
 
 # CLOWDER UTILS -------------------------------------
-# TODO: Add support for user/password in addition to secret_key
+# TODO: Remove redundant ones of these once PyClowder2 supports user/password
 def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_space, root_coll_name,
                             year='', month='', date='', leaf_ds_name=''):
     """This will build collections for year, month, date level if needed in parent space.
@@ -407,6 +407,102 @@ def _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datase
         return uploadedfileid
     else:
         logger.error("unable to upload local file %s (not found)", filepath)
+
+
+def get_child_collections(host, clowder_user, clowder_pass, collectionid):
+    """Get list of child collections in collection by UUID.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    collectionid -- the collection to get children of
+    """
+
+    url = "%sapi/collections/%s/getChildCollections" % (host, collectionid)
+
+    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    return json.loads(result.text)
+
+
+def get_datasets(host, clowder_user, clowder_pass, collectionid):
+    """Get list of datasets in collection by UUID.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    datasetid -- the collection to get datasets of
+    """
+
+    url = "%sapi/collections/%s/datasets" % (host, collectionid)
+
+    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    return json.loads(result.text)
+
+
+def delete_dataset(host, clowder_user, clowder_pass, datasetid):
+    url = "%sapi/datasets/%s" % (host, datasetid)
+
+    result = requests.delete(url, auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    return json.loads(result.text)
+
+
+def delete_dataset_metadata(host, clowder_user, clowder_pass, datasetid):
+    url = "%sapi/datasets/%s/metadata.jsonld" % (host, datasetid)
+
+    result = requests.delete(url, stream=True, auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    return json.loads(result.text)
+
+
+def delete_collection(host, clowder_user, clowder_pass, collectionid):
+    url = "%sapi/collections/%s" % (host, collectionid)
+
+    result = requests.delete(url, auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    return json.loads(result.text)
+
+
+def delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, collectionid, recursive=True):
+    dslist = get_datasets(host, clowder_user, clowder_pass, collectionid)
+
+    logging.info("deleting dataset metadata in collection %s" % collectionid)
+    for ds in dslist:
+        delete_dataset_metadata(host, clowder_user, clowder_pass, ds['id'])
+    logging.info("completed %s datasets" % len(dslist))
+
+    if recursive:
+        childcolls = get_child_collections(host, clowder_user, clowder_pass, collectionid)
+        for coll in childcolls:
+            delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, coll['id'], recursive)
+
+
+def delete_datasets_in_collection(host, clowder_user, clowder_pass, collectionid, recursive=True, delete_colls=True):
+    dslist = get_datasets(host, clowder_user, clowder_pass, collectionid)
+
+    logging.info("deleting datasets in collection %s" % collectionid)
+    for ds in dslist:
+        delete_dataset(host, clowder_user, clowder_pass, ds['id'])
+    logging.info("completed %s datasets" % len(dslist))
+
+    if recursive:
+        childcolls = get_child_collections(host, clowder_user, clowder_pass, collectionid)
+        for coll in childcolls:
+            delete_datasets_in_collection(host, clowder_user, clowder_pass, coll['id'], recursive, delete_colls)
+
+    if delete_colls:
+        logging.info("deleting collection %s" % collectionid)
+        delete_collection(host, clowder_user, clowder_pass, collectionid)
+
 
 
 # PRIVATE -------------------------------------
