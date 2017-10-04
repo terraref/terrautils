@@ -852,7 +852,8 @@ def _calculatePointCloudOrigin(scanner3d, fixed_md, gantvar_md):
 def read_scan_program_map():
 
     if not scan_programs:
-        with open('data/scan_programs.csv', 'rb') as file:
+        scan_path = os.path.join(os.path.dirname(__file__), "data/scan_programs.csv")
+        with open(scan_path, 'rb') as file:
             reader = csv.DictReader(file)
             for row in reader:
                 scan_programs[row["program_name"]] = {
