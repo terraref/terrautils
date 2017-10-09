@@ -58,6 +58,19 @@ def pixel_to_world(geo_matrix, x, y):
     return gt
 
 
+def load_boundary(sitename):
+    """ Extract and load boundary multipoly string given sitename
+    
+    Args:
+        sitename (str)
+
+    Returns: polygon string
+    """
+    site_info = betydb.get_sites(sitename=sitename)
+    boundary_poly = loads(site_info[0]['geometry'])   # extract and load boundary multipoly string
+    return boundary_poly
+
+
 def list_raster(boundary_poly, tile_indexes_path):
     """ List rasters within the boundary
     
@@ -65,7 +78,7 @@ def list_raster(boundary_poly, tile_indexes_path):
         boundary (MultiPolygon): boundary, a multipolygon object
         tile_indexes (str): path to a list of geojson collection
 
-    Returns: intersection (List of Polygon strings)
+    Returns: file locations that have intersection
     """
     # load each tile index and check intersection with boundary_poly
     tile_indexes_js = geojson.loads(open(tile_indexes_path).read())
@@ -73,8 +86,8 @@ def list_raster(boundary_poly, tile_indexes_path):
     for feature in tile_indexes_js['features']:
         tile_index_poly = geometry.asShape(feature['geometry'])
         if boundary_poly.intersects(tile_index_poly):
-            intersection.append(str(tile_index_poly))
-       
+            intersection.append(feature['properties']['location'])
+
     return intersection
 
 
@@ -219,6 +232,6 @@ def wkt_to_geojson(wkt):
 
 if __name__ == "__main__":
     # list_raster sample test
-    site_info = betydb.get_sites(sitename="MAC Field Scanner Season 4 Range 10 Column 10")
-    boundary_poly = loads(site_info[0]['geometry'])   # extract and load boundary multipoly string
+    boundary_poly = load_boundary("MAC Field Scanner Season 4 Range 10 Column 10")
+    #boundary_poly = loads('POLYGON ((-111.9748940034814 33.07486301094484, -111.9748841060115 33.07486301094484, -111.9748841060115 33.07485171718604, -111.9748940034814 33.07485171718604, -111.9748940034814 33.07486301094484))')
     list_raster(boundary_poly, '/projects/arpae/terraref/sites/ua-mac/Level_1/fullfield/2017-05-29/rgb_tile_index_L1_ua-mac_2017-05-29_left.geojson')
