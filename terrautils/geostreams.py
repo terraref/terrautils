@@ -125,6 +125,30 @@ def create_datapoint(connector, host, key, streamid, geom, starttime, endtime, p
     return dpid
 
 
+def create_datapoints(connector, host, key, streamid, datapoint_list):
+    """Create a new batch of datapoints in Geostreams.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    streamid -- id of stream to attach datapoint to
+    datapoint_list -- list of datapoint objects with start & end time, type, geometry, properties
+    """
+
+    body = {
+        "datapoints": datapoint_list,
+        "stream_id": str(streamid)
+    }
+
+    url = '%sapi/geostreams/datapoints/bulk?key=%s' % (host, key)
+
+    result = requests.post(url, headers={'Content-type': 'application/json'},
+                           data=json.dumps(body),
+                           verify=connector.ssl_verify if connector else True)
+    result.raise_for_status()
+
+
 def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlon, starttime, endtime,
                                        metadata={}, filter_date='', geom=None):
     """Create a new datapoint in Geostreams. Will create sensor and stream as necessary.
