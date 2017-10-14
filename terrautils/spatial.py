@@ -110,11 +110,11 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
         # TODO: These constants should live in fixed metadata once finalized
         if scandirection == 0: # Negative scan
             west_position = ( float(gantry_x) + float(cambox_x) + 0.082,
-                              float(gantry_y) + float(2*float(cambox_y)) - scan_distance/2 - 3.763, #Might be less than this
+                              float(gantry_y) + float(2*float(cambox_y)) - scan_distance/2 - 4.363, #Might be less than this
                               float(gantry_z) + float(cambox_z) )
 
             east_position = ( float(gantry_x) + float(e_cambox_x) + 0.082,
-                              float(gantry_y) + float(2*float(e_cambox_y)) - scan_distance/2 + 0.454,
+                              float(gantry_y) + float(2*float(e_cambox_y)) - scan_distance/2 - 0.354,
                               float(gantry_z) + float(e_cambox_z) )
         else: # Positive scan
             west_position = ( float(gantry_x) + float(cambox_x) + 0.082,
