@@ -204,6 +204,7 @@ def tuples_to_geojson(bounds):
 
     return bounding_box
 
+
 def geojson_to_tuples(bounding_box):
     """
     Given a GeoJSON polygon, returns in tuple format
@@ -215,6 +216,18 @@ def geojson_to_tuples(bounding_box):
     lat_min = bounding_box["coordinates"][2][0]
     
     return (lat_min, lat_max, long_min, long_max)
+
+
+def scanalyzer_to_mac(scan_x, scan_y):
+    # TODO: Hard-coded
+    # Linear transformation coefficients
+    ay = 3659974.971; by = 1.0002; cy = 0.0078;
+    ax = 409012.2032; bx = 0.009; cx = - 0.9986;
+
+    mac_x = ax + (bx * scan_x) + (cx * scan_y)
+    mac_y =  ay + (by * scan_x) + (cy * scan_y)
+
+    return mac_x, mac_y
 
 
 # PRIVATE -------------------------------------
@@ -229,33 +242,27 @@ def _get_bounding_box_with_formula(center_position, fov):
                                         long (x) min, long (x) max )
     """
 
-    # Get UTM information from southeast corner of field
-    SE_utm = utm.from_latlon(33.07451869, -111.97477775)
-    utm_zone = SE_utm[2]
-    utm_num  = SE_utm[3]
-
-    # TODO: Hard-coded
-    # Linear transformation coefficients
-    ay = 3659974.971; by = 1.0002; cy = 0.0078;
-    ax = 409012.2032; bx = 0.009; cx = - 0.9986;
-    lon_shift = 0.000020308287
-    lat_shift = 0.000015258894
-
     # min/max bounding box x,y values
     y_w = center_position[1] + fov[1]/2
     y_e = center_position[1] - fov[1]/2
     x_n = center_position[0] + fov[0]/2
     x_s = center_position[0] - fov[0]/2
     # coordinates of northwest bounding box vertex
-    Mx_nw = ax + bx * x_n + cx * y_w
-    My_nw = ay + by * x_n + cy * y_w
+    Mx_nw, My_nw = scanalyzer_to_mac(x_n, y_w)
     # coordinates if southeast bounding box vertex
-    Mx_se = ax + bx * x_s + cx * y_e
-    My_se = ay + by * x_s + cy * y_e
+    Mx_se, My_se = scanalyzer_to_mac(x_s, y_e)
+
+    # Get UTM information from southeast corner of field
+    SE_utm = utm.from_latlon(33.07451869, -111.97477775)
+    utm_zone = SE_utm[2]
+    utm_num  = SE_utm[3]
     # bounding box vertex coordinates
     bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
     bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
 
+    # TODO: Hard-coded
+    lon_shift = 0.000020308287
+    lat_shift = 0.000015258894
     return ( bbox_se_latlon[0] - lat_shift,
              bbox_nw_latlon[0] - lat_shift,
              bbox_nw_latlon[1] + lon_shift,
