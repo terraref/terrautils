@@ -148,7 +148,8 @@ def is_latest_file(resource):
         for f in resource['files']:
             create_time = datetime.datetime.strptime(f['date-created'].replace(" CDT","").replace(" CST",""),
                                                      "%c")
-            latest_dt = datetime.datetime.strptime(latest_time.replace(" CDT",""), "%c")
+            latest_dt = datetime.datetime.strptime(latest_time.replace(" CDT","").replace(" CST","")
+                                                   , "%c")
             if f['filename'] == trig:
                 trig_dt = create_time
 
