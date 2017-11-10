@@ -198,16 +198,16 @@ def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_s
         # Create year-level collection
         year_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                 "%s - %s" % (root_coll_name, year),
-                                                parent_collect)
+                                                parent_collect, parent_space=root_space)
         if month:
             # Create month-level collection
             month_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                      "%s - %s-%s" % (root_coll_name, year, month),
-                                                     year_collect)
+                                                     year_collect, parent_space=root_space)
             if date:
                 targ_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                         "%s - %s-%s-%s" % (root_coll_name, year, month, date),
-                                                        month_collect)
+                                                        month_collect, parent_space=root_space)
             else:
                 targ_collect = month_collect
         else:
