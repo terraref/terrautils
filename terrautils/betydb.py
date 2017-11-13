@@ -120,7 +120,7 @@ def get_site(site_id):
         return query_data[0]
 
 
-def get_sites(filter_date='', **kwargs):
+def get_sites(filter_date='', include_halves=False, **kwargs):
     """Return a site array from query() from the sites table.
 
     e.g.
@@ -156,9 +156,9 @@ def get_sites(filter_date='', **kwargs):
                         if 'sites' in exp:
                             for t in exp['sites']:
                                 # TODO: Eventually find better solution for S4 half-plots
-                                if not (exp['name'].find("Season 4") > -1 and
+                                if (not (exp['name'].find("Season 4") > -1 and
                                             (t['site']["sitename"].endswith(" W") or
-                                                 t['site']["sitename"].endswith(" E"))):
+                                                 t['site']["sitename"].endswith(" E")))) or include_halves:
                                     if t['site'] not in results:
                                         results.append(t['site'])
                 return results
@@ -188,8 +188,8 @@ def get_sites(filter_date='', **kwargs):
                     for exp in s['experiments']:
                         if exp['experiment']['id'] in matching_experiments:
                             # TODO: Eventually find better solution for S4 half-plots
-                            if (exp['experiment']['name'].find("Season 4") > -1 and
-                                    (s["sitename"].endswith(" W") or s["sitename"].endswith(" E"))):
+                            if ((exp['experiment']['name'].find("Season 4") > -1 and
+                                    (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")))) and not include_halves:
                                 continue
                             small_site = s
                             if 'experiments_sites' in small_site:
