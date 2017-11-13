@@ -159,7 +159,8 @@ def get_sites(filter_date='', **kwargs):
                                 if not (exp['name'].find("Season 4") > -1 and
                                             (t['site']["sitename"].endswith(" W") or
                                                  t['site']["sitename"].endswith(" E"))):
-                                    results.append(t['site'])
+                                    if t['site'] not in results:
+                                        results.append(t['site'])
                 return results
 
         else:
@@ -195,7 +196,8 @@ def get_sites(filter_date='', **kwargs):
                                 del small_site['experiments_sites']
                             if 'experiments' in small_site:
                                 del small_site['experiments']
-                            matching_sites.append(small_site)
+                            if small_site not in matching_sites:
+                                matching_sites.append(small_site)
 
             return matching_sites
 
