@@ -136,7 +136,7 @@ def get_sites(filter_date='', **kwargs):
     Basic query, efficient even with 'containing' parameter.
     """
     if not filter_date:
-        query_data = query(endpoint="sites", **kwargs)
+        query_data = query(endpoint="sites", limit='none', **kwargs)
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
@@ -146,21 +146,22 @@ def get_sites(filter_date='', **kwargs):
             """ SCENARIO II - YES FILTER DATE, NO LAT/LON
             Get experiments by date and return all associated sites.
             """
-            query_data = get_experiments(associations_mode='full_info', **kwargs)
+            query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
             if query_data:
+                results = []
                 for exp in query_data:
                     start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
                     end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
                     if start <= targ_date <= end:
                         if 'sites' in exp:
-                            results = []
                             for t in exp['sites']:
                                 # TODO: Eventually find better solution for S4 half-plots
                                 if not (exp['name'].find("Season 4") > -1 and
                                             (t['site']["sitename"].endswith(" W") or
                                                  t['site']["sitename"].endswith(" E"))):
-                                    results.append(t['site'])
-                            return results
+                                    if t['site'] not in results:
+                                        results.append(t['site'])
+                return results
 
         else:
             """ SCENARIO III - YES FILTER DATE, YES LAT/LON
@@ -195,7 +196,8 @@ def get_sites(filter_date='', **kwargs):
                                 del small_site['experiments_sites']
                             if 'experiments' in small_site:
                                 del small_site['experiments']
-                            matching_sites.append(small_site)
+                            if small_site not in matching_sites:
+                                matching_sites.append(small_site)
 
             return matching_sites
 
