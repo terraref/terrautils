@@ -148,19 +148,19 @@ def get_sites(filter_date='', **kwargs):
             """
             query_data = get_experiments(associations_mode='full_info', **kwargs)
             if query_data:
+                results = []
                 for exp in query_data:
                     start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
                     end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
                     if start <= targ_date <= end:
                         if 'sites' in exp:
-                            results = []
                             for t in exp['sites']:
                                 # TODO: Eventually find better solution for S4 half-plots
                                 if not (exp['name'].find("Season 4") > -1 and
                                             (t['site']["sitename"].endswith(" W") or
                                                  t['site']["sitename"].endswith(" E"))):
                                     results.append(t['site'])
-                            return results
+                return results
 
         else:
             """ SCENARIO III - YES FILTER DATE, YES LAT/LON
