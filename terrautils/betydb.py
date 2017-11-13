@@ -136,7 +136,7 @@ def get_sites(filter_date='', **kwargs):
     Basic query, efficient even with 'containing' parameter.
     """
     if not filter_date:
-        query_data = query(endpoint="sites", **kwargs)
+        query_data = query(endpoint="sites", limit='none', **kwargs)
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
@@ -146,7 +146,7 @@ def get_sites(filter_date='', **kwargs):
             """ SCENARIO II - YES FILTER DATE, NO LAT/LON
             Get experiments by date and return all associated sites.
             """
-            query_data = get_experiments(associations_mode='full_info', **kwargs)
+            query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
             if query_data:
                 results = []
                 for exp in query_data:
