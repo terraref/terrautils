@@ -182,7 +182,7 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                         matching_experiments.append(exp['id'])
 
             # Get sites in chunks and only keep those associated with experiments
-            intersect_sites = get_sites(associations_mode='full_info', limit='none', **kwargs)
+            intersect_sites = get_sites(associations_mode='full_info', **kwargs)
             for s in intersect_sites:
                 if 'experiments' in s:
                     for exp in s['experiments']:
