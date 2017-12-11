@@ -63,3 +63,10 @@ Python library for TERRA-REF specific modules and methods, e.g. those shared by 
 * calculate\_gps\_bounds() -- Extract bounding box geometry, depending on sensor type.
 * geom\_from\_metadata() -- Parse location elements from metadata.
 * \_get\_bounding\_box\_with\_formula() -- Convert scannerbox center position & sensor field-of-view to actual bounding box.
+
+**files.py**
+* get\_sensor\_list -- Returns a list of sensors from the geostream database.
+* unique\_sensor\_names -- Returns a unique set of sensors by removing plot id.
+* get\_sensor -- Returns a stream dictionary given sensor and sitename (optional).
+* get\_file\_listing -- Return a list of clowder file records for the a sensor
+* extract\_file\_paths -- Returns list of absolute paths given a file listing
