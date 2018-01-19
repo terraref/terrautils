@@ -6,3 +6,4 @@ Pillow==3.2.0
 python-dateutil==2.5.1
 scipy==0.17.1
 utm==0.4.1
+python-logstash==0.4.6

@@ -9,6 +9,7 @@ import json
 import os
 import requests
 from urllib3.filepost import encode_multipart_formdata
+import logstash
 
 from pyclowder.extractors import Extractor
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
@@ -53,6 +54,48 @@ class TerrarefExtractor(Extractor):
         add_influx_arguments(self.parser)
 
 
+    def get_logstash_config(self):
+        return {
+            "version": 1,
+
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)-15s %(levelname)-7s : %(name)s - %(message)s"
+                }
+            },
+
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                    "level": "DEBUG",
+                    "stream": "ext://sys.stdout"
+                },
+                "logstash": {
+                    "class": "logstash.TCPLogstashHandler",
+                    "level": "INFO",
+                    "host": "logger.ncsa.illinois.edu",
+                    "port": 5000,
+                    "message_type": "extractors",
+                    "version": 1,
+                    "tags": ["TERRA"]
+                }
+            },
+
+            "loggers": {
+                "extractor": {
+                    "level": "INFO",
+                    "handlers": ["logstash"]
+                }
+            },
+
+            "root": {
+                "level": "DEBUG",
+                "handlers": ["console"]
+            }
+        }
+
+
     def setup(self, base='', site='', sensor=''):
 
         super(TerrarefExtractor, self).setup()
@@ -67,6 +110,8 @@ class TerrarefExtractor(Extractor):
         if not site: site = self.args.terraref_site
         if not sensor: sensor = self.args.sensor
 
+        #log_config["handlers"]["logstash"]["message_type"] = ("terraref_"+sensor).replace(" ", "_").lower()
+        logging.config.dictConfig(self.get_logstash_config())
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
 
