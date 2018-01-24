@@ -54,48 +54,6 @@ class TerrarefExtractor(Extractor):
         add_influx_arguments(self.parser)
 
 
-    def get_logstash_config(self):
-        return {
-            "version": 1,
-
-            "formatters": {
-                "default": {
-                    "format": "%(asctime)-15s %(levelname)-7s : %(name)s - %(message)s"
-                }
-            },
-
-            "handlers": {
-                "console": {
-                    "class": "logging.StreamHandler",
-                    "formatter": "default",
-                    "level": "DEBUG",
-                    "stream": "ext://sys.stdout"
-                },
-                "logstash": {
-                    "class": "logstash.TCPLogstashHandler",
-                    "level": "INFO",
-                    "host": "logger.ncsa.illinois.edu",
-                    "port": 5000,
-                    "message_type": "extractors",
-                    "version": 1,
-                    "tags": ["TERRA"]
-                }
-            },
-
-            "loggers": {
-                "extractor": {
-                    "level": "INFO",
-                    "handlers": ["logstash"]
-                }
-            },
-
-            "root": {
-                "level": "DEBUG",
-                "handlers": ["console"]
-            }
-        }
-
-
     def setup(self, base='', site='', sensor=''):
 
         super(TerrarefExtractor, self).setup()
@@ -111,9 +69,9 @@ class TerrarefExtractor(Extractor):
         if not sensor: sensor = self.args.sensor
 
         #log_config["handlers"]["logstash"]["message_type"] = ("terraref_"+sensor).replace(" ", "_").lower()
-        logging.config.dictConfig(self.get_logstash_config())
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
+        self.logger = logging.getLogger("extractor")
 
         self.sensors = Sensors(base=base, station=site, sensor=sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
@@ -135,6 +93,31 @@ class TerrarefExtractor(Extractor):
         self.influx.log(self.extractor_info['name'],
                         self.starttime, endtime,
                         self.created, self.bytes)
+
+
+    def log_check(self, resource_id, resource_name):
+        """Standard format for extractor logs on check_message."""
+        self.logger.info("[%s] %s - Checking message." % (resource_id, resource_name))
+
+
+    def log_process(self, resource_id, resource_name):
+        """Standard format for extractor logs on process_message."""
+        self.logger.info("[%s] %s - Processing message." % (resource_id, resource_name))
+
+
+    def log_error(self, resource_id, resource_name, msg):
+        """Standard format for extractor logs regarding errors/failures."""
+        self.logger.error("[%s] %s - %s" % (resource_id, resource_name, msg))
+
+
+    def log_skip(self, resource_id, resource_name, msg):
+        """Standard format for extractor logs regarding skipped extractions."""
+        self.logger.info("[%s] %s - SKIP: %s" % (resource_id, resource_name, msg))
+
+
+    def log_done(self, resource_id, resource_name):
+        """Standard format for extractor logs regarding successful extractions."""
+        self.logger.info("[%s] %s - Done.")
 
 
 # BASIC UTILS -------------------------------------
