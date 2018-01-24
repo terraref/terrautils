@@ -81,43 +81,39 @@ class TerrarefExtractor(Extractor):
                              self.args.influx_pass)
 
 
-    # support message processing tracking, currently logged to influx
-    def start_message(self):
+    def start_check(self, resource):
+        """Standard format for extractor logs on check_message."""
+        self.logger.info("[%s] %s - Checking message." % (resource['id'], resource['name']))
+
+
+    def start_message(self, resource):
+        self.logger.info("[%s] %s - Processing message." % (resource['id'], resource['name']))
         self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.created = 0
         self.bytes = 0
 
 
-    def end_message(self):
+    def end_message(self, resource):
+        self.logger.info("[%s] %s - Done." % (resource['id'], resource['name']))
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.influx.log(self.extractor_info['name'],
                         self.starttime, endtime,
                         self.created, self.bytes)
 
 
-    def log_check(self, resource_id, resource_name):
-        """Standard format for extractor logs on check_message."""
-        self.logger.info("[%s] %s - Checking message." % (resource_id, resource_name))
+    def log_info(self, resource, msg):
+        """Standard format for extractor logs regarding progress."""
+        self.logger.info("[%s] %s - %s" % (resource['id'], resource['name'], msg))
 
 
-    def log_process(self, resource_id, resource_name):
-        """Standard format for extractor logs on process_message."""
-        self.logger.info("[%s] %s - Processing message." % (resource_id, resource_name))
-
-
-    def log_error(self, resource_id, resource_name, msg):
+    def log_error(self, resource, msg):
         """Standard format for extractor logs regarding errors/failures."""
-        self.logger.error("[%s] %s - %s" % (resource_id, resource_name, msg))
+        self.logger.error("[%s] %s - %s" % (resource['id'], resource['name'], msg))
 
 
-    def log_skip(self, resource_id, resource_name, msg):
+    def log_skip(self, resource, msg):
         """Standard format for extractor logs regarding skipped extractions."""
-        self.logger.info("[%s] %s - SKIP: %s" % (resource_id, resource_name, msg))
-
-
-    def log_done(self, resource_id, resource_name):
-        """Standard format for extractor logs regarding successful extractions."""
-        self.logger.info("[%s] %s - Done.")
+        self.logger.info("[%s] %s - SKIP: %s" % (resource['id'], resource['name'], msg))
 
 
 # BASIC UTILS -------------------------------------
