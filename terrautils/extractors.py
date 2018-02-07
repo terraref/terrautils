@@ -9,6 +9,7 @@ import json
 import os
 import requests
 from urllib3.filepost import encode_multipart_formdata
+import logstash
 
 from pyclowder.extractors import Extractor
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
@@ -67,8 +68,10 @@ class TerrarefExtractor(Extractor):
         if not site: site = self.args.terraref_site
         if not sensor: sensor = self.args.sensor
 
+        #log_config["handlers"]["logstash"]["message_type"] = ("terraref_"+sensor).replace(" ", "_").lower()
         logging.getLogger('pyclowder').setLevel(self.args.debug)
         logging.getLogger('__main__').setLevel(self.args.debug)
+        self.logger = logging.getLogger("extractor")
 
         self.sensors = Sensors(base=base, station=site, sensor=sensor)
         self.get_sensor_path = self.sensors.get_sensor_path
@@ -78,18 +81,39 @@ class TerrarefExtractor(Extractor):
                              self.args.influx_pass)
 
 
-    # support message processing tracking, currently logged to influx
-    def start_message(self):
+    def start_check(self, resource):
+        """Standard format for extractor logs on check_message."""
+        self.logger.info("[%s] %s - Checking message." % (resource['id'], resource['name']))
+
+
+    def start_message(self, resource):
+        self.logger.info("[%s] %s - Processing message." % (resource['id'], resource['name']))
         self.starttime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.created = 0
         self.bytes = 0
 
 
-    def end_message(self):
+    def end_message(self, resource):
+        self.logger.info("[%s] %s - Done." % (resource['id'], resource['name']))
         endtime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         self.influx.log(self.extractor_info['name'],
                         self.starttime, endtime,
                         self.created, self.bytes)
+
+
+    def log_info(self, resource, msg):
+        """Standard format for extractor logs regarding progress."""
+        self.logger.info("[%s] %s - %s" % (resource['id'], resource['name'], msg))
+
+
+    def log_error(self, resource, msg):
+        """Standard format for extractor logs regarding errors/failures."""
+        self.logger.error("[%s] %s - %s" % (resource['id'], resource['name'], msg))
+
+
+    def log_skip(self, resource, msg):
+        """Standard format for extractor logs regarding skipped extractions."""
+        self.logger.info("[%s] %s - SKIP: %s" % (resource['id'], resource['name'], msg))
 
 
 # BASIC UTILS -------------------------------------
