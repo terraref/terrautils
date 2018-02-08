@@ -1,3 +1,4 @@
+cfunits==1.5.1
 influxdb==4.1.0
 matplotlib==1.5.1
 netCDF4==1.2.4
