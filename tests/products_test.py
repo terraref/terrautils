@@ -1,5 +1,5 @@
 import os
-from terrautils.files import *
+from terrautils.products import *
 
 HOST = os.environ.get('CLOWDER_URL')
 KEY = os.environ.get('CLOWDER_KEY')
