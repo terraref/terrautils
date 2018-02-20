@@ -86,9 +86,12 @@ def get_sensor(connection, host, key, sensor, sitename=''):
     # if sitename is given, look up id and append to sensor name
     if sitename:
         s = get_sensor_by_name(None, host, key, sitename)
-        plotid = s['id']
-        if not sensor.endswith(')'):
-            sensor += ' ({})'.format(plotid)
+        if s:
+            plotid = s['id']
+            if not sensor.endswith(')'):
+                sensor += ' ({})'.format(plotid)
+        else:
+            return None
 
     log.debug('full sensor name = %s', sensor)
     
@@ -149,25 +152,31 @@ def get_file_listing(connection, host, key, sensor, sitename,
     until -- ending time (optional)
     """
 
-    r = get_sensor(connection, host, key, sensor, sitename)
-    stream_id = r[0]['id']
-
-    url = '%sapi/geostreams/datapoints' % host
-    params = { 'key': key, 'stream_id': stream_id }
-    if since:
-        params['since'] = since
-    if until:
-        params['until'] = until
-
-    r = requests.get(url, params=params)
-    r.raise_for_status()
-    datasets = [ds['properties']['source_dataset'] for ds in r.json()]
-
     files = []
-    for ds in datasets:
-        flist = get_files(connection, host, key, ds)
-        if flist:
-            files.extend(flist)
+
+    r = get_sensor(connection, host, key, sensor, sitename)
+    if r:
+        stream_id = r[0]['id']
+
+        url = '%sapi/geostreams/datapoints' % host
+        params = { 'key': key, 'stream_id': stream_id }
+        if since:
+            params['since'] = since
+        if until:
+            params['until'] = until
+
+        r = requests.get(url, params=params)
+        r.raise_for_status()
+        datasets = [ds['properties']['source_dataset'] for ds in r.json()]
+
+
+        for ds in datasets:
+            flist = get_files(connection, host, key, ds)
+            if flist:
+                files.extend(flist)
+    else:
+        log.info("No files found for %s" % sensor+" - "+sitename)
+
     return files
 
 
