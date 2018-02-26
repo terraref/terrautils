@@ -64,7 +64,7 @@ Python library for TERRA-REF specific modules and methods, e.g. those shared by 
 * geom\_from\_metadata() -- Parse location elements from metadata.
 * \_get\_bounding\_box\_with\_formula() -- Convert scannerbox center position & sensor field-of-view to actual bounding box.
 
-**files.py**
+**products.py**
 * get\_sensor\_list -- Returns a list of sensors from the geostream database.
 * unique\_sensor\_names -- Returns a unique set of sensors by removing plot id.
 * get\_sensor -- Returns a stream dictionary given sensor and sitename (optional).
