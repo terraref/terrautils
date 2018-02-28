@@ -7,7 +7,7 @@ import os
 import re
 import datetime
 
-from terrautils.betydb import get_experiments
+from terraref.terrautils.betydb import get_experiments
 
 # 2017
 year_p = '(20\d\d)'

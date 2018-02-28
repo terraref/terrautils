@@ -12,8 +12,8 @@ from urllib3.filepost import encode_multipart_formdata
 import logstash
 
 from pyclowder.extractors import Extractor
-from terrautils.influx import Influx, add_arguments as add_influx_arguments
-from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
+from terraref.terrautils.influx import Influx, add_arguments as add_influx_arguments
+from terraref.terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
 
 logging.basicConfig(format='%(asctime)s %(message)s')
