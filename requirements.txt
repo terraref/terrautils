@@ -8,3 +8,6 @@ python-dateutil==2.5.1
 scipy==0.17.1
 utm==0.4.1
 python-logstash==0.4.6
+enum34==1.1.6
+PyYAML==3.12
+git+https://opensource.ncsa.illinois.edu/bitbucket/scm/cats/pyclowder2.git#egg=pyclowder-2.0.0
