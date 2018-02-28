@@ -150,7 +150,7 @@ def create_datapoints(connector, host, key, streamid, datapoint_list):
 
 
 def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlon, starttime, endtime,
-                                       metadata={}, filter_date='', geom=None):
+                                       metadata={}, filter_date='', geom=None, plot_name=None):
     """Create a new datapoint in Geostreams. Will create sensor and stream as necessary.
 
     Keyword arguments:
@@ -162,25 +162,39 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
     starttime -- start time, in format 2017-01-25T09:33:02-06:00
     endtime -- end time, in format 2017-01-25T09:33:02-06:00
     metadata -- JSON object with any desired properties
+    filter_date -- date used to restrict number of sites returned from BETYdb
+    geom -- geometry for datapoint (use plot if not provided)
+    plot_name -- name of plot to map datapoint into if possible, otherwise query BETY
     """
 
     # SENSOR is the plot
-    sitelist = get_sites_by_latlon(latlon, filter_date)
     matched_sites = {}
-    for s in sitelist:
-        plot_name = s['sitename']
-        plot_geom = json.loads(wkt_to_geojson(s['geometry']))
-
-        # Get existing sensor with this plot name from geostreams, or create if it doesn't exist
+    if plot_name:
+        # If provided a plot name, see if the sensor exists before going into more expensive logic
         sensor_data = get_sensor_by_name(connector, host, key, plot_name)
-        if not sensor_data:
-            sensor_id = create_sensor(connector, host, key, plot_name, plot_geom,
-                                      {"id": "MAC Field Scanner", "title": "MAC Field Scanner", "sensorType": 4},
-                                      "Maricopa")
-            matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
-        else:
-            sensor_id = sensor_data['id']
-            matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
+        if sensor_data:
+            matched_sites[sensor_data['id']] = {
+                "name": plot_name,
+                "geom": json.loads(wkt_to_geojson(sensor_data['geometry']))
+            }
+
+    if matched_sites == {}:
+        # If we don't have existing sensor to use quickly, we must query geographically
+        sitelist = get_sites_by_latlon(latlon, filter_date)
+        for s in sitelist:
+            plot_name = s['sitename']
+            plot_geom = json.loads(wkt_to_geojson(s['geometry']))
+
+            # Get existing sensor with this plot name from geostreams, or create if it doesn't exist
+            sensor_data = get_sensor_by_name(connector, host, key, plot_name)
+            if not sensor_data:
+                sensor_id = create_sensor(connector, host, key, plot_name, plot_geom,
+                                          {"id": "MAC Field Scanner", "title": "MAC Field Scanner", "sensorType": 4},
+                                          "Maricopa")
+                matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
+            else:
+                sensor_id = sensor_data['id']
+                matched_sites[sensor_id] = {"name": plot_name, "geom": plot_geom}
 
     for sensor_id in matched_sites:
         plot_geom = matched_sites[sensor_id]["geom"]
