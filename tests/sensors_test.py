@@ -1,6 +1,6 @@
 import os
 import pytest
-from terrautils.sensors import Sensors
+from terraref.terrautils.sensors import Sensors
 
 TERRAREF_BASE='/projects/arpae/terraref/sites'
 TIMESTAMP = '2017-04-27__15-10-48-141'
