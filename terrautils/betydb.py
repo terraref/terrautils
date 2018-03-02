@@ -265,4 +265,5 @@ def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
     if resp.status_code in [200,201]:
         logging.info("Data successfully submitted to BETYdb.")
     else:
-        logging.error("Error submitting data to BETYdb: %s" % resp.status_code)
+        logging.error("Error submitting data to BETYdb: %s -- %s" % (resp.status_code, resp.reason))
+        resp.raise_for_status()

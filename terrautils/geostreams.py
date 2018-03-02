@@ -175,7 +175,7 @@ def create_datapoint_with_dependencies(connector, host, key, streamprefix, latlo
         if sensor_data:
             matched_sites[sensor_data['id']] = {
                 "name": plot_name,
-                "geom": json.loads(wkt_to_geojson(sensor_data['geometry']))
+                "geom": sensor_data['geometry']
             }
 
     if matched_sites == {}:
