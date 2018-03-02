@@ -174,6 +174,9 @@ STATIONS = {
         },
 
         'rgb_canopyCover': {
+            'template': '{base}/{station}/Level_1/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.csv',
             'bety_traits': {
                 'canopy_cover': 'canopy_cover'
             },
@@ -284,7 +287,10 @@ STATIONS = {
         'ir_meanTemp': {
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.tif'
+            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.csv',
+            'bety_traits': {
+                'surface_temperature': 'surface_temperature'
+            },
         }
     },
 }
