@@ -4,13 +4,10 @@ with TERRA-REF services and data. The primary intended users of the package
 are authors of data processing automation tools known as Clowder extractors
 but others working with TERRA-REF data may find it useful.
 
-Additional information about 
-
 Installation
--------
+------------
 
-The easiest way install terrautils is using pip and pulling from PyPI 
-using the follow command::
+The easiest way install terrautils is using pip and pulling from PyPI.::
 
     pip install terrautils
 
@@ -20,7 +17,7 @@ the repository from GitHub and install locally with following commands::
 
     git clone https://github.com/terraref/terrautils
     git checkout <branch>
-    pip install -r requirements.txt
+    cd terrautils
     pip install .
 
 Or you can install directly from GitHub with a single command::
@@ -28,8 +25,9 @@ Or you can install directly from GitHub with a single command::
     pip install https://github.com/terraref/terrautils/archive/<branch>.zip
 
 **Note:** the terrautils package is heavily dependent on the GDAL library 
-and tools.  Installing GDAL can most easily be accomplished at the 
+and tools. Installing GDAL can most easily be accomplished at the 
 operating system level using packages designed for your distribution.  If 
-you see errors about failing to import osgeo you need to make sure GDAL
-is installed correctly on your system.
+you see errors about failing to import osgeo you need to make ensure GDAL
+and its python wrappers are installed. Terrautils will work with both GDAL
+v1.11 and v2.2 so whichever is available for your system should be fine.
 
