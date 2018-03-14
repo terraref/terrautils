@@ -1,15 +1,6 @@
 terrautils
 ==========
 
-.. raw:: html
-
-   <!--NOTE!!!
-   after updating this readme, please also update readme.rst
-   e.g. using 
-        pandoc README.md readme.rst 
-   or https://pandoc.org/try
-   -->
-
 Python library for interfacing TERRA-REF science algorithms with the
 TERRA REF databases and workflow.
 
@@ -24,15 +15,12 @@ Installation
 
 The easiest way install terrautils is using pip and pulling from PyPI.::
 
-.. code:: sh
 
     pip install terrautils
 
 Because this system is still under rapid development, you may need a
 specific branch from the terrautils repository. You can either clone the
 repository from GitHub and install locally with following commands::
-
-.. code:: sh
 
     git clone https://github.com/terraref/terrautils
     git checkout <branch>
@@ -88,8 +76,7 @@ agronomic metadata database
 -  _search_for_key() – Check for presence of any key variants in
    metadata. Does basic capitalization check.
    
- **formats.py** utilities for converting numpy arrays into consistently
-formatted raster images and data products
+**formats.py** utilities for converting numpy arrays into consistently formatted raster images and data products
 
 -  create_geotiff() – Generate output GeoTIFF file given a numpy pixel
    array and GPS boundary.
