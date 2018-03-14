@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 def description():
-    with open('description.rst') as f:
+    with open('readme.rst') as f:
          return f.read()
 
 setup(name='terrautils',
