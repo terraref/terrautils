@@ -1,5 +1,10 @@
 # terrautils
-
+<!--NOTE!!!
+after updating this readme, please also update readme.rst
+e.g. using 
+     pandoc README.md readme.rst 
+or https://pandoc.org/try
+-->
 
 Python library for interfacing TERRA-REF science algorithms with the TERRA REF databases and workflow.
 
