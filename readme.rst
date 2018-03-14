@@ -1,3 +1,6 @@
+.. do not update this file
+   please update README.md and then generate readme.rst
+   
 terrautils
 ==========
 
