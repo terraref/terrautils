@@ -50,12 +50,14 @@ v1.11 and v2.2 so whichever is available for your system should be fine.
 ## Functions
 
 **betydb.py** functions for interacting with BETYdb, the trait and agronomic metadata database
+
 * get_sites() -- Gets list of stations from BETYdb, filtered by city or sitename prefix if provided.
 * submit_traits() -- Submit a CSV containing traits to the BETYdb API.
 * get_sitename_boundary() -- Retrieve the clip boundary dynamically from betyDB API given sitename
     and turns the obtained json data into a geojson polygon.
 
 **extractors.py** utilities for interacting with the TERRA REF pipeline
+
 * build_metadata() -- Construct extractor metadata object ready for submission to a Clowder file/dataset.
 * get_output_directory() -- Determine output directory path given root path and dataset name.
 * get_output_filename() -- Determine output filename given input information.
@@ -68,11 +70,13 @@ v1.11 and v2.2 so whichever is available for your system should be fine.
 * _search_for_key() -- Check for presence of any key variants in metadata. Does basic capitalization check.
 
 **formats.py** utilities for converting numpy arrays into consistently formatted raster images and data products 
+
 * create_geotiff() -- Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 * create_netcdf() -- Generate output netCDF file given an input numpy pixel array.
 * create_image() -- Generate output JPG/PNG file given an input numpy pixel array.
 
 **gdal.py** gis utilities for raster datasets
+
 * array_to_image() -- Converts a gdalnumeric array to a Python Imaging Library (PIL) Image.
 * image_to_array() -- Converts a Python Imaging Library (PIL) array to a gdalnumeric image.
 * world_to_pixel(geo_matrix, x, y) -- Uses a gdal geomatrix (gdal.GetGeoTransform()) to calculate the 
@@ -82,6 +86,7 @@ v1.11 and v2.2 so whichever is available for your system should be fine.
 * get_raster_extents(fname) -- Calculates the extent and the center of the given raster.
 
 **metadata.py** utilities for querying and processing sensor and image metadata 
+
 * clean_metadata() -- Returns a standarized metadata object.
 * get_terraref_metadata() -- Combines cleaned metadata with fixed metadata.
 * get_extractor_metadata() -- Returns Clowder extractor metadata.
@@ -89,6 +94,7 @@ v1.11 and v2.2 so whichever is available for your system should be fine.
 * calculate_scan_time() -- 
 
 **sensors.py**
+
 * get_sensors(station) -- Get all sensors for a given station.
 * get_sensor_filename(station, sensor, date, mode="full") -- Gets the filename for the image for the 
     given date, sensor and station from the database. If the mode is full, choose the full resolution 
@@ -106,6 +112,7 @@ v1.11 and v2.2 so whichever is available for your system should be fine.
     create a unqiue attachment name.
 
 **spatial.py** gis helper functions
+
 * calculate_bounding_box() -- Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
 * calculate_centroid() -- Given a set of GPS boundaries, return lat/lon of centroid.
 * calculate_gps_bounds() -- Extract bounding box geometry, depending on sensor type.
@@ -113,6 +120,7 @@ v1.11 and v2.2 so whichever is available for your system should be fine.
 * _get_bounding_box_with_formula() -- Convert scannerbox center position & sensor field-of-view to actual bounding box.
 
 **products.py** utilities for listing sensors, data products, and file paths
+
 * get_sensor_list -- Returns a list of sensors from the geostream database.
 * unique_sensor_names -- Returns a unique set of sensors by removing plot id.
 * get_sensor -- Returns a stream dictionary given sensor and sitename (optional).
