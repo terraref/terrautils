@@ -225,7 +225,7 @@ def geojson_to_tuples_betydb(bounding_box):
     min_x, min_y, max_x, max_y  = None, None, None, None
 
     if isinstance(bounding_box, dict):
-        bounding_box = geojs["coordinates"]
+        bounding_box = bounding_box["coordinates"]
 
     for coord in bounding_box[0][0]:
         if not min_x or coord[0] < min_x:
