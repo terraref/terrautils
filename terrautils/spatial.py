@@ -218,6 +218,28 @@ def geojson_to_tuples(bounding_box):
     return (lat_min, lat_max, long_min, long_max)
 
 
+def geojson_to_tuples_betydb(bounding_box):
+    """Convert GeoJSON from BETYdb to
+        ( lat (y) min, lat (y) max,
+          long (x) min, long (x) max) for geotiff creation"""
+    min_x, min_y, max_x, max_y  = None, None, None, None
+
+    if isinstance(bounding_box, dict):
+        bounding_box = geojs["coordinates"]
+
+    for coord in bounding_box[0][0]:
+        if not min_x or coord[0] < min_x:
+            min_x = coord[0]
+        if not max_x or coord[0] > max_x:
+            max_x = coord[0]
+        if not min_y or coord[1] < min_y:
+            min_y = coord[1]
+        if not max_y or coord[1] > max_y:
+            max_y = coord[1]
+
+    return (min_y, max_y, min_x, max_x)
+
+
 def scanalyzer_to_mac(scan_x, scan_y):
     # TODO: Hard-coded
     # Linear transformation coefficients
