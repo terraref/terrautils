@@ -104,44 +104,6 @@ def get_sensor_fixed_metadata(station, sensor_id, host='', key=''):
             return sub_metadata['content']
 
 
-def get_image_shape(metadata, side):
-    """Extract height/width information from metadata JSON.
-
-    Arguments:
-      metadata (dict): cleaned metadata
-      side (string): 'right' or 'left'
-
-    Throws:
-      RuntimeError: the image format is not 'BayerGR8'
-      KeyError: metadata is missing necessary fields
-      ValueError: when width and height string can't be cast to int
-
-    Returns:
-      (tuple of ints): width and height as tuple
-    """
-
-    try:
-        im_meta = metadata['sensor_variable_metadata']
-        fmt = im_meta['image_format'][side]
-        if fmt != 'BayerGR8':
-            log.error('Unknown image format %s' % fmt)
-            raise RuntimeError('Unknown image format', fmt)
-        width = im_meta['width_image_pixels'][side]
-        height = im_meta['height_image_pixels'][side]
-    except KeyError as err:
-        log.error('Metadata file missing key: %s (has it been cleaned using terrautils.metadata.clean_metadata()?)' % err.args[0])
-        raise
-
-    try:
-        width = int(width)
-        height = int(height)
-    except ValueError as err:
-        log.error('Corrupt image dimension in metadata file')
-        raise
-
-    return (width, height)
-
-
 if __name__ == "__main__":
     # TODO: Either formalize these tests a bit or remove
     sensorId="stereoTop"
