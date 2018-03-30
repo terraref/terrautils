@@ -400,7 +400,10 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
             script_name = match.group(1).lower()
             script_name = re.sub(" ", "_", script_name)
             properties['script_name'] = script_name
-            properties['fullfield_eligible'] = scan_program["fullfield_eligible"]
+            if isinstance(scan_program, list):
+                properties['fullfield_eligible'] = scan_program["fullfield_eligible"]
+            else:
+                properties['fullfield_eligible'] = "True"
 
         
     # Limit output to the following fields for now
