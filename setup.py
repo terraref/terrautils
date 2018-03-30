@@ -4,9 +4,10 @@ def description():
     with open('readme.rst') as f:
          return f.read()
 
-setup(name='terrautils',
+setup(name='terraref-terrautils',
       packages=find_packages(),
-      version='1.1.0',
+      namespace_packages=['terraref'],
+      version='1.1.2',
       description='TERRA-REF workflow utilities',
       long_description=description(),
       author='Max Burnette',

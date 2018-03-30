@@ -1,1 +1,1 @@
-include terrautils/data/*.csv description.rst README.md
+include terrautils/data/*.csv readme.rst README.md

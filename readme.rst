@@ -16,7 +16,7 @@ Installation
 The easiest way install terrautils is using pip and pulling from PyPI.::
 
 
-    pip install terrautils
+    pip install terraref-terrautils
 
 Because this system is still under rapid development, you may need a
 specific branch from the terrautils repository. You can either clone the
