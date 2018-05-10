@@ -154,9 +154,14 @@ def get_file_listing(connection, host, key, sensor, sitename,
 
     files = []
 
-    r = get_sensor(connection, host, key, sensor, sitename)
-    if r and len(r) > 0:
-        stream_id = r[0]['id']
+    sens = get_sensor(connection, host, key, sensor, sitename)
+    if sens:
+        if 'status' in sens and sens['status'] == 'No data found':
+            log.info("No sensor found for %s" % sensor+" - "+sitename)
+            return []
+
+
+        stream_id = sens[0]['id']
 
         url = '%sapi/geostreams/datapoints' % host
         params = { 'key': key, 'stream_id': stream_id }
@@ -170,7 +175,6 @@ def get_file_listing(connection, host, key, sensor, sitename,
 
         if len(r.json()) > 0:
             datasets = [ds['properties']['source_dataset'] for ds in r.json()]
-
 
             for ds in datasets:
                 flist = get_files(connection, host, key, ds)
