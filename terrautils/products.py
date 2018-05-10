@@ -155,7 +155,7 @@ def get_file_listing(connection, host, key, sensor, sitename,
     files = []
 
     r = get_sensor(connection, host, key, sensor, sitename)
-    if r:
+    if r and len(r) > 0:
         stream_id = r[0]['id']
 
         url = '%sapi/geostreams/datapoints' % host
@@ -167,15 +167,19 @@ def get_file_listing(connection, host, key, sensor, sitename,
 
         r = requests.get(url, params=params)
         r.raise_for_status()
-        datasets = [ds['properties']['source_dataset'] for ds in r.json()]
+
+        if len(r.json()) > 0:
+            datasets = [ds['properties']['source_dataset'] for ds in r.json()]
 
 
-        for ds in datasets:
-            flist = get_files(connection, host, key, ds)
-            if flist:
-                files.extend(flist)
+            for ds in datasets:
+                flist = get_files(connection, host, key, ds)
+                if flist:
+                    files.extend(flist)
+        else:
+            log.info("No datasets found for %s" % sensor+" - "+sitename)
     else:
-        log.info("No files found for %s" % sensor+" - "+sitename)
+        log.info("No sensor found for %s" % sensor+" - "+sitename)
 
     return files
 
