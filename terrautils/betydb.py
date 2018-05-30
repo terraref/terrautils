@@ -16,7 +16,7 @@ BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 
 def add_arguments(parser):
     parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
-                        default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
+                        default="https://terraref.ncsa.illinois.edu/bety/api/v1/traits.csv",
                         help="traits API endpoint of BETY instance that outputs should be posted to")
 
     parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?',
@@ -55,7 +55,7 @@ def get_bety_url(path=''):
 def get_bety_api(endpoint=None):
     """return betydb API based on betydb url"""
 
-    url = get_bety_url(path='api/beta/{}'.format(endpoint))
+    url = get_bety_url(path='api/v1/{}'.format(endpoint))
     return url
 
 
