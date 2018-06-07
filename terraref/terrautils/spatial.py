@@ -247,7 +247,7 @@ def scanalyzer_to_mac(scan_x, scan_y):
     ax = 409012.2032; bx = 0.009; cx = - 0.9986;
 
     mac_x = ax + (bx * scan_x) + (cx * scan_y)
-    mac_y =  ay + (by * scan_x) + (cy * scan_y)
+    mac_y = ay + (by * scan_x) + (cy * scan_y)
 
     return mac_x, mac_y
 

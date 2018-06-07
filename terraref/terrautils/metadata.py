@@ -15,8 +15,9 @@ def clean_metadata(json, sensorId):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
     """
+    cleaned = clean_json_keys(json)
     if 'lemnatec_measurement_metadata' in json.keys():
-        cleaned = lemnatec.clean(json, sensorId)
+        cleaned = lemnatec.clean(cleaned, sensorId)
     else:
         return None
 
@@ -24,6 +25,19 @@ def clean_metadata(json, sensorId):
         cleaned["terraref_cleaned_metadata"] = True
     return cleaned
 
+
+def clean_json_keys(jsonobj):
+    """If metadata keys have periods in them, Clowder will reject the metadata.
+    """
+    clean_json = {}
+    for key in jsonobj.keys():
+        try:
+            jsonobj[key].keys() # Is this a json object?
+            clean_json[key.replace(".","_")] = clean_json_keys(jsonobj[key])
+        except:
+            clean_json[key.replace(".","_")] = jsonobj[key]
+
+    return clean_json
 
 def calculate_scan_time(metadata):
     """Parse scan time from metadata.
