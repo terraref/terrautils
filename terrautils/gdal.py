@@ -67,6 +67,8 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     Notes: Oddly, the "features path" can be either a filename
       OR a geojson string. GDAL seems to figure it out and do
       the right thing.
+
+      From http://karthur.org/2015/clipping-rasters-in-python.html
     """
 
     rast = gdal.Open(rast_path)
@@ -74,6 +76,11 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     rast_xsize = band.XSize
     rast_ysize = band.YSize
     gt = rast.GetGeoTransform()
+
+    # Can accept either a gdal.Dataset or numpy.array instance
+    if not isinstance(rast, np.ndarray):
+        gt = rast.GetGeoTransform()
+        rast = rast.ReadAsArray()
 
     #Open Features and get all the necessary data for clipping
     #features = ogr.Open(open(features_path).read())
@@ -88,29 +95,27 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     minX, maxX, minY, maxY = lyr.GetExtent()
     ulX, ulY = world_to_pixel(gt, minX, maxY)
     lrX, lrY = world_to_pixel(gt, maxX, minY)
+
+    # Calculate the pixel size of the new image
     pxWidth = int(lrX - ulX)
     pxHeight = int(lrY - ulY)
-    if pxWidth < 0:
-        pxWidth = -pxWidth
-    if pxHeight < 0:
-        pxHeight = -pxHeight
 
-    # If the clipping features extend out-of-bounds and 
-    # ABOVE the raster...
-    # We don't want negative values
+    # If the clipping features extend out-of-bounds and ABOVE the raster...
     if gt[3] < maxY:
+        # We don't want negative values
         iY = ulY
         ulY = 0
 
-    # Ensure bounding box doesn't exceed the boundary of the geoTIFF
-    if ulX < 0: ulX = 0
-    if ulY < 0: ulY = 0
-    if ulX + pxWidth > rast_xsize:
-        pxWidth = rast_xsize - ulX
-    if ulY + pxHeight > rast_ysize:
-        pxHeight = rast_ysize - ulY
+    ## Multi-band image?
+    try:
+        clip = rast[:, ulY:lrY, ulX:lrX]
+    except IndexError:
+        clip = rast[ulY:lrY, ulX:lrX]
 
-    clip = rast.ReadAsArray(ulX, ulY, pxWidth, pxHeight)
+    # Create a new geomatrix for the image
+    gt2 = list(gt)
+    gt2[0] = minX
+    gt2[3] = maxY
 
     # Map points to pixels for drawing the boundary on a blank 8-bit,
     # black and white, mask image. The canvas has the size of 
@@ -119,27 +124,32 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     # filled 0.
 
     # We start from creating a new geomatrix for the image
-    gt2 = list(gt)
-    gt2[0] = minX
-    gt2[3] = maxY
+    points = []
     pixels = []
     geom = poly.GetGeometryRef()
     pts = geom.GetGeometryRef(0)
     while pts.GetPointCount() == 0:
         pts = pts.GetGeometryRef(0)
     for p in range(pts.GetPointCount()):
-        pixels.append(world_to_pixel(gt2, pts.GetX(p), pts.GetY(p)))
+        points.append((pts.GetX(p), pts.GetY(p)))
+    for p in points:
+        pixels.append(world_to_pixel(gt2, p[0], p[1]))
 
     raster_poly = Image.new('L', (pxWidth, pxHeight), 1)
     rasterize = ImageDraw.Draw(raster_poly)
     rasterize.polygon(pixels, 0) # Fill with zeroes
 
+    # If the clipping features extend out-of-bounds and ABOVE the raster...
     if gt[3] < maxY:
+        # The clip features were "pushed down" to match the bounds of the
+        #   raster; this step "pulls" them back up
         premask = image_to_array(raster_poly)
-        mask = np.ndarray((premask.shape[-2] - abs(iY), 
-                premask.shape[-1]), premask.dtype)
+        # We slice out the piece of our clip features that are "off the map"
+        mask = np.ndarray((premask.shape[-2] - abs(iY), premask.shape[-1]), premask.dtype)
         mask[:] = premask[abs(iY):, :]
         mask.resize(premask.shape) # Then fill in from the bottom
+
+        # Most importantly, push the clipped piece down
         gt2[3] = maxY - (maxY - gt[3])
     else:
         mask = image_to_array(raster_poly)
@@ -149,8 +159,7 @@ def clip_raster(rast_path, features_path, nodata=-9999):
     try:
         clip = gdalnumeric.choose(mask, (clip, nodata))
 
-    # If the clipping features extend out-of-bounds and 
-    # BELOW the raster...
+    # If the clipping features extend out-of-bounds and BELOW the raster...
     except ValueError:
         # We have to cut the clipping features to the raster!
         rshp = list(mask.shape)
@@ -163,9 +172,10 @@ def clip_raster(rast_path, features_path, nodata=-9999):
         mask.resize(*rshp, refcheck=False)
         clip = gdalnumeric.choose(mask, (clip, nodata))
 
-    # TODO: I think this is provided above as gt2
-    # newGT = pixel_to_world(gt, ulX, ulY)
-    return clip, gt2
+    gt3 = pixel_to_world(gt, lrX, lrY)
+    clipped_bounds = (gt3[3], gt[3], gt[0], gt3[0])
+
+    return clip, clipped_bounds
 
 
 def get_raster_extents(fname):
