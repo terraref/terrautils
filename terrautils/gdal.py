@@ -8,6 +8,7 @@ import numpy as np
 import rasterio
 from rasterio.mask import mask
 
+# TODO: Can we just merge this whole module into spatial.py?
 
 def clip_raster(rast_path, geojson, out_path=None, nodata=-9999):
     """Clip raster to polygon.
