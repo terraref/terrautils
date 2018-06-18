@@ -134,4 +134,5 @@ def create_image(pixels, out_path, scaled=False):
     else:
         # e.g. PSII
         # TODO: Can we make these use same library?
+        # TODO: plt.imsave(out_path, pixels)
         Image.fromarray(pixels).save(out_path)
