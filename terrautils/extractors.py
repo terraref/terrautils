@@ -4,12 +4,12 @@ This module provides useful reference methods for extractors.
 """
 
 import datetime
+import time
 import logging
 import json
 import os
 import requests
 from urllib3.filepost import encode_multipart_formdata
-import logstash
 
 from pyclowder.extractors import Extractor
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
@@ -199,6 +199,24 @@ def load_json_file(filepath):
     except:
         logging.error('could not load .json file %s' % filepath)
         return None
+
+
+def file_exists(filepath, max_age_mins=3):
+    """Return True if a file already exists on disk.
+
+    If the file is zero bytes in size, return False if the file is more than
+    max_age minutes old.
+    """
+
+    if os.path.exists(filepath):
+        if os.path.getsize(filepath) > 0:
+            return True
+        else:
+            age_seconds = time.time() - os.path.getmtime(filepath)
+            return age_seconds < (max_age_mins*60)
+    else:
+        return False
+
 
 
 # CLOWDER UTILS -------------------------------------
