@@ -8,10 +8,17 @@ import logging
 from datetime import datetime
 
 import requests
+import json
 from osgeo import ogr
 
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
+BETYDB_FOLDER = '/Users/helium/Desktop/betydb_folder/'
+BETYDB_EXPERIMENTS_FILE = BETYDB_FOLDER + 'betydb_experiments.txt'
+BETYDB_TRAITS_FILE = BETYDB_FOLDER + 'betydb_traits.txt'
+BETYDB_CULTIVARS_FILE = BETYDB_FOLDER + 'betydb_cultivars.txt'
+BETYDB_SITE_FILE = BETYDB_FOLDER + 'betydb_sites.txt'
+BETYDB_SITE_FOLDER = BETYDB_FOLDER + 'sites/'
 
 
 def add_arguments(parser):
@@ -85,17 +92,33 @@ def search(**kwargs):
 def get_cultivars(**kwargs):
     """Return cleaned up array from query() for the cultivars table."""
 
-    query_data = query(endpoint="cultivars", **kwargs)
-    if query_data:
-        return [t["cultivar"] for t in query_data['data']]
+    if (os.path.exists(BETYDB_CULTIVARS_FILE)):
+        with open(BETYDB_CULTIVARS_FILE) as infile:
+            query_data = json.load(infile)
+            if query_data:
+                return [t["cultivar"] for t in query_data['data']]
+    else:
+        query_data = query(endpoint="cultivars", **kwargs)
+        with open(BETYDB_CULTIVARS_FILE, 'w') as outfile:
+            json.dump(query_data, outfile)
+        if query_data:
+            return [t["cultivar"] for t in query_data['data']]
 
 
 def get_experiments(**kwargs):
     """Return cleaned up array from query() for the experiments table."""
 
-    query_data = query(endpoint="experiments", **kwargs)
-    if query_data:
-        return [t["experiment"] for t in query_data['data']]
+    if (os.path.exists(BETYDB_EXPERIMENTS_FILE)):
+        with open(BETYDB_EXPERIMENTS_FILE) as infile:
+            query_data = json.load(infile)
+            if query_data:
+                return [t["experiment"] for t in query_data['data']]
+    else:
+        query_data = query(endpoint="experiments", **kwargs)
+        with open(BETYDB_EXPERIMENTS_FILE, 'w') as outfile:
+            json.dump(query_data, outfile)
+        if query_data:
+            return [t["experiment"] for t in query_data['data']]
 
 
 def get_trait(trait_id):
@@ -108,9 +131,17 @@ def get_trait(trait_id):
 def get_traits(**kwargs):
     """Return cleaned up array from query() for the traits table."""
 
-    query_data = query(endpoint="traits", **kwargs)
-    if query_data:
-        return [t["trait"] for t in query_data['data']]
+    if (os.path.exists(BETYDB_TRAITS_FILE)):
+        with open(BETYDB_TRAITS_FILE) as infile:
+            query_data = json.load(infile)
+            if query_data:
+                return [t["trait"] for t in query_data['data']]
+    else:
+        query_data = query(endpoint="traits", **kwargs)
+        with open(BETYDB_TRAITS_FILE, 'w') as outfile:
+            json.dump(query_data, outfile)
+        if query_data:
+            return [t["trait"] for t in query_data['data']]
 
 
 def get_site(site_id):
@@ -118,6 +149,37 @@ def get_site(site_id):
     query_data = get_sites(id=site_id)
     if query_data:
         return query_data[0]
+
+
+def get_sites_using_experiments_file(filter_date='', **kwargs):
+    current_sites = list()
+    if not filter_date:
+        experiments = get_experiments(associations_mode='full_info', limit='none')
+        if 'city' in kwargs:
+            for experiment in experiments:
+                experiment_sites = experiment['sites']
+                for experiment_site in experiment_sites:
+                    current_site = experiment_site['site']
+                    if 'city' in current_site:
+                        if current_site['city'] == kwargs['city']:
+                            if current_site not in current_sites:
+                                current_sites.append(current_site)
+    else:
+        targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
+        experiments = get_experiments(associations_mode='full_info', limit='none')
+        for exp in experiments:
+            start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+            end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+            if start <= targ_date <= end:
+                if 'city'in kwargs:
+                    experiment_sites = exp['sites']
+                    for experiment_site in experiment_sites:
+                        current_site = experiment_site['site']
+                        if 'city' in current_site:
+                            if current_site['city'] == kwargs['city']:
+                                if current_site not in current_sites:
+                                    current_sites.append(current_site)
+    return current_sites
 
 
 def get_sites(filter_date='', include_halves=False, **kwargs):
