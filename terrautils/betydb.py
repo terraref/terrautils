@@ -185,6 +185,21 @@ def get_sites_using_experiments_file(filter_date='', **kwargs):
                             if current_site['city'] == kwargs['city']:
                                 if current_site not in current_sites:
                                     current_sites.append(current_site)
+        if (len(current_sites) == 0):
+            refresh_cached_experiments()
+            experiments = get_experiments(associations_mode='full_info', limit='none')
+            for exp in experiments:
+                start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                if start <= targ_date <= end:
+                    if 'city' in kwargs:
+                        experiment_sites = exp['sites']
+                        for experiment_site in experiment_sites:
+                            current_site = experiment_site['site']
+                            if 'city' in current_site:
+                                if current_site['city'] == kwargs['city']:
+                                    if current_site not in current_sites:
+                                        current_sites.append(current_site)
     return current_sites
 
 
