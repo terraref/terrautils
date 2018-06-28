@@ -95,7 +95,7 @@ def search(**kwargs):
 
 def get_cultivars(**kwargs):
     """Return cleaned up array from query() for the cultivars table."""
-
+    global BETYDB_CULTIVARS
     if BETYDB_CULTIVARS is None:
         query_data = query(endpoint="cultivars", **kwargs)
         BETYDB_CULTIVARS = query_data
@@ -121,6 +121,7 @@ def get_cultivars(**kwargs):
 
 def get_experiments(**kwargs):
     """Return cleaned up array from query() for the experiments table."""
+    global BETYDB_EXPERIMENTS
     if BETYDB_EXPERIMENTS is None:
         query_data = query(endpoint="experiments", **kwargs)
         BETYDB_EXPERIMENTS = query_data
@@ -156,6 +157,7 @@ def get_trait(trait_id):
 
 def get_traits(**kwargs):
     """Return cleaned up array from query() for the traits table."""
+    global BETYDB_TRAITS
     if BETYDB_TRAITS is None:
         query_data = query(endpoint="traits", **kwargs)
         BETYDB_TRAITS = query_data
