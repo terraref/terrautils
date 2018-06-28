@@ -20,6 +20,10 @@ BETYDB_CULTIVARS_FILE = BETYDB_FOLDER + 'betydb_cultivars.txt'
 BETYDB_SITE_FILE = BETYDB_FOLDER + 'betydb_sites.txt'
 BETYDB_SITE_FOLDER = BETYDB_FOLDER + 'sites/'
 
+BETYDB_CULTIVARS  = None
+BETYDB_TRAITS = None
+BETYDB_EXPERIMENTS = None
+
 
 def add_arguments(parser):
     parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
@@ -92,33 +96,49 @@ def search(**kwargs):
 def get_cultivars(**kwargs):
     """Return cleaned up array from query() for the cultivars table."""
 
-    if (os.path.exists(BETYDB_CULTIVARS_FILE)):
-        with open(BETYDB_CULTIVARS_FILE) as infile:
-            query_data = json.load(infile)
-            if query_data:
-                return [t["cultivar"] for t in query_data['data']]
-    else:
+    if BETYDB_CULTIVARS is None:
         query_data = query(endpoint="cultivars", **kwargs)
-        with open(BETYDB_CULTIVARS_FILE, 'w') as outfile:
-            json.dump(query_data, outfile)
+        BETYDB_CULTIVARS = query_data
         if query_data:
             return [t["cultivar"] for t in query_data['data']]
+    else:
+        query_data = BETYDB_CULTIVARS
+        if query_data:
+            return [t["cultivar"] for t in query_data['data']]
+    #
+    # if (os.path.exists(BETYDB_CULTIVARS_FILE)):
+    #     with open(BETYDB_CULTIVARS_FILE) as infile:
+    #         query_data = json.load(infile)
+    #         if query_data:
+    #             return [t["cultivar"] for t in query_data['data']]
+    # else:
+    #     query_data = query(endpoint="cultivars", **kwargs)
+    #     with open(BETYDB_CULTIVARS_FILE, 'w') as outfile:
+    #         json.dump(query_data, outfile)
+    #     if query_data:
+    #         return [t["cultivar"] for t in query_data['data']]
 
 
 def get_experiments(**kwargs):
     """Return cleaned up array from query() for the experiments table."""
-
-    if (os.path.exists(BETYDB_EXPERIMENTS_FILE)):
-        with open(BETYDB_EXPERIMENTS_FILE) as infile:
-            query_data = json.load(infile)
-            if query_data:
-                return [t["experiment"] for t in query_data['data']]
-    else:
+    if BETYDB_EXPERIMENTS is None:
         query_data = query(endpoint="experiments", **kwargs)
-        with open(BETYDB_EXPERIMENTS_FILE, 'w') as outfile:
-            json.dump(query_data, outfile)
+        BETYDB_EXPERIMENTS = query_data
+    else:
+        query_data = BETYDB_EXPERIMENTS
         if query_data:
             return [t["experiment"] for t in query_data['data']]
+    # if (os.path.exists(BETYDB_EXPERIMENTS_FILE)):
+    #     with open(BETYDB_EXPERIMENTS_FILE) as infile:
+    #         query_data = json.load(infile)
+    #         if query_data:
+    #             return [t["experiment"] for t in query_data['data']]
+    # else:
+    #     query_data = query(endpoint="experiments", **kwargs)
+    #     with open(BETYDB_EXPERIMENTS_FILE, 'w') as outfile:
+    #         json.dump(query_data, outfile)
+    #     if query_data:
+    #         return [t["experiment"] for t in query_data['data']]
 
 
 def refresh_cached_experiments():
@@ -136,18 +156,27 @@ def get_trait(trait_id):
 
 def get_traits(**kwargs):
     """Return cleaned up array from query() for the traits table."""
-
-    if (os.path.exists(BETYDB_TRAITS_FILE)):
-        with open(BETYDB_TRAITS_FILE) as infile:
-            query_data = json.load(infile)
-            if query_data:
-                return [t["trait"] for t in query_data['data']]
-    else:
+    if BETYDB_TRAITS is None:
         query_data = query(endpoint="traits", **kwargs)
-        with open(BETYDB_TRAITS_FILE, 'w') as outfile:
-            json.dump(query_data, outfile)
+        BETYDB_TRAITS = query_data
         if query_data:
             return [t["trait"] for t in query_data['data']]
+    else:
+        query_data = BETYDB_TRAITS
+        if query_data:
+            return [t["trait"] for t in query_data['data']]
+    #
+    # if (os.path.exists(BETYDB_TRAITS_FILE)):
+    #     with open(BETYDB_TRAITS_FILE) as infile:
+    #         query_data = json.load(infile)
+    #         if query_data:
+    #             return [t["trait"] for t in query_data['data']]
+    # else:
+    #     query_data = query(endpoint="traits", **kwargs)
+    #     with open(BETYDB_TRAITS_FILE, 'w') as outfile:
+    #         json.dump(query_data, outfile)
+    #     if query_data:
+    #         return [t["trait"] for t in query_data['data']]
 
 
 def get_site(site_id):
@@ -158,6 +187,7 @@ def get_site(site_id):
 
 
 def get_sites_using_experiments_file(filter_date='', **kwargs):
+
     current_sites = list()
     if not filter_date:
         experiments = get_experiments(associations_mode='full_info', limit='none')
@@ -185,21 +215,6 @@ def get_sites_using_experiments_file(filter_date='', **kwargs):
                             if current_site['city'] == kwargs['city']:
                                 if current_site not in current_sites:
                                     current_sites.append(current_site)
-        if (len(current_sites) == 0):
-            refresh_cached_experiments()
-            experiments = get_experiments(associations_mode='full_info', limit='none')
-            for exp in experiments:
-                start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
-                end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-                if start <= targ_date <= end:
-                    if 'city' in kwargs:
-                        experiment_sites = exp['sites']
-                        for experiment_site in experiment_sites:
-                            current_site = experiment_site['site']
-                            if 'city' in current_site:
-                                if current_site['city'] == kwargs['city']:
-                                    if current_site not in current_sites:
-                                        current_sites.append(current_site)
     return current_sites
 
 
