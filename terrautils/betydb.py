@@ -120,6 +120,10 @@ def get_experiments(**kwargs):
         if query_data:
             return [t["experiment"] for t in query_data['data']]
 
+def refresh_cached_experiments():
+    query_data = query(endpoint="experiments")
+    with open(BETYDB_EXPERIMENTS_FILE, 'w') as outfile:
+        json.dump(query_data, outfile)
 
 def get_trait(trait_id):
     """Returns python dictionary for a single trait."""
