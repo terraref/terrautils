@@ -121,7 +121,7 @@ def get_cultivars(**kwargs):
 
 def get_experiments(**kwargs):
     """Return cleaned up array from query() for the experiments table."""
-    global BETYDB_EXPERIMENTS
+    global BETYDB_EXPERIMENTS 
     if BETYDB_EXPERIMENTS is None:
         query_data = query(endpoint="experiments", **kwargs)
         BETYDB_EXPERIMENTS = query_data
