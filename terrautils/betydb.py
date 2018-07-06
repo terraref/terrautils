@@ -13,12 +13,7 @@ from osgeo import ogr
 
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
-BETYDB_FOLDER = '/Users/helium/Desktop/betydb_folder/'
-BETYDB_EXPERIMENTS_FILE = BETYDB_FOLDER + 'betydb_experiments.txt'
-BETYDB_TRAITS_FILE = BETYDB_FOLDER + 'betydb_traits.txt'
-BETYDB_CULTIVARS_FILE = BETYDB_FOLDER + 'betydb_cultivars.txt'
-BETYDB_SITE_FILE = BETYDB_FOLDER + 'betydb_sites.txt'
-BETYDB_SITE_FOLDER = BETYDB_FOLDER + 'sites/'
+BETYDB_LOCAL_CACHE_FOLDER = '/home/extractor/'
 
 BETYDB_CULTIVARS  = None
 BETYDB_TRAITS = None
@@ -94,58 +89,55 @@ def search(**kwargs):
 
 
 def get_cultivars(**kwargs):
-    """Return cleaned up array from query() for the cultivars table."""
+    """Return cleaned up array from query() for the cultivars table.
+        If global variable isn't populated, check if a local file is present and read from it if so.
+        This is for deployments where data is pre-fetched (e.g. for a Condor job).
+        Otherwise the BETY API will be called.
+        In either case, data will be kept in memory for subsequent calls.
+    """
     global BETYDB_CULTIVARS
+
     if BETYDB_CULTIVARS is None:
-        query_data = query(endpoint="cultivars", **kwargs)
-        BETYDB_CULTIVARS = query_data
-        if query_data:
-            return [t["cultivar"] for t in query_data['data']]
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_cultivars.json")
+        if (os.path.exists(cache_file)):
+            with open(cache_file) as infile:
+                query_data = json.load(infile)
+                if query_data:
+                    BETYDB_CULTIVARS = query_data
+                    return [t["cultivar"] for t in query_data['data']]
+        else:
+            query_data = query(endpoint="cultivars", **kwargs)
+            if query_data:
+                BETYDB_CULTIVARS = query_data
+                return [t["cultivar"] for t in query_data['data']]
     else:
-        query_data = BETYDB_CULTIVARS
-        if query_data:
-            return [t["cultivar"] for t in query_data['data']]
-    #
-    # if (os.path.exists(BETYDB_CULTIVARS_FILE)):
-    #     with open(BETYDB_CULTIVARS_FILE) as infile:
-    #         query_data = json.load(infile)
-    #         if query_data:
-    #             return [t["cultivar"] for t in query_data['data']]
-    # else:
-    #     query_data = query(endpoint="cultivars", **kwargs)
-    #     with open(BETYDB_CULTIVARS_FILE, 'w') as outfile:
-    #         json.dump(query_data, outfile)
-    #     if query_data:
-    #         return [t["cultivar"] for t in query_data['data']]
+        return [t["cultivar"] for t in BETYDB_CULTIVARS['data']]
 
 
 def get_experiments(**kwargs):
-    """Return cleaned up array from query() for the experiments table."""
+    """Return cleaned up array from query() for the experiments table.
+        If global variable isn't populated, check if a local file is present and read from it if so.
+        This is for deployments where data is pre-fetched (e.g. for a Condor job).
+        Otherwise the BETY API will be called.
+        In either case, data will be kept in memory for subsequent calls.
+    """
     global BETYDB_EXPERIMENTS
+
     if BETYDB_EXPERIMENTS is None:
-        query_data = query(endpoint="experiments", **kwargs)
-        BETYDB_EXPERIMENTS = query_data
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_experiments.json")
+        if (os.path.exists(cache_file)):
+            with open(cache_file) as infile:
+                query_data = json.load(infile)
+                if query_data:
+                    BETYDB_EXPERIMENTS = query_data
+                    return [t["experiment"] for t in query_data['data']]
+        else:
+            query_data = query(endpoint="experiments", **kwargs)
+            if query_data:
+                BETYDB_EXPERIMENTS = query_data
+                return [t["experiment"] for t in query_data['data']]
     else:
-        query_data = BETYDB_EXPERIMENTS
-        if query_data:
-            return [t["experiment"] for t in query_data['data']]
-    # if (os.path.exists(BETYDB_EXPERIMENTS_FILE)):
-    #     with open(BETYDB_EXPERIMENTS_FILE) as infile:
-    #         query_data = json.load(infile)
-    #         if query_data:
-    #             return [t["experiment"] for t in query_data['data']]
-    # else:
-    #     query_data = query(endpoint="experiments", **kwargs)
-    #     with open(BETYDB_EXPERIMENTS_FILE, 'w') as outfile:
-    #         json.dump(query_data, outfile)
-    #     if query_data:
-    #         return [t["experiment"] for t in query_data['data']]
-
-
-def refresh_cached_experiments():
-    query_data = query(endpoint="experiments")
-    with open(BETYDB_EXPERIMENTS_FILE, 'w') as outfile:
-        json.dump(query_data, outfile)
+        return [t["experiment"] for t in BETYDB_EXPERIMENTS['data']]
 
 
 def get_trait(trait_id):
@@ -156,29 +148,29 @@ def get_trait(trait_id):
 
 
 def get_traits(**kwargs):
-    """Return cleaned up array from query() for the traits table."""
+    """Return cleaned up array from query() for the traits table.
+        If global variable isn't populated, check if a local file is present and read from it if so.
+        This is for deployments where data is pre-fetched (e.g. for a Condor job).
+        Otherwise the BETY API will be called.
+        In either case, data will be kept in memory for subsequent calls.
+    """
     global BETYDB_TRAITS
+
     if BETYDB_TRAITS is None:
-        query_data = query(endpoint="traits", **kwargs)
-        BETYDB_TRAITS = query_data
-        if query_data:
-            return [t["trait"] for t in query_data['data']]
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_traits.json")
+        if (os.path.exists(cache_file)):
+            with open(cache_file) as infile:
+                query_data = json.load(infile)
+                if query_data:
+                    BETYDB_TRAITS = query_data
+                    return [t["trait"] for t in query_data['data']]
+        else:
+            query_data = query(endpoint="traits", **kwargs)
+            if query_data:
+                BETYDB_TRAITS = query_data
+                return [t["trait"] for t in query_data['data']]
     else:
-        query_data = BETYDB_TRAITS
-        if query_data:
-            return [t["trait"] for t in query_data['data']]
-    #
-    # if (os.path.exists(BETYDB_TRAITS_FILE)):
-    #     with open(BETYDB_TRAITS_FILE) as infile:
-    #         query_data = json.load(infile)
-    #         if query_data:
-    #             return [t["trait"] for t in query_data['data']]
-    # else:
-    #     query_data = query(endpoint="traits", **kwargs)
-    #     with open(BETYDB_TRAITS_FILE, 'w') as outfile:
-    #         json.dump(query_data, outfile)
-    #     if query_data:
-    #         return [t["trait"] for t in query_data['data']]
+        return [t["trait"] for t in BETYDB_TRAITS['data']]
 
 
 def get_site(site_id):
@@ -186,38 +178,6 @@ def get_site(site_id):
     query_data = get_sites(id=site_id)
     if query_data:
         return query_data[0]
-
-
-def get_sites_using_experiments_file(filter_date='', **kwargs):
-
-    current_sites = list()
-    if not filter_date:
-        experiments = get_experiments(associations_mode='full_info', limit='none')
-        if 'city' in kwargs:
-            for experiment in experiments:
-                experiment_sites = experiment['sites']
-                for experiment_site in experiment_sites:
-                    current_site = experiment_site['site']
-                    if 'city' in current_site:
-                        if current_site['city'] == kwargs['city']:
-                            if current_site not in current_sites:
-                                current_sites.append(current_site)
-    else:
-        targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
-        experiments = get_experiments(associations_mode='full_info', limit='none')
-        for exp in experiments:
-            start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
-            end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-            if start <= targ_date <= end:
-                if 'city'in kwargs:
-                    experiment_sites = exp['sites']
-                    for experiment_site in experiment_sites:
-                        current_site = experiment_site['site']
-                        if 'city' in current_site:
-                            if current_site['city'] == kwargs['city']:
-                                if current_site not in current_sites:
-                                    current_sites.append(current_site)
-    return current_sites
 
 
 def get_sites(filter_date='', include_halves=False, **kwargs):
