@@ -191,75 +191,47 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
       filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
-    """
-    SCENARIO I - NO FILTER DATE
-    Basic query, efficient even with 'containing' parameter.
-    """
     if not filter_date:
+        """ SCENARIO I - NO FILTER DATE
+        Basic query, efficient even with 'containing' parameter.
+        """
         query_data = query(endpoint="sites", limit='none', **kwargs)
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
         targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
-
-        if 'containing' not in kwargs:
-            """ SCENARIO II - YES FILTER DATE, NO LAT/LON
-            Get experiments by date and return all associated sites.
-            """
-            query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
-            if query_data:
-                results = []
-                for exp in query_data:
-                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
-                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-                    if start <= targ_date <= end:
-                        if 'sites' in exp:
-                            for t in exp['sites']:
-                                # TODO: Eventually find better solution for S4 half-plots
-                                if (not (exp['name'].find("Season 4") > -1 and
-                                            (t['site']["sitename"].endswith(" W") or
-                                                 t['site']["sitename"].endswith(" E")))) or include_halves:
-                                    if t['site'] not in results:
-                                        results.append(t['site'])
-                return results
-
-        else:
-            """ SCENARIO III - YES FILTER DATE, YES LAT/LON
-            We cannot filter sites returned in experiments query by 'containing'
-            parameter, so instead we get all sites for that lat/lon including
-            associated experiments and filter by appropriate experiment.
-            """
-            matching_experiments = []
-            matching_sites = []
-
-            # Only get experiment IDs that were active during filter_date
-            query_data = get_experiments(**kwargs)
-            if query_data:
-                for exp in query_data:
-                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
-                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-                    if start <= targ_date <= end:
-                        matching_experiments.append(exp['id'])
-
-            # Get sites in chunks and only keep those associated with experiments
-            intersect_sites = get_sites(associations_mode='full_info', **kwargs)
-            for s in intersect_sites:
-                if 'experiments' in s:
-                    for exp in s['experiments']:
-                        if exp['experiment']['id'] in matching_experiments:
-                            # TODO: Eventually find better solution for S4 half-plots
-                            if ((exp['experiment']['name'].find("Season 4") > -1 and
-                                    (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")))) and not include_halves:
+        """ SCENARIO II - YES FILTER DATE
+        Get experiments by date and return all associated sites, optionally filtering by location.
+        """
+        print("WAH")
+        query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
+        if query_data:
+            results = []
+            for exp in query_data:
+                start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                if start <= targ_date <= end:
+                    if 'sites' in exp:
+                        for t in exp['sites']:
+                            s = t['site']
+                            # TODO: Eventually find better solution for S4 half-plots - they are omitted here
+                            if (exp['name'].find("Season 4") > -1 and (s["sitename"].endswith(" W") or s["sitename"].endswith(" E"))) and not include_halves:
                                 continue
-                            small_site = s
-                            if 'experiments_sites' in small_site:
-                                del small_site['experiments_sites']
-                            if 'experiments' in small_site:
-                                del small_site['experiments']
-                            if small_site not in matching_sites:
-                                matching_sites.append(small_site)
-
-            return matching_sites
+                            if 'containing' in kwargs:
+                                # Need to filter additionally by geometry
+                                site_geom = ogr.CreateGeometryFromWkt(s['geometry'])
+                                coords = kwargs['containing'].split(",")
+                                pt_geom = ogr.CreateGeometryFromWkt("POINT(%s %s)" % (coords[0], coords[1]))
+                                if site_geom.Intersects(pt_geom):
+                                    if s not in results:
+                                        results.append(s)
+                            else:
+                                # If no containing parameter, include all sites
+                                if s not in results:
+                                    results.append(s)
+            return results
+        else:
+            logging.error("No experiment data could be retrieved.")
 
 
 def get_sites_by_latlon(latlon, filter_date='', **kwargs):
