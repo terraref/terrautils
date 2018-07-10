@@ -105,13 +105,15 @@ def _get_sites(cleaned_md, date, sensorId):
     sites = {}
     for label, bounds in gps_bounds.iteritems():
         centroid = calculate_centroid(bounds)
-    
         bety_sites = betydb.get_sites_by_latlon(centroid, date)
         for bety_site in bety_sites:
             site_id = str(bety_site["id"])
             sites[site_id] = {}
             sites[site_id]["sitename"] = bety_site["sitename"]
-            sites[site_id]["url"] = bety_site["view_url"]
+            if "view_url" in bety_site:
+                sites[site_id]["url"] = bety_site["view_url"]
+            else:
+                sites[site_id]["url"] = ""
             sites['notes'] = "sitename is the plot that contains the image centroid"
 
     return sites.values()

@@ -129,12 +129,15 @@ def get_experiments(**kwargs):
             with open(cache_file) as infile:
                 query_data = json.load(infile)
                 if query_data:
-                    BETYDB_EXPERIMENTS = query_data
+                    if 'associations_mode' in kwargs:
+                        BETYDB_EXPERIMENTS = query_data
                     return [t["experiment"] for t in query_data['data']]
         else:
             query_data = query(endpoint="experiments", **kwargs)
             if query_data:
-                BETYDB_EXPERIMENTS = query_data
+                if 'associations_mode' in kwargs:
+                    print("CACHING EXPERIMENTS DATA")
+                    BETYDB_EXPERIMENTS = query_data
                 return [t["experiment"] for t in query_data['data']]
     else:
         return [t["experiment"] for t in BETYDB_EXPERIMENTS['data']]
@@ -199,10 +202,10 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
-        targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
         """ SCENARIO II - YES FILTER DATE
         Get experiments by date and return all associated sites, optionally filtering by location.
         """
+        targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
         query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
         if query_data:
             results = []
@@ -214,13 +217,13 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                         for t in exp['sites']:
                             s = t['site']
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
-                            if (exp['name'].find("Season 4") > -1 and (s["sitename"].endswith(" W") or s["sitename"].endswith(" E"))) and not include_halves:
+                            if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
                             if 'containing' in kwargs:
                                 # Need to filter additionally by geometry
                                 site_geom = ogr.CreateGeometryFromWkt(s['geometry'])
                                 coords = kwargs['containing'].split(",")
-                                pt_geom = ogr.CreateGeometryFromWkt("POINT(%s %s)" % (coords[0], coords[1]))
+                                pt_geom = ogr.CreateGeometryFromWkt("POINT(%s %s)" % (coords[1], coords[0]))
                                 if site_geom.Intersects(pt_geom):
                                     if s not in results:
                                         results.append(s)
