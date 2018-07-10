@@ -136,7 +136,6 @@ def get_experiments(**kwargs):
             query_data = query(endpoint="experiments", **kwargs)
             if query_data:
                 if 'associations_mode' in kwargs:
-                    print("CACHING EXPERIMENTS DATA")
                     BETYDB_EXPERIMENTS = query_data
                 return [t["experiment"] for t in query_data['data']]
     else:
