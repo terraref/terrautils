@@ -203,7 +203,6 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
         """ SCENARIO II - YES FILTER DATE
         Get experiments by date and return all associated sites, optionally filtering by location.
         """
-        print("WAH")
         query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
         if query_data:
             results = []
