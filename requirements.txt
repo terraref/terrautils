@@ -8,3 +8,5 @@ python-dateutil==2.5.1
 scipy==0.17.1
 utm==0.4.1
 python-logstash==0.4.6
+rasterio==0.36.0
+pyyaml==3.12
