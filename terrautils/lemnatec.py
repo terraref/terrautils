@@ -395,11 +395,13 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     # 
     read_scan_program_map()
     if 'script_path_on_disk' in properties:
+        # e.g. "C:\\LemnaTec\\StoredScripts\\3D_Scan_Field_SouthStart_033MperS.cs"
         script_path = properties['script_path_on_disk']
         scan_program = scan_programs.get(script_path, "unknown_program")
         match = re.search('^.*\\\\(.*?)\\.cs', script_path)   
         if len(match.groups()) == 1:
-            script_name = match.group(1).lower()
+            script_name_caps = match.group(1)
+            script_name = script_name_caps.lower()
             script_name = re.sub(" ", "_", script_name)
             properties['script_name'] = script_name
             if isinstance(scan_program, list):
@@ -407,10 +409,17 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
             else:
                 properties['fullfield_eligible'] = "True"
 
+            # Also retain unique script hash to differentiate if same scan run multiple times in a day
+            if 'script_path_ftp_server' in properties:
+                # e.g. "ftp://10.160.21.2//gantry_data/LemnaTec/ScriptBackup/3D_Scan_Field_SouthStart_033MperS_6d2cf837-5107-4a67-87f3-cc7b65551931.cs"
+                script_hash = properties['script_path_ftp_server']
+                # e.g. "6d2cf837-5107-4a67-87f3-cc7b65551931"
+                script_hash = script_hash[script_hash.find(script_name_caps)+len(script_name_caps)+1:-3]
+                properties['script_hash'] = script_hash
         
     # Limit output to the following fields for now
     output_fields = [
-        "datetime", "date", "position_m", "scan_direction_is_positive", "script_path_on_disk", "script_name", "fullfield_eligible", "error"
+        "datetime", "date", "position_m", "scan_direction_is_positive", "script_path_on_disk", "script_name", "script_hash", "fullfield_eligible", "error"
     ]
 
     return _get_dict_subset(properties, output_fields)
