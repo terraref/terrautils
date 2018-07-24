@@ -127,7 +127,7 @@ def create_image(pixels, out_path, scaled=False):
         """
     if scaled:
         # e.g. flirIrCamera
-        Gmin = pixels.min()
+        Gmin = pixels[pixels>0].min()
         Gmax = pixels.max()
         scaled_px = (pixels-Gmin)/(Gmax - Gmin)
         plt.imsave(out_path, cm.get_cmap('jet')(scaled_px))
