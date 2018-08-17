@@ -50,6 +50,8 @@ SENSOR_SWIR = "SWIR"
 SENSOR_VNIR = "VNIR"
 SENSOR_WEATHER = "weather"
 
+LEMNATEC_LOCAL_CACHE_FOLDER = '/home/extractor/lemnatec/'
+
 logging.basicConfig()
 logger = logging.getLogger("terrautils.metadata.lemnatac")
 
@@ -144,6 +146,7 @@ def _standardize_gantry_system_fixed_metadata(orig):
     return properties
 
 
+    # TODO make local call here
 def _get_sensor_fixed_metadata_url(sensorId):
     """
     Assumes that the sensor fixed metadata stored in Clowder is authoritative
@@ -162,11 +165,18 @@ def _get_sensor_fixed_metadata_url(sensorId):
 
 
 def _get_sensor_fixed_metadata(sensorId):
-    md = _get_sensor_fixed_metadata_url(sensorId)
-    r = requests.get(md["url"])
-    json = r.json()
-    content = json[0]["content"]
-    return content
+    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
+    if os.path.exists(sensor_file):
+        md_json = json.load(sensor_file)
+        content = md_json[0]["content"]
+        return content
+    else:
+        md = _get_sensor_fixed_metadata_url(sensorId)
+        r = requests.get(md["url"])
+        md_json = r.json()
+        json.dumps(md_json,)
+        content = md_json[0]["content"]
+        return content
     
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
