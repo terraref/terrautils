@@ -146,7 +146,6 @@ def _standardize_gantry_system_fixed_metadata(orig):
     return properties
 
 
-    # TODO make local call here
 def _get_sensor_fixed_metadata_url(sensorId):
     """
     Assumes that the sensor fixed metadata stored in Clowder is authoritative
@@ -174,10 +173,27 @@ def _get_sensor_fixed_metadata(sensorId):
         md = _get_sensor_fixed_metadata_url(sensorId)
         r = requests.get(md["url"])
         md_json = r.json()
-        json.dumps(md_json,)
         content = md_json[0]["content"]
         return content
-    
+
+def _write_sensor_fixed_metadata(sensorId):
+    md = _get_sensor_fixed_metadata_url(sensorId)
+    r = requests.get(md["url"])
+    md_json = r.json()
+    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
+    with open(sensor_file, 'w') as outfile:
+        json.dump(md_json, outfile)
+
+def _write_all_sensor_fixed_metadata():
+    all_sensors = [PLATFORM_SCANALYZER, SENSOR_CO2,SENSOR_CROP_CIRCLE,
+                    SENSOR_ENVIRONMENTAL_LOGGER, SENSOR_FLIR, SENSOR_IRRIGATION,
+                    SENSOR_LIGHTNING, SENSOR_NDVI, SENSOR_PAR, SENSOR_PRI,
+                    SENSOR_PS2_TOP, SENSOR_SCANNER_3D_TOP, SENSOR_STEREO_TOP,
+                    SENSOR_SWIR, SENSOR_VNIR, SENSOR_WEATHER]
+
+    for sensor in all_sensors:
+        _write_sensor_fixed_metadata(sensor)
+
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     """
