@@ -163,17 +163,21 @@ def _get_sensor_fixed_metadata_url(sensorId):
     return properties
 
 
-def _get_sensor_fixed_metadata(sensorId):
+def _get_sensor_fixed_metadata(sensorId, query_date=None):
     sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
     if os.path.exists(sensor_file):
         md_json = json.load(sensor_file)
         content = md_json[0]["content"]
+        if query_date:
+            get_content_for_date(query_date, content)
         return content
     else:
         md = _get_sensor_fixed_metadata_url(sensorId)
         r = requests.get(md["url"])
         md_json = r.json()
         content = md_json[0]["content"]
+        if query_date:
+            get_content_for_date(query_date, content)
         return content
 
 def _write_sensor_fixed_metadata(sensorId):
@@ -899,6 +903,28 @@ def read_scan_program_map():
                 scan_programs[row["program_name"]] = {
                     "fullfield_eligible": "True" if row["fullfield_eligible"] == "Y" else "False"
                 }
+
+
+def get_content_for_date(query_date, content_json):
+    query_datetime = datetime.datetime.strptime(query_date, '%Y-%m-%d')
+    current_match = None
+    if 'start_dates' in content_json:
+        print("we have start dates")
+        start_dates_raw = content_json['start_dates'].keys()
+        start_dates = []
+        for each in start_dates_raw:
+            print('each', each)
+            current = datetime.datetime.strptime(each, '%Y-%m-%d')
+            start_dates.append(current)
+
+        start_dates.sort()
+        for sd in start_dates:
+            if query_datetime < sd:
+                current_match = sd
+                print('new current match', current_match)
+        match_string = str(current_match)
+        match_string = match_string[0:match_string.index(' ')]
+        return content_json['start_dates'][match_string]
 
 
 if __name__ == "__main__":
