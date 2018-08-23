@@ -52,6 +52,8 @@ SENSOR_WEATHER = "weather"
 
 LEMNATEC_LOCAL_CACHE_FOLDER = '/home/extractor/lemnatec/'
 
+LEMNATEC_LOCAL_CACHE_FOLDER_ENV = None
+
 logging.basicConfig()
 logger = logging.getLogger("terrautils.metadata.lemnatac")
 
@@ -164,7 +166,10 @@ def _get_sensor_fixed_metadata_url(sensorId):
 
 
 def _get_sensor_fixed_metadata(sensorId, query_date=None):
-    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
+    if LEMNATEC_LOCAL_CACHE_FOLDER_ENV:
+        sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER_ENV + sensorId+'.json'
+    else:
+        sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
     if os.path.exists(sensor_file):
         md_json = json.load(sensor_file)
         content = md_json[0]["content"]
@@ -184,7 +189,10 @@ def _write_sensor_fixed_metadata(sensorId):
     md = _get_sensor_fixed_metadata_url(sensorId)
     r = requests.get(md["url"])
     md_json = r.json()
-    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
+    if LEMNATEC_LOCAL_CACHE_FOLDER_ENV:
+        sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER_ENV + sensorId+'.json'
+    else:
+        sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
     with open(sensor_file, 'w') as outfile:
         json.dump(md_json, outfile)
 
@@ -198,6 +206,8 @@ def _write_all_sensor_fixed_metadata():
     for sensor in all_sensors:
         _write_sensor_fixed_metadata(sensor)
 
+def _set_lemnatec_local_cache_env(env_location):
+    LEMNATEC_LOCAL_CACHE_FOLDER_ENV = env_location
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     """
