@@ -165,7 +165,7 @@ def _get_sensor_fixed_metadata_url(sensorId):
     return properties
 
 
-def _get_sensor_fixed_metadata(sensorId, query_date=None):
+def _get_sensor_fixed_metadata(sensorId, query_date):
     if LEMNATEC_LOCAL_CACHE_FOLDER_ENV:
         sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER_ENV + sensorId+'.json'
     else:
@@ -173,17 +173,15 @@ def _get_sensor_fixed_metadata(sensorId, query_date=None):
     if os.path.exists(sensor_file):
         md_json = json.load(sensor_file)
         content = md_json[0]["content"]
-        if query_date:
-            get_content_for_date(query_date, content)
-        return content
+        current_metadata = find_json_for_date(query_date, content)
+        return current_metadata
     else:
         md = _get_sensor_fixed_metadata_url(sensorId)
         r = requests.get(md["url"])
         md_json = r.json()
         content = md_json[0]["content"]
-        if query_date:
-            get_content_for_date(query_date, content)
-        return content
+        current_metadata = find_json_for_date(query_date, content)
+        return current_metadata
 
 def _write_sensor_fixed_metadata(sensorId):
     md = _get_sensor_fixed_metadata_url(sensorId)
@@ -936,6 +934,26 @@ def get_content_for_date(query_date, content_json):
         match_string = str(current_match)
         match_string = match_string[0:match_string.index(' ')]
         return content_json['start_dates'][match_string]
+
+
+def find_json_for_date(query_date, json_list):
+    if type(query_date) == str:
+        query_date = datetime.datetime.strptime(query_date, '%Y-%m-%d')
+    best_match = None
+    best_match_date = None
+    for each in json_list:
+        metadata_date = datetime.datetime.strptime(each['start_date'], '%Y-%m-%d')
+
+        if best_match is None:
+            if query_date >= metadata_date:
+                best_match = each
+                best_match_date = datetime.datetime.strptime(each['start_date'], '%Y-%m-%d')
+        else:
+            if query_date > metadata_date > best_match_date:
+                best_match = each
+                best_match_date = datetime.datetime.strptime(each['start_date'], '%Y-%m-%d')
+    return best_match
+
 
 
 if __name__ == "__main__":
