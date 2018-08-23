@@ -207,6 +207,7 @@ def _write_all_sensor_fixed_metadata():
         _write_sensor_fixed_metadata(sensor)
 
 def _set_lemnatec_local_cache_env(env_location):
+    global LEMNATEC_LOCAL_CACHE_FOLDER_ENV
     LEMNATEC_LOCAL_CACHE_FOLDER_ENV = env_location
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
