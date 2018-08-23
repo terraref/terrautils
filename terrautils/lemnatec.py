@@ -937,6 +937,8 @@ def get_content_for_date(query_date, content_json):
 
 
 def find_json_for_date(query_date, json_list):
+    if len(json_list) == 1:
+        return json_list[0]
     if type(query_date) == str:
         query_date = datetime.datetime.strptime(query_date, '%Y-%m-%d')
     best_match = None
