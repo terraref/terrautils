@@ -172,27 +172,41 @@ def _get_sensor_fixed_metadata(sensorId, query_date):
         sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
     if os.path.exists(sensor_file):
         md_json = json.load(sensor_file)
-        content = md_json[0]["content"]
-        current_metadata = find_json_for_date(query_date, content)
+        if type(md_json) == list:
+            if type(md_json[0] == dict):
+                if "content" in md_json[0]:
+                    content = md_json[0]["content"]
+                    current_metadata = find_json_for_date(query_date, content)
+                else:
+                    current_metadata = find_json_for_date(query_date, md_json)
         return current_metadata
     else:
         md = _get_sensor_fixed_metadata_url(sensorId)
         r = requests.get(md["url"])
         md_json = r.json()
-        content = md_json[0]["content"]
-        current_metadata = find_json_for_date(query_date, content)
+        if type(md_json) == list:
+            if type(md_json[0] == dict):
+                if "content" in md_json[0]:
+                    content = md_json[0]["content"]
+                    current_metadata = find_json_for_date(query_date, content)
+                else:
+                    current_metadata = find_json_for_date(query_date, md_json)
         return current_metadata
 
 def _write_sensor_fixed_metadata(sensorId):
     md = _get_sensor_fixed_metadata_url(sensorId)
     r = requests.get(md["url"])
     md_json = r.json()
+    if type(md_json) == list and type(md_json) == dict and "content" in md_json[0]:
+        json_to_dump = md_json[0]["content"]
+    else:
+        json_to_dump = md_json
     if LEMNATEC_LOCAL_CACHE_FOLDER_ENV:
         sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER_ENV + sensorId+'.json'
     else:
         sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
     with open(sensor_file, 'w') as outfile:
-        json.dump(md_json, outfile)
+        json.dump(json_to_dump, outfile)
 
 def _write_all_sensor_fixed_metadata():
     all_sensors = [PLATFORM_SCANALYZER, SENSOR_CO2,SENSOR_CROP_CIRCLE,
