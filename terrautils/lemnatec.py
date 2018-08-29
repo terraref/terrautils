@@ -33,42 +33,24 @@ STATION_NAME = "ua-mac"
 scan_programs = {}
 
 # Official sensor names
-# PLATFORM_SCANALYZER = ""
-# SENSOR_CO2 = "co2Sensor"
-# SENSOR_CROP_CIRCLE = "cropCircle"
-# SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
-# SENSOR_FLIR = "flirIrCamera"
-# SENSOR_IRRIGATION = "irrigation"
-# SENSOR_LIGHTNING = "lightning"
-# SENSOR_NDVI = "ndviSensor"
-# SENSOR_PAR = "parSensor"
-# SENSOR_PRI = "priSensor"
-# SENSOR_PS2_TOP = "ps2Top"
-# SENSOR_SCANNER_3D_TOP = "scanner3DTop"
-# SENSOR_STEREO_TOP = "stereoTop"
-# SENSOR_SWIR = "SWIR"
-# SENSOR_VNIR = "VNIR"
-# SENSOR_WEATHER = "weather"
-
-# Official sensor names
 PLATFORM_SCANALYZER = ""
-SENSOR_CO2 = "/sensor-metadata/sensors/co2Sensor/sensor_fixed_metadata.json"
-SENSOR_CROP_CIRCLE = "/sensor-metadata/sensors/cropCircle/sensor_fixed_metadata.json"
-SENSOR_ENVIRONMENTAL_LOGGER = "/sensor-metadata/sensors/EnvironmentLogger/sensor_fixed_metadata.json"
-SENSOR_FLIR = "/sensor-metadata/sensors/flirIrCamera/sensor_fixed_metadata.json"
-SENSOR_IRRIGATION = "/sensor-metadata/sensors/irrigation/sensor_fixed_metadata.json"
-SENSOR_LIGHTNING = "/sensor-metadata/sensors/lightning/sensor_fixed_metadata.json"
-SENSOR_NDVI = "/sensor-metadata/sensors/ndviSensor/sensor_fixed_metadata.json"
-SENSOR_PAR = "/sensor-metadata/sensors/parSensor/sensor_fixed_metadata.json"
-SENSOR_PRI = "/sensor-metadata/sensors/priSensor/sensor_fixed_metadata.json"
-SENSOR_PS2_TOP = "/sensor-metadata/sensors/ps2Top/sensor_fixed_metadata.json"
-SENSOR_SCANNER_3D_TOP = "/sensor-metadata/sensors/scanner3DTop/sensor_fixed_metadata.json"
-SENSOR_STEREO_TOP = "/sensor-metadata/sensors/stereoTop/sensor_fixed_metadata.json"
-SENSOR_SWIR = "/sensor-metadata/sensors/SWIR/sensor_fixed_metadata.json"
-SENSOR_VNIR = "/sensor-metadata/sensors/VNIR/sensor_fixed_metadata.json"
-SENSOR_WEATHER = "/sensor-metadata/sensors/weather/sensor_fixed_metadata.json"
+SENSOR_CO2 = "co2Sensor"
+SENSOR_CROP_CIRCLE = "cropCircle"
+SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
+SENSOR_FLIR = "flirIrCamera"
+SENSOR_IRRIGATION = "irrigation"
+SENSOR_LIGHTNING = "lightning"
+SENSOR_NDVI = "ndviSensor"
+SENSOR_PAR = "parSensor"
+SENSOR_PRI = "priSensor"
+SENSOR_PS2_TOP = "ps2Top"
+SENSOR_SCANNER_3D_TOP = "scanner3DTop"
+SENSOR_STEREO_TOP = "stereoTop"
+SENSOR_SWIR = "SWIR"
+SENSOR_VNIR = "VNIR"
+SENSOR_WEATHER = "weather"
 
-LEMNATEC_LOCAL_CACHE_FOLDER = os.environ.get('LEMNATEC_LOCAL_CACHE', '/home/extractor/lemnatec/')
+SENSOR_METADATA_CACHE = os.environ.get('SENSOR_METADATA_CACHE', '/home/extractor/sites/ua-mac/sensor-metadata')
 
 logging.basicConfig()
 logger = logging.getLogger("terrautils.metadata.lemnatac")
@@ -86,8 +68,8 @@ def clean(metadata, sensorId, filepath=""):
     
     cleaned_md = {}
     cleaned_md["gantry_variable_metadata"] = _standardize_gantry_system_variable_metadata(orig_lem_md, filepath)
-    cleaned_md["gantry_fixed_metadata"]    = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
-    cleaned_md["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata_url(sensorId)
+    cleaned_md["gantry_fixed_metadata"]    = _get_sensor_fixed_metadata_json(PLATFORM_SCANALYZER)
+    cleaned_md["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata_json(sensorId)
     cleaned_md["sensor_variable_metadata"] = _standardize_sensor_variable_metadata(sensorId, orig_lem_md, 
                                                     cleaned_md["gantry_variable_metadata"], filepath)
     date = cleaned_md["gantry_variable_metadata"]["date"]
@@ -160,11 +142,11 @@ def _standardize_gantry_system_fixed_metadata(orig):
     Returns an object containing the URL for the Scanalyzer fixed metadata
     """
     properties = {}
-    properties["url"] = _get_sensor_fixed_metadata_url(PLATFORM_SCANALYZER)
+    properties["url"] = _get_sensor_fixed_metadata_json(PLATFORM_SCANALYZER)
     return properties
 
 
-def _get_sensor_fixed_metadata_url(sensorId):
+def _get_sensor_fixed_metadata_json(sensorId):
     """
     Assumes that the sensor fixed metadata stored in Clowder is authoritative
     Ignore the fixed metadata in the JSON object and return the fixed metadata URL in Clowder.
@@ -172,66 +154,35 @@ def _get_sensor_fixed_metadata_url(sensorId):
     # TODO: Compare to known fixed metadata structure
     # TODO; We only need this one -- duplicate method in metadata.py
     
-    # Get the dataset ID for the sensor by identifier
+    # Get the json path for the sensor by identifier
     sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
-    datasetid = sensors.get_fixed_datasetid_for_sensor()
-    
-    properties = {}
-    properties["url"] = os.environ.get("CLOWDER_HOST","http://terraref.ncsa.illinois.edu/clowder/") + "api/datasets/" + datasetid + "/metadata.jsonld"
-    return properties
+    jsonpath = sensors.get_fixed_jsonpath_for_sensor()
+
+    return {
+        "url": "https://github.com/terraref/sensor-metadata/blob/master/" + jsonpath
+    }
 
 
 def _get_sensor_fixed_metadata(sensorId, query_date):
+    # Get the json path for the sensor by identifier
+    sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
+    jsonpath = sensors.get_fixed_jsonpath_for_sensor()
 
-    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId
+    sensor_file = SENSOR_METADATA_CACHE + jsonpath
     if os.path.exists(sensor_file):
         md_json = json.load(sensor_file)
         if type(md_json) == list:
             if type(md_json[0] == dict):
-                if "content" in md_json[0]:
-                    content = md_json[0]["content"]
-                    current_metadata = find_json_for_date(query_date, content)
-                else:
-                    current_metadata = find_json_for_date(query_date, md_json)
+                current_metadata = find_json_for_date(query_date, md_json)
         return current_metadata
     else:
-        md = _get_sensor_fixed_metadata_url(sensorId)
-        r = requests.get(md["url"])
-        md_json = r.json()
-        if type(md_json) == list:
-            if type(md_json[0] == dict):
-                if "content" in md_json[0]:
-                    content = md_json[0]["content"]
-                    current_metadata = find_json_for_date(query_date, content)
-                else:
-                    current_metadata = find_json_for_date(query_date, md_json)
-        return current_metadata
+        # TODO: What should happen here?
+        return None
 
-def _write_sensor_fixed_metadata(sensorId):
-    md = _get_sensor_fixed_metadata_url(sensorId)
-    r = requests.get(md["url"])
-    md_json = r.json()
-    if type(md_json) == list and type(md_json) == dict and "content" in md_json[0]:
-        json_to_dump = md_json[0]["content"]
-    else:
-        json_to_dump = md_json
-    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
-    with open(sensor_file, 'w') as outfile:
-        json.dump(json_to_dump, outfile)
 
 def _set_local_cache_folder(location):
     global LEMNATEC_LOCAL_CACHE_FOLDER
     LEMNATEC_LOCAL_CACHE_FOLDER = location
-
-def _write_all_sensor_fixed_metadata():
-    all_sensors = [PLATFORM_SCANALYZER, SENSOR_CO2,SENSOR_CROP_CIRCLE,
-                    SENSOR_ENVIRONMENTAL_LOGGER, SENSOR_FLIR, SENSOR_IRRIGATION,
-                    SENSOR_LIGHTNING, SENSOR_NDVI, SENSOR_PAR, SENSOR_PRI,
-                    SENSOR_PS2_TOP, SENSOR_SCANNER_3D_TOP, SENSOR_STEREO_TOP,
-                    SENSOR_SWIR, SENSOR_VNIR, SENSOR_WEATHER]
-
-    for sensor in all_sensors:
-        _write_sensor_fixed_metadata(sensor)
 
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
