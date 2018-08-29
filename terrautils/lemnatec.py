@@ -81,7 +81,6 @@ def clean(metadata, sensorId, filepath="", fixed=False):
     fixed_md = _get_sensor_fixed_metadata(sensorId, query_date)
     full_md["sensor_fixed_metadata"] = fixed_md
     if fixed:
-        print("ITS FIXED")
         cleaned_md["sensor_fixed_metadata"] = fixed_md
 
     cleaned_md["experiment_metadata"] = _get_experiment_metadata(date, sensorId)
