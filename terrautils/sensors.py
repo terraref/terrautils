@@ -56,6 +56,7 @@ STATIONS = {
 
     'ua-mac': {
         'co2Sensor': {
+            "fixed_metadata_json": "/sensors/co2Sensor/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648",
             'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -65,6 +66,7 @@ STATIONS = {
         },
         
         'stereoTop': {
+            "fixed_metadata_json": "/sensors/stereo/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e",
             'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -73,6 +75,7 @@ STATIONS = {
         },
         
         'flirIrCamera': {
+            "fixed_metadata_json": "/sensors/flirIrCamera/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7184f0cad7d8131994a",
             'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -80,10 +83,12 @@ STATIONS = {
         },
         
         "cropCircle": {
+            "fixed_metadata_json": "/sensors/cropCircle/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7ed4f0cad7d8131a2e7"
         },
         
         "irrigation": {
+            "fixed_metadata_json": "/sensors/weatherStation/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "TBD",
             "geostream": ""
         },
@@ -96,27 +101,33 @@ STATIONS = {
         },
         
         "lightning": {
+            "fixed_metadata_json": "/sensors/weatherStation/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "TBD",
             "geostream": ""
         },
         
         "ndviSensor": {
+            "fixed_metadata_json": "/sensors/ndviSensor/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a8f64f0cad7d8131af54"
         },
         
         "parSensor": {
+            "fixed_metadata_json": "/sensors/parSensor/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a8ce4f0cad7d8131ad86"
         },
         
         "priSensor": {
+            "fixed_metadata_json": "/sensors/priSensor/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a9174f0cad7d8131b09a"
         },
         
         "ps2Top": {
+            "fixed_metadata_json": "/sensors/ps2/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a84b4f0cad7d8131a73d"
         },
         
         "scanner3DTop": {
+            "fixed_metadata_json": "/sensors/scanner3D/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b",
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -124,19 +135,23 @@ STATIONS = {
         },
         
         "SWIR": {
+            "fixed_metadata_json": "/sensors/SWIR/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a79e4f0cad7d81319f5f"
         },
         
         "VNIR": {
+            "fixed_metadata_json": "/sensors/VNIR/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7bb4f0cad7d8131a0b7"
         },
         
         "weather": {
+            "fixed_metadata_json": "/sensors/weatherStation/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "TBD"
         },
       
         "scanalyzer": {
-              "fixed_metadata_datasetid": "5873eac64f0cad7d81349b0b"
+            "fixed_metadata_json": "/sensors/scanalyzer/sensor_fixed_metadata.json",
+            "fixed_metadata_datasetid": "5873eac64f0cad7d81349b0b"
         },
 
         'fullfield': {
@@ -471,7 +486,7 @@ class Sensors():
         return self.get_sensor_path(time, sensor=sensor, opts=opts, ext=ext)
 
 
-    def get_fixed_datasetid_for_sensor(self, site=None, sensor=None):
+    def get_fixed_jsonpath_for_sensor(self, site=None, sensor=None):
         """Return the Clowder dataset ID for the fixed sensor information"""
 
         if not site:
@@ -479,7 +494,7 @@ class Sensors():
         if not sensor:
             sensor = self.sensor
 
-        return self.stations[site][sensor]['fixed_metadata_datasetid']
+        return self.stations[site][sensor]['fixed_metadata_json']
 
 
     def create_sensor_path(self, timestamp, sensor='', filename='',
