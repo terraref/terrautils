@@ -33,7 +33,7 @@ STATION_NAME = "ua-mac"
 scan_programs = {}
 
 # Official sensor names
-PLATFORM_SCANALYZER = "scanalyzer"
+PLATFORM_SCANALYZER = ""
 SENSOR_CO2 = "co2Sensor"
 SENSOR_CROP_CIRCLE = "cropCircle"
 SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
@@ -49,6 +49,24 @@ SENSOR_STEREO_TOP = "stereoTop"
 SENSOR_SWIR = "SWIR"
 SENSOR_VNIR = "VNIR"
 SENSOR_WEATHER = "weather"
+
+# Official sensor names
+PLATFORM_SCANALYZER = ""
+SENSOR_CO2 = "/sensor-metadata/sensors/co2Sensor/sensor_fixed_metadata.json"
+SENSOR_CROP_CIRCLE = "/sensor-metadata/sensors/cropCircle/sensor_fixed_metadata.json"
+SENSOR_ENVIRONMENTAL_LOGGER = "/sensor-metadata/sensors/EnvironmentLogger/sensor_fixed_metadata.json"
+SENSOR_FLIR = "/sensor-metadata/sensors/flirIrCamera/sensor_fixed_metadata.json"
+SENSOR_IRRIGATION = "/sensor-metadata/sensors/irrigation/sensor_fixed_metadata.json"
+SENSOR_LIGHTNING = "/sensor-metadata/sensors/lightning/sensor_fixed_metadata.json"
+SENSOR_NDVI = "/sensor-metadata/sensors/ndviSensor/sensor_fixed_metadata.json"
+SENSOR_PAR = "/sensor-metadata/sensors/parSensor/sensor_fixed_metadata.json"
+SENSOR_PRI = "/sensor-metadata/sensors/priSensor/sensor_fixed_metadata.json"
+SENSOR_PS2_TOP = "/sensor-metadata/sensors/ps2Top/sensor_fixed_metadata.json"
+SENSOR_SCANNER_3D_TOP = "/sensor-metadata/sensors/scanner3DTop/sensor_fixed_metadata.json"
+SENSOR_STEREO_TOP = "/sensor-metadata/sensors/stereoTop/sensor_fixed_metadata.json"
+SENSOR_SWIR = "/sensor-metadata/sensors/SWIR/sensor_fixed_metadata.json"
+SENSOR_VNIR = "/sensor-metadata/sensors/VNIR/sensor_fixed_metadata.json"
+SENSOR_WEATHER = "/sensor-metadata/sensors/weather/sensor_fixed_metadata.json"
 
 LEMNATEC_LOCAL_CACHE_FOLDER = os.environ.get('LEMNATEC_LOCAL_CACHE', '/home/extractor/lemnatec/')
 
@@ -165,7 +183,7 @@ def _get_sensor_fixed_metadata_url(sensorId):
 
 def _get_sensor_fixed_metadata(sensorId, query_date):
 
-    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
+    sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId
     if os.path.exists(sensor_file):
         md_json = json.load(sensor_file)
         if type(md_json) == list:
@@ -200,6 +218,10 @@ def _write_sensor_fixed_metadata(sensorId):
     sensor_file = LEMNATEC_LOCAL_CACHE_FOLDER + sensorId+'.json'
     with open(sensor_file, 'w') as outfile:
         json.dump(json_to_dump, outfile)
+
+def _set_local_cache_folder(location):
+    global LEMNATEC_LOCAL_CACHE_FOLDER
+    LEMNATEC_LOCAL_CACHE_FOLDER = location
 
 def _write_all_sensor_fixed_metadata():
     all_sensors = [PLATFORM_SCANALYZER, SENSOR_CO2,SENSOR_CROP_CIRCLE,
