@@ -66,7 +66,7 @@ STATIONS = {
         },
         
         'stereoTop': {
-            "fixed_metadata_json": "/sensors/stereoTop/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/stereo/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a8ae4f0cad7d8131ac0e",
             'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -88,13 +88,12 @@ STATIONS = {
         },
         
         "irrigation": {
-            "fixed_metadata_json": "/sensors/irrigation/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/weatherStation/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "TBD",
             "geostream": ""
         },
         
         'EnvironmentLogger': {
-            "fixed_metadata_json": "/sensors/EnvironmentLogger/sensor_fixed_metadata.json",
             'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{filename}',
             'pattern': '{timestamp}_environment_logger.json',
@@ -102,7 +101,7 @@ STATIONS = {
         },
         
         "lightning": {
-            "fixed_metadata_json": "/sensors/lightning/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/weatherStation/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "TBD",
             "geostream": ""
         },
@@ -123,12 +122,12 @@ STATIONS = {
         },
         
         "ps2Top": {
-            "fixed_metadata_json": "/sensors/ps2Top/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/ps2/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a84b4f0cad7d8131a73d"
         },
         
         "scanner3DTop": {
-            "fixed_metadata_json": "/sensors/scanner3DTop/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/scanner3D/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b",
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -146,7 +145,7 @@ STATIONS = {
         },
         
         "weather": {
-            "fixed_metadata_json": "/sensors/weather/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/weatherStation/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "TBD"
         },
       

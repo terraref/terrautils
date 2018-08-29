@@ -58,7 +58,7 @@ logger = logging.getLogger("terrautils.metadata.lemnatac")
 
 
 # SHARED -------------------------------------
-def clean(metadata, sensorId, filepath=""):
+def clean(metadata, sensorId, filepath="", fixed=False):
     """ 
     Given a LemnaTec metadata.json object, produces the "cleaned" metadata that 
     will be put in the Clowder jsonld endpoint.
@@ -77,7 +77,12 @@ def clean(metadata, sensorId, filepath=""):
     
     # calculate_gps_bounds requires the fixed metadata FOV
     full_md = cleaned_md.copy()
-    full_md["sensor_fixed_metadata"]    = _get_sensor_fixed_metadata(sensorId)
+    query_date = _get_date_from_raw_metadata(orig_lem_md)
+    fixed_md = _get_sensor_fixed_metadata(sensorId, query_date)
+    full_md["sensor_fixed_metadata"] = fixed_md
+    if fixed:
+        print("ITS FIXED")
+        cleaned_md["sensor_fixed_metadata"] = fixed_md
 
     cleaned_md["experiment_metadata"] = _get_experiment_metadata(date, sensorId)
     cleaned_md["site_metadata"] = _get_sites(full_md, date, sensorId)
@@ -170,11 +175,12 @@ def _get_sensor_fixed_metadata(sensorId, query_date):
 
     sensor_file = SENSOR_METADATA_CACHE + jsonpath
     if os.path.exists(sensor_file):
-        md_json = json.load(sensor_file)
-        if type(md_json) == list:
-            if type(md_json[0] == dict):
-                current_metadata = find_json_for_date(query_date, md_json)
-        return current_metadata
+        with open(sensor_file, 'r') as sf:
+            md_json = json.load(sf)
+            if type(md_json) == list:
+                if type(md_json[0] == dict):
+                    current_metadata = find_json_for_date(query_date, md_json)
+            return current_metadata
     else:
         # TODO: What should happen here?
         return None
@@ -436,6 +442,22 @@ def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
     return _get_dict_subset(properties, output_fields)
 
 
+def _get_date_from_raw_metadata(md):
+    default = "2012-01-01"
+    if "gantry_system_variable_metadata" in md:
+        if "time" in md["gantry_system_variable_metadata"]:
+            t = md["gantry_system_variable_metadata"]["time"].split(" ")[0]
+            dd = t.split("/")[1]
+            mm = t.split("/")[0]
+            yy = t.split("/")[2]
+            return yy+"-"+mm+"-"+dd
+
+        else:
+            return default
+    else:
+        return default
+
+
 def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_variable_md, filepath=""):
     """
     Standardize the sensor variable metadata
@@ -446,9 +468,10 @@ def _standardize_sensor_variable_metadata(sensor, orig_lem_md, corrected_gantry_
         SENSOR_ENVIRONMENTAL_LOGGER
         SENSOR_WEATHER
     """
-    
+
+    query_date = _get_date_from_raw_metadata(orig_lem_md)
     sensor_variable_metadata = orig_lem_md['sensor_variable_metadata'] 
-    sensor_fixed_metadata = _get_sensor_fixed_metadata(sensor)
+    sensor_fixed_metadata = _get_sensor_fixed_metadata(sensor, query_date)
 
     if sensor == SENSOR_CO2:
         properties = _co2_standardize(sensor_variable_metadata, filepath)
@@ -911,10 +934,10 @@ def get_content_for_date(query_date, content_json):
 def find_json_for_date(query_date, json_list):
     if len(json_list) == 1:
         return json_list[0]
-    if type(query_date) == str:
-        query_date = datetime.datetime.strptime(query_date, '%Y-%m-%d')
+    query_date = datetime.datetime.strptime(query_date, '%Y-%m-%d')
     best_match = None
     best_match_date = None
+
     for each in json_list:
         metadata_date = datetime.datetime.strptime(each['start_date'], '%Y-%m-%d')
 
