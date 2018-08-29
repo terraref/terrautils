@@ -11,7 +11,7 @@ from matplotlib import cm, pyplot as plt
 from PIL import Image
 
 
-def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None):
+def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None, extra_metadata=None):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 
         Keyword arguments:
@@ -23,6 +23,9 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
         out_path -- path to GeoTIFF to be created
         nodata -- NoDataValue to be assigned to raster bands; set to None to ignore
         float -- whether to use GDT_Float32 data type instead of GDT_Byte (e.g. for decimal numbers)
+        extractor_info -- details about extractor if applicable
+        system_md -- cleaned TERRA-REF metadata
+        extra_metadata -- any metadata to be embedded in geotiff; supersedes extractor_info and system_md
     """
     dimensions = numpy.shape(pixels)
     if len(dimensions) == 2:
@@ -50,24 +53,8 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
     srs.ImportFromEPSG(4326) # google mercator
     output_raster.SetProjection( srs.ExportToWkt() )
 
-    extra_metadata = {}    
-    
-    if (system_md != None):
-        extra_metadata["datetime"] = str(system_md["gantry_variable_metadata"]["datetime"])
-        extra_metadata["sensor_id"] = str(system_md["sensor_fixed_metadata"]["sensor_id"])
-        extra_metadata["sensor_url"] = str(system_md["sensor_fixed_metadata"]["url"])
-        experiment_names = []
-        for e in system_md["experiment_metadata"]:
-            experiment_names.append(e["name"])
-        extra_metadata["experiment_name"] = ", ".join(experiment_names)
-    
-    if (extractor_info != None):
-        extra_metadata["extractor_name"] = str(extractor_info.get("name", ""))
-        extra_metadata["extractor_version"] = str(extractor_info.get("version", ""))
-        extra_metadata["extractor_author"] = str(extractor_info.get("author", ""))
-        extra_metadata["extractor_description"] = str(extractor_info.get("description", ""))
-        extra_metadata["extractor_repo"] = str(extractor_info["repository"]["repUrl"])
-
+    if not extra_metadata:
+        extra_metadata = prepare_metadata_for_geotiff(extractor_info, system_md)
 
     output_raster.SetMetadata(extra_metadata)
 
@@ -89,6 +76,37 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
             output_raster.GetRasterBand(1).SetNoDataValue(nodata)
 
     output_raster = None
+
+
+def prepare_metadata_for_geotiff(extractor_info=None, terra_md=None):
+    """Create geotiff-embedded metadata from extractor_info and terraref metadata pieces.
+
+        Keyword arguments:
+        extractor_info -- details about extractor if applicable
+        system_md -- cleaned TERRA-REF metadata
+    """
+    extra_metadata = {}
+
+    if (terra_md != None):
+        extra_metadata["datetime"] = str(terra_md["gantry_variable_metadata"]["datetime"])
+        extra_metadata["sensor_id"] = str(terra_md["sensor_fixed_metadata"]["sensor_id"])
+        extra_metadata["sensor_url"] = str(terra_md["sensor_fixed_metadata"]["url"])
+        experiment_names = []
+        for e in terra_md["experiment_metadata"]:
+            experiment_names.append(e["name"])
+        terra_md["experiment_name"] = ", ".join(experiment_names)
+
+    if (extractor_info != None):
+        extra_metadata["extractor_name"] = str(extractor_info.get("name", ""))
+        extra_metadata["extractor_version"] = str(extractor_info.get("version", ""))
+        extra_metadata["extractor_author"] = str(extractor_info.get("author", ""))
+        extra_metadata["extractor_description"] = str(extractor_info.get("description", ""))
+        if "repository" in extractor_info and "repUrl" in extractor_info["repository"]:
+            extra_metadata["extractor_repo"] = str(extractor_info["repository"]["repUrl"])
+        else:
+            extra_metadata["extractor_repo"] = ""
+
+    return extra_metadata
 
 
 def create_netcdf(pixels, out_path, scaled=False):
