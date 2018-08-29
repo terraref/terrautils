@@ -33,7 +33,7 @@ STATION_NAME = "ua-mac"
 scan_programs = {}
 
 # Official sensor names
-PLATFORM_SCANALYZER = ""
+PLATFORM_SCANALYZER = "scanalyzer"
 SENSOR_CO2 = "co2Sensor"
 SENSOR_CROP_CIRCLE = "cropCircle"
 SENSOR_ENVIRONMENTAL_LOGGER = "EnvironmentLogger"
@@ -178,11 +178,6 @@ def _get_sensor_fixed_metadata(sensorId, query_date):
     else:
         # TODO: What should happen here?
         return None
-
-
-def _set_local_cache_folder(location):
-    global LEMNATEC_LOCAL_CACHE_FOLDER
-    LEMNATEC_LOCAL_CACHE_FOLDER = location
 
 
 def _standardize_gantry_system_variable_metadata(lem_md, filepath=""):
