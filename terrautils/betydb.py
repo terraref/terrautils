@@ -13,7 +13,7 @@ from osgeo import ogr
 
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
-BETYDB_LOCAL_CACHE_FOLDER = '/home/extractor/'
+BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
 
 BETYDB_CULTIVARS  = None
 BETYDB_TRAITS = None
@@ -114,6 +114,15 @@ def get_cultivars(**kwargs):
         return [t["cultivar"] for t in BETYDB_CULTIVARS['data']]
 
 
+def dump_cultivars(**kwargs):
+    """Generate bety_cultivars.json file"""
+    query_data = query(endpoint="cultivars", limit='none', **kwargs)
+    if query_data:
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_cultivars.json")
+        with open(cache_file, 'w') as cf:
+            cf.write(json.dumps(query_data))
+
+
 def get_experiments(**kwargs):
     """Return cleaned up array from query() for the experiments table.
         If global variable isn't populated, check if a local file is present and read from it if so.
@@ -140,6 +149,15 @@ def get_experiments(**kwargs):
                 return [t["experiment"] for t in query_data['data']]
     else:
         return [t["experiment"] for t in BETYDB_EXPERIMENTS['data']]
+
+
+def dump_experiments(**kwargs):
+    """Generate bety_experiments.json file"""
+    query_data = query(endpoint="experiments", associations_mode='full_info', limit='none', **kwargs)
+    if query_data:
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_experiments.json")
+        with open(cache_file, 'w') as cf:
+            cf.write(json.dumps(query_data))
 
 
 def get_trait(trait_id):
@@ -173,6 +191,15 @@ def get_traits(**kwargs):
                 return [t["trait"] for t in query_data['data']]
     else:
         return [t["trait"] for t in BETYDB_TRAITS['data']]
+
+
+def dump_traits(**kwargs):
+    """Generate bety_traits.json file"""
+    query_data = query(endpoint="traits", limit='none', **kwargs)
+    if query_data:
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_traits.json")
+        with open(cache_file, 'w') as cf:
+            cf.write(json.dumps(query_data))
 
 
 def get_site(site_id):
