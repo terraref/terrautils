@@ -77,7 +77,8 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
 
     # Add sensor fixed metadata
     if sensor_id:
-        sensor_fixed = get_sensor_fixed_metadata(station, sensor_id)
+        query_date = get_date_from_cleaned_metadata(terra_md)
+        sensor_fixed = get_sensor_fixed_metadata(sensor_id, query_date)
         if 'sensor_fixed_metadata' in terra_md:
             sensor_fixed['url'] = terra_md['sensor_fixed_metadata']['url']
         terra_md['sensor_fixed_metadata'] = sensor_fixed
@@ -104,4 +105,15 @@ def get_preferred_synonym(variable):
 def get_sensor_fixed_metadata(sensor_id, query_date):
     """Get fixed sensor metadata from Clowder."""
     return lemnatec._get_sensor_fixed_metadata(sensor_id, query_date)
+
+
+def get_date_from_cleaned_metadata(md):
+    default = "2012-01-01"
+    if "gantry_variable_metadata" in md:
+        if "date" in md["gantry_variable_metadata"]:
+            return md["gantry_variable_metadata"]["date"]
+        else:
+            return default
+    else:
+        return default
 
