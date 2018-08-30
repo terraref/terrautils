@@ -8,15 +8,21 @@ import logging
 from datetime import datetime
 
 import requests
+import json
 from osgeo import ogr
 
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
+BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
+
+BETYDB_CULTIVARS  = None
+BETYDB_TRAITS = None
+BETYDB_EXPERIMENTS = None
 
 
 def add_arguments(parser):
     parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
-                        default="https://terraref.ncsa.illinois.edu/bety/api/beta/traits.csv",
+                        default="https://terraref.ncsa.illinois.edu/bety/api/v1/traits.csv",
                         help="traits API endpoint of BETY instance that outputs should be posted to")
 
     parser.add_argument('--betyKey', dest="bety_key", type=str, nargs='?',
@@ -55,7 +61,7 @@ def get_bety_url(path=''):
 def get_bety_api(endpoint=None):
     """return betydb API based on betydb url"""
 
-    url = get_bety_url(path='api/beta/{}'.format(endpoint))
+    url = get_bety_url(path='api/v1/{}'.format(endpoint))
     return url
 
 
@@ -83,19 +89,75 @@ def search(**kwargs):
 
 
 def get_cultivars(**kwargs):
-    """Return cleaned up array from query() for the cultivars table."""
+    """Return cleaned up array from query() for the cultivars table.
+        If global variable isn't populated, check if a local file is present and read from it if so.
+        This is for deployments where data is pre-fetched (e.g. for a Condor job).
+        Otherwise the BETY API will be called.
+        In either case, data will be kept in memory for subsequent calls.
+    """
+    global BETYDB_CULTIVARS
 
-    query_data = query(endpoint="cultivars", **kwargs)
+    if BETYDB_CULTIVARS is None:
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_cultivars.json")
+        if (os.path.exists(cache_file)):
+            with open(cache_file) as infile:
+                query_data = json.load(infile)
+                if query_data:
+                    BETYDB_CULTIVARS = query_data
+                    return [t["cultivar"] for t in query_data['data']]
+        else:
+            query_data = query(endpoint="cultivars", **kwargs)
+            if query_data:
+                BETYDB_CULTIVARS = query_data
+                return [t["cultivar"] for t in query_data['data']]
+    else:
+        return [t["cultivar"] for t in BETYDB_CULTIVARS['data']]
+
+
+def dump_cultivars(**kwargs):
+    """Generate bety_cultivars.json file"""
+    query_data = query(endpoint="cultivars", limit='none', **kwargs)
     if query_data:
-        return [t["cultivar"] for t in query_data['data']]
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_cultivars.json")
+        with open(cache_file, 'w') as cf:
+            cf.write(json.dumps(query_data))
 
 
 def get_experiments(**kwargs):
-    """Return cleaned up array from query() for the experiments table."""
+    """Return cleaned up array from query() for the experiments table.
+        If global variable isn't populated, check if a local file is present and read from it if so.
+        This is for deployments where data is pre-fetched (e.g. for a Condor job).
+        Otherwise the BETY API will be called.
+        In either case, data will be kept in memory for subsequent calls.
+    """
+    global BETYDB_EXPERIMENTS
 
-    query_data = query(endpoint="experiments", **kwargs)
+    if BETYDB_EXPERIMENTS is None:
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_experiments.json")
+        if (os.path.exists(cache_file)):
+            with open(cache_file) as infile:
+                query_data = json.load(infile)
+                if query_data:
+                    if 'associations_mode' in kwargs:
+                        BETYDB_EXPERIMENTS = query_data
+                    return [t["experiment"] for t in query_data['data']]
+        else:
+            query_data = query(endpoint="experiments", **kwargs)
+            if query_data:
+                if 'associations_mode' in kwargs:
+                    BETYDB_EXPERIMENTS = query_data
+                return [t["experiment"] for t in query_data['data']]
+    else:
+        return [t["experiment"] for t in BETYDB_EXPERIMENTS['data']]
+
+
+def dump_experiments(**kwargs):
+    """Generate bety_experiments.json file"""
+    query_data = query(endpoint="experiments", associations_mode='full_info', limit='none', **kwargs)
     if query_data:
-        return [t["experiment"] for t in query_data['data']]
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_experiments.json")
+        with open(cache_file, 'w') as cf:
+            cf.write(json.dumps(query_data))
 
 
 def get_trait(trait_id):
@@ -106,11 +168,38 @@ def get_trait(trait_id):
 
 
 def get_traits(**kwargs):
-    """Return cleaned up array from query() for the traits table."""
+    """Return cleaned up array from query() for the traits table.
+        If global variable isn't populated, check if a local file is present and read from it if so.
+        This is for deployments where data is pre-fetched (e.g. for a Condor job).
+        Otherwise the BETY API will be called.
+        In either case, data will be kept in memory for subsequent calls.
+    """
+    global BETYDB_TRAITS
 
-    query_data = query(endpoint="traits", **kwargs)
+    if BETYDB_TRAITS is None:
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_traits.json")
+        if (os.path.exists(cache_file)):
+            with open(cache_file) as infile:
+                query_data = json.load(infile)
+                if query_data:
+                    BETYDB_TRAITS = query_data
+                    return [t["trait"] for t in query_data['data']]
+        else:
+            query_data = query(endpoint="traits", **kwargs)
+            if query_data:
+                BETYDB_TRAITS = query_data
+                return [t["trait"] for t in query_data['data']]
+    else:
+        return [t["trait"] for t in BETYDB_TRAITS['data']]
+
+
+def dump_traits(**kwargs):
+    """Generate bety_traits.json file"""
+    query_data = query(endpoint="traits", limit='none', **kwargs)
     if query_data:
-        return [t["trait"] for t in query_data['data']]
+        cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_traits.json")
+        with open(cache_file, 'w') as cf:
+            cf.write(json.dumps(query_data))
 
 
 def get_site(site_id):
@@ -131,75 +220,46 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
       filter_date -- YYYY-MM-DD to filter sites to specific experiment by date
     """
 
-    """
-    SCENARIO I - NO FILTER DATE
-    Basic query, efficient even with 'containing' parameter.
-    """
     if not filter_date:
+        """ SCENARIO I - NO FILTER DATE
+        Basic query, efficient even with 'containing' parameter.
+        """
         query_data = query(endpoint="sites", limit='none', **kwargs)
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
+        """ SCENARIO II - YES FILTER DATE
+        Get experiments by date and return all associated sites, optionally filtering by location.
+        """
         targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
-
-        if 'containing' not in kwargs:
-            """ SCENARIO II - YES FILTER DATE, NO LAT/LON
-            Get experiments by date and return all associated sites.
-            """
-            query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
-            if query_data:
-                results = []
-                for exp in query_data:
-                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
-                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-                    if start <= targ_date <= end:
-                        if 'sites' in exp:
-                            for t in exp['sites']:
-                                # TODO: Eventually find better solution for S4 half-plots
-                                if (not (exp['name'].find("Season 4") > -1 and
-                                            (t['site']["sitename"].endswith(" W") or
-                                                 t['site']["sitename"].endswith(" E")))) or include_halves:
-                                    if t['site'] not in results:
-                                        results.append(t['site'])
-                return results
-
-        else:
-            """ SCENARIO III - YES FILTER DATE, YES LAT/LON
-            We cannot filter sites returned in experiments query by 'containing'
-            parameter, so instead we get all sites for that lat/lon including
-            associated experiments and filter by appropriate experiment.
-            """
-            matching_experiments = []
-            matching_sites = []
-
-            # Only get experiment IDs that were active during filter_date
-            query_data = get_experiments(**kwargs)
-            if query_data:
-                for exp in query_data:
-                    start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
-                    end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-                    if start <= targ_date <= end:
-                        matching_experiments.append(exp['id'])
-
-            # Get sites in chunks and only keep those associated with experiments
-            intersect_sites = get_sites(associations_mode='full_info', **kwargs)
-            for s in intersect_sites:
-                if 'experiments' in s:
-                    for exp in s['experiments']:
-                        if exp['experiment']['id'] in matching_experiments:
-                            # TODO: Eventually find better solution for S4 half-plots
-                            if ((exp['experiment']['name'].find("Season 4") > -1 and
-                                    (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")))) and not include_halves:
+        query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
+        if query_data:
+            results = []
+            for exp in query_data:
+                start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
+                end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
+                if start <= targ_date <= end:
+                    if 'sites' in exp:
+                        for t in exp['sites']:
+                            s = t['site']
+                            # TODO: Eventually find better solution for S4 half-plots - they are omitted here
+                            if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
-                            small_site = s
-                            if 'experiments_sites' in small_site:
-                                del small_site['experiments_sites']
-                            if 'experiments' in small_site:
-                                del small_site['experiments']
-                            if small_site not in matching_sites:
-                                matching_sites.append(small_site)
-
-            return matching_sites
+                            if 'containing' in kwargs:
+                                # Need to filter additionally by geometry
+                                site_geom = ogr.CreateGeometryFromWkt(s['geometry'])
+                                coords = kwargs['containing'].split(",")
+                                pt_geom = ogr.CreateGeometryFromWkt("POINT(%s %s)" % (coords[1], coords[0]))
+                                if site_geom.Intersects(pt_geom):
+                                    if s not in results:
+                                        results.append(s)
+                            else:
+                                # If no containing parameter, include all sites
+                                if s not in results:
+                                    results.append(s)
+            return results
+        else:
+            logging.error("No experiment data could be retrieved.")
 
 
 def get_sites_by_latlon(latlon, filter_date='', **kwargs):

@@ -4,10 +4,11 @@ def description():
     with open('readme.rst') as f:
          return f.read()
 
-setup(name='terraref-terrautils',
+setup(name='terrautils',
       packages=find_packages(),
       namespace_packages=['terraref'],
-      version='1.1.2',
+      version='1.2.0',
+      include_package_data=True,
       description='TERRA-REF workflow utilities',
       long_description=description(),
       author='Max Burnette',
@@ -18,6 +19,21 @@ setup(name='terraref-terrautils',
         'Source': 'https://github.com/terraref/terrautils',
         'Tracker': 'https://github.com/terraref/computing-pipeline/issues',
       },
+
+      install_requires=[
+          'cfunits',
+          'influxdb',
+          'matplotlib',
+          'netCDF4',
+          'numpy',
+          'Pillow',
+          'python-dateutil',
+          'scipy',
+          'utm',
+          'python-logstash',
+          'pyclowder>=2,<3'
+      ],
+      zip_safe=False,
 
       license='BSD',
       classifiers=[
@@ -31,23 +47,6 @@ setup(name='terraref-terrautils',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.7',
       ],
-      keywords=['terraref', 'clowder', 'field crop', 'phenomics', 'computer vision', 'remote sensing'],
-
-      install_requires=[
-          'cfunits',
-          'influxdb',
-          'matplotlib',
-          'netCDF4',
-          'numpy',
-          'Pillow',
-          'python-dateutil',
-          'scipy',
-          'utm', 
-          'python-logstash',
-          'pyclowder>=2,<3'
-      ],
-
-      include_package_data=True,
-      zip_safe=False,
+      keywords=['terraref', 'clowder', 'field crop', 'phenomics', 'computer vision', 'remote sensing']
 )
 

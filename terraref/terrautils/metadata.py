@@ -11,13 +11,13 @@ from terraref.terrautils import lemnatec
 from terraref.terrautils.sensors import Sensors
 
 
-def clean_metadata(json, sensorId):
+def clean_metadata(json, sensorId, fixed=False):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
     """
     cleaned = clean_json_keys(json)
     if 'lemnatec_measurement_metadata' in json.keys():
-        cleaned = lemnatec.clean(cleaned, sensorId)
+        cleaned = lemnatec.clean(cleaned, sensorId, fixed=fixed)
     else:
         return None
 
