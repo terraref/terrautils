@@ -56,7 +56,7 @@ STATIONS = {
 
     'ua-mac': {
         'co2Sensor': {
-            "fixed_metadata_json": "/sensors/co2Sensor/sensor_fixed_metadata.json",
+            "fixed_metadata_json": "/sensors/co2sensor/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a9924f0cad7d8131b648",
             'template': '{base}/{station}/raw_data/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
