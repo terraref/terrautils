@@ -44,10 +44,9 @@ def clip_raster(rast_path, geojson, out_path=None, nodata=-9999):
         if out_path:
             with rasterio.open(out_path, "w", **out_meta) as dest:
                 dest.write(out_px)
-
-        return out_px
+        return (out_px, out_transform)
     else:
-        return None
+        return (None, None)
 
 
 def get_raster_extents(fname):
