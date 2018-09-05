@@ -3,19 +3,20 @@
 This module provides wrappers to GDAL for manipulating geospatial data.
 """
 
-from osgeo import gdal, gdalnumeric, ogr
+import os
+import subprocess
 import numpy as np
-import rasterio
-from rasterio.mask import mask
+from osgeo import gdal, gdalnumeric, ogr
+
 
 # TODO: Can we just merge this whole module into spatial.py?
 
-def clip_raster(rast_path, geojson, out_path=None, nodata=-9999):
+def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
     """Clip raster to polygon.
 
     Args:
       rast_path (str): path to raster file
-      features_path (str): path to features file or geojson string
+      bounds (tuple): (min_y, max_y, min_x, max_x)
       nodata: the no data value
 
     Returns: (numpy array, GeoTransform)
@@ -27,26 +28,21 @@ def clip_raster(rast_path, geojson, out_path=None, nodata=-9999):
       From http://karthur.org/2015/clipping-rasters-in-python.html
     """
 
-    with rasterio.open(rast_path) as raster:
-        # Cannot use crop=True because rasterio truncates coordinates to floats
-        # and do not support Decimals, so precision is lost.
-        # https://github.com/mapbox/rasterio/blob/master/rasterio/_features.pyx#L332
-        out_px, out_transform = mask(raster, geojson, nodata=nodata)
-    out_meta = raster.meta.copy()
+    if not out_path:
+        out_path = "temp.tif"
 
-    # save the resulting raster
-    out_meta.update({"driver": "GTiff",
-                     "height": out_px.shape[1],
-                     "width": out_px.shape[2],
-                     "transform": out_transform})
+    # Clip raster to GDAL and read it to numpy array
+    coords = "%s %s %s %s" % (bounds[2], bounds[1], bounds[3], bounds[0])
+    cmd = "gdal_translate -projwin %s %s %s" % (coords, rast_path, out_path)
+    subprocess.call(cmd, shell=True, stdout=open(os.devnull, 'wb'))
+    out_px = np.array(gdal.Open(out_path).ReadAsArray())
 
     if np.count_nonzero(out_px) > 0:
-        if out_path:
-            with rasterio.open(out_path, "w", **out_meta) as dest:
-                dest.write(out_px)
-        return (out_px, out_transform)
+        if out_path == "temp.tif":
+            os.remove(out_path)
+        return out_px
     else:
-        return (None, None)
+        return None
 
 
 def get_raster_extents(fname):
