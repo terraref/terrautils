@@ -6,8 +6,7 @@ def description():
 
 setup(name='terrautils',
       packages=find_packages(),
-      namespace_packages=['terraref'],
-      version='1.2.0',
+      version='1.3.0',
       include_package_data=True,
       description='TERRA-REF workflow utilities',
       long_description=description(),

@@ -77,7 +77,8 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
 
     # Add sensor fixed metadata
     if sensor_id:
-        sensor_fixed = get_sensor_fixed_metadata(station, sensor_id)
+        query_date = get_date_from_cleaned_metadata(terra_md)
+        sensor_fixed = get_sensor_fixed_metadata(sensor_id, query_date)
         if 'sensor_fixed_metadata' in terra_md:
             sensor_fixed['url'] = terra_md['sensor_fixed_metadata']['url']
         terra_md['sensor_fixed_metadata'] = sensor_fixed
@@ -101,34 +102,18 @@ def get_preferred_synonym(variable):
     pass
 
 
-def get_sensor_fixed_metadata(station, sensor_id, host='', key=''):
+def get_sensor_fixed_metadata(sensor_id, query_date):
     """Get fixed sensor metadata from Clowder."""
-    if not host:
-        host = os.getenv("CLOWDER_HOST", 'https://terraref.ncsa.illinois.edu/clowder/')
-    if not key:
-        key = os.getenv("CLOWDER_KEY", '')
-
-    sensor = Sensors(base="", station=station, sensor=sensor_id)
-    datasetid = sensor.get_fixed_datasetid_for_sensor()
-    jsonld = pyclowder.datasets.download_metadata(None, host, key, datasetid)
-
-    for sub_metadata in jsonld:
-        if 'content' in sub_metadata:
-            # TODO: Currently assumes only one metadata object attached to formal sensor metadata dataset
-            return sub_metadata['content']
+    return lemnatec._get_sensor_fixed_metadata(sensor_id, query_date)
 
 
-if __name__ == "__main__":
-    # TODO: Either formalize these tests a bit or remove
-    sensorId="stereoTop"
-    fixed = get_sensor_fixed_metadata("ua-mac", sensorId)
-    print "\nFIXED METADATA"
-    print json.dumps(fixed, indent=4, sort_keys=True)
+def get_date_from_cleaned_metadata(md):
+    default = "2012-01-01"
+    if "gantry_variable_metadata" in md:
+        if "date" in md["gantry_variable_metadata"]:
+            return md["gantry_variable_metadata"]["date"]
+        else:
+            return default
+    else:
+        return default
 
-    print "\nCLEANED METADATA"
-    
-    #with open("/data/terraref/sites/ua-mac/raw_data/VNIR/2017-05-13/2017-05-13__12-29-21-202/cd2a45b6-4922-48b4-bc29-f2f95e6206ec_metadata.json") as file:
-    with open("/data/terraref/sites/ua-mac/raw_data/stereoTop/2017-07-30/2017-07-30__14-26-11-139/6ba6f62b-3502-4c80-b3ce-db611ea9cf13_metadata.json") as file:
-        json_data = json.load(file)
-    cleaned = clean_metadata(json_data, sensorId)
-    print json.dumps(cleaned, indent=4, sort_keys=True)
