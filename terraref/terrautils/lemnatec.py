@@ -23,9 +23,9 @@ import os
 import re
 import pytz, datetime
 import requests
-from sensors import Sensors
-import betydb
-from spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
+from terraref.terrautils.sensors import Sensors
+from terraref.terrautils import betydb
+from terraref.terrautils.spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
 
 
 STATION_NAME = "ua-mac"

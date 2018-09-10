@@ -7,8 +7,8 @@ import json
 import os
 
 import pyclowder.datasets
-import lemnatec
-from sensors import Sensors
+from terraref.terrautils import lemnatec
+from terraref.terrautils.sensors import Sensors
 
 
 def clean_metadata(json, sensorId, fixed=False):

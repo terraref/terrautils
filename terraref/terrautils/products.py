@@ -6,7 +6,7 @@ import requests
 import logging
 log = logging.getLogger(__name__)
 
-from terrautils.geostreams import get_sensor_by_name
+from terraref.terrautils.geostreams import get_sensor_by_name
 
 
 # TODO this should be from the pyclowder package

@@ -1,34 +1,32 @@
-FROM clowder/pyclowder:2
+FROM ubuntu:16.04
 MAINTAINER Max Burnette <mburnet2@illinois.edu>
 
 # TODO: Use non-dev versions
 RUN apt-get -q -y update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y \
         software-properties-common \
-        gcc make wget byacc \
-        exiftool imagemagick \
-        libpng-dev \
-        libjpeg8-dev \
-        libfreetype6-dev \
-        libnetcdf-dev \
-        libhdf5-dev \
-        libblas-dev \
-        liblapack-dev \
-        libatlas-base-dev \
-        netcdf-bin \
-        python-dev \
-        python-tk \
-    && add-apt-repository ppa:ubuntugis/ubuntugis-unstable \
+        build-essential \
+        python-pip \
+    && add-apt-repository ppa:ubuntugis/ppa \
     && apt-get -q -y update \
-    && apt-get install -y libgdal-dev gdal-bin python-gdal \
+    && apt-get install -y \
+        libpng12 \
+        libfreetype6 \
+        libjpeg-dev \
+        libgdal20 \
+        gdal-bin \
+        python-gdal \
+        python-pkgconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # TODO: Create intermediary NCO Container for subset of extractors
 
-COPY logging_config.json /var/log/
-COPY setup.py requirements.txt MANIFEST.in /tmp/terrautils/
-RUN pip install --upgrade  -r /tmp/terrautils/requirements.txt
+COPY requirements.txt /src/requirements.txt
+RUN pip install -r /src/requirements.txt \
+    && pip install pytest twine
 
-COPY terrautils /tmp/terrautils/terrautils
-RUN pip install --upgrade /tmp/terrautils \
-    && rm -rf /tmp/terrautils
+WORKDIR /src
+COPY . /src
+RUN pip install --editable .
+
+CMD pytest
