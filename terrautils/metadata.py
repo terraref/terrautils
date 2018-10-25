@@ -39,6 +39,7 @@ def clean_json_keys(jsonobj):
 
     return clean_json
 
+
 def calculate_scan_time(metadata):
     """Parse scan time from metadata.
 
@@ -86,13 +87,22 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
     return terra_md
 
 
-def get_extractor_metadata(clowder_md, extractor_name):
-    """Crawl Clowder metadata object for particular extractor metadata and return if found."""
+def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
+    """Crawl Clowder metadata object for particular extractor metadata and return if found.
+
+    If extractor_version specified, returned metadata must match."""
     for sub_metadata in clowder_md:
         if 'agent' in sub_metadata:
-            sub_md = sub_metadata['agent']
-            if 'name' in sub_md and sub_md['name'].find(extractor_name) > -1:
-                return sub_md
+            agent_data = sub_metadata['agent']
+            if 'name' in agent_data and agent_data['name'].find(extractor_name) > -1:
+                if not extractor_version:
+                    return agent_data
+                else:
+                    # TODO: Eventually check this in preferred way
+                    if 'extractor_version' in sub_metadata['content']:
+                        existing_ver = str(sub_metadata['content']['extractor_version'])
+                        if existing_ver == extractor_version:
+                            return agent_data
 
     return None
 
