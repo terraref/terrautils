@@ -612,6 +612,10 @@ def get_space_or_create(host, secret_key, clowder_user, clowder_pass, space_name
     else:
         return result.json()[0]['id']
 
+def delete_file(host, secret_key, fileid):
+    url = "%sapi/files/%s?key=%s" % (host, fileid, secret_key)
+    result = requests.delete(url)
+    result.raise_for_status()
 
 def add_dataset_to_collection(host, secret_key, dataset_id, collection_id):
     # Didn't find space, so we must associate it now
