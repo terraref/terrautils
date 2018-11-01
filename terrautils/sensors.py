@@ -188,8 +188,8 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
-        'rgb_canopyCover': {
-            'template': '{base}/{station}/Level_1/' + \
+        'rgb_canopycover': {
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{filename}',
             'pattern': '{sensor}_L2_{station}_{date}{opts}.csv',
             'bety_traits': {
@@ -198,7 +198,7 @@ STATIONS = {
             "url": ""
         },
 
-        'texture_analysis': {
+        'rgb_textureanalysis': {
             'display': 'RGB Texture Analysis',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -299,8 +299,8 @@ STATIONS = {
             'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.tif'
         },
 
-        'ir_meanTemp': {
-            'template': '{base}/{station}/Level_1/' + \
+        'ir_meantemp': {
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{filename}',
             'pattern': '{sensor}_L2_{station}_{date}{opts}.csv',
             'bety_traits': {
