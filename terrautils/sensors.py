@@ -156,9 +156,9 @@ STATIONS = {
 
         'fullfield': {
             'display': 'Full Field Stitched Mosaics',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{date}{opts}.tif'
+            'pattern': '{sensor}_L2_{station}_{date}{opts}.tif'
         },
 
         'vnir_netcdf': {
@@ -189,9 +189,9 @@ STATIONS = {
         },
 
         'rgb_canopycover': {
-            'template': '{base}/{station}/Level_2/' + \
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L2_{station}_{date}{opts}.csv',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
             'bety_traits': {
                 'canopy_cover': 'canopy_cover'
             },
@@ -200,9 +200,9 @@ STATIONS = {
 
         'rgb_textureanalysis': {
             'display': 'RGB Texture Analysis',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
+            'pattern': '{sensor}_L3_{station}_{timestamp}{opts}.csv',
         },
 
         'ir_geotiff': {
@@ -221,9 +221,9 @@ STATIONS = {
 
         'ps2_fluorescence': {
             'display': 'PSII Fluorescence Features',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
+            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.png',
         },
 
         'spectral_index_csvs': {
@@ -264,15 +264,15 @@ STATIONS = {
 
         'laser3d_plant_height': {
             'display': 'Laser Scanner 3D Plant Height',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
+            'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_height{opts}.tif'
         },
 
         'laser3d_heightmap': {
             'display': 'Digital Surface Model GeoTiffs',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_heightmap{opts}.tif'
@@ -300,9 +300,9 @@ STATIONS = {
         },
 
         'ir_meantemp': {
-            'template': '{base}/{station}/Level_2/' + \
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L2_{station}_{date}{opts}.csv',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
             'bety_traits': {
                 'surface_temperature': 'surface_temperature'
             },

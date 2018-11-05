@@ -26,9 +26,9 @@ RUN apt-get -q -y update \
 # TODO: Create intermediary NCO Container for subset of extractors
 
 COPY logging_config.json /var/log/
-COPY setup.py requirements.txt MANIFEST.in /tmp/terrautils/
+COPY setup.py requirements.txt MANIFEST.in readme.rst /tmp/terrautils/
 RUN pip install --upgrade  -r /tmp/terrautils/requirements.txt
 
 COPY terrautils /tmp/terrautils/terrautils
-RUN pip install --upgrade /tmp/terrautils \
+RUN pip install /tmp/terrautils \
     && rm -rf /tmp/terrautils

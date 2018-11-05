@@ -42,6 +42,7 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
             os.remove(out_path)
         return out_px
     else:
+        os.remove(out_path)
         return None
 
 
