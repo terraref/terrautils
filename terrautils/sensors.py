@@ -130,7 +130,7 @@ STATIONS = {
             "fixed_metadata_json": "/sensors/scanner3D/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b",
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{timestamp}/{filename}',
+                        'laser3d_las/{date}/{timestamp}/{filename}',
             'pattern': 'hashid__Top-heading-{opts}_0.ply'
         },
         
@@ -254,7 +254,7 @@ STATIONS = {
             'pattern': 'SWIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
-        'laser3d_mergedlas': {
+        'laser3d_las': {
             'display': 'Laser Scanner 3D LAS',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -262,11 +262,11 @@ STATIONS = {
                        '_merged{opts}.las'
         },
 
-        'laser3d_plant_height': {
-            'display': 'Laser Scanner 3D Plant Height',
-            'template': '{base}/{station}/Level_2/' + \
+        'laser3d_canopyheight': {
+            'display': 'Laser Scanner 3D Canopy Height',
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
+            'pattern': 'scanner3DTop_L3_{station}_{timestamp}' + \
                        '_height{opts}.tif'
         },
 
