@@ -33,7 +33,7 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
 
     # Clip raster to GDAL and read it to numpy array
     coords = "%s %s %s %s" % (bounds[2], bounds[1], bounds[3], bounds[0])
-    cmd = "gdal_translate -projwin %s %s %s" % (coords, rast_path, out_path)
+    cmd = 'gdal_translate -projwin %s "%s" "%s"' % (coords, rast_path, out_path)
     subprocess.call(cmd, shell=True, stdout=open(os.devnull, 'wb'))
     out_px = np.array(gdal.Open(out_path).ReadAsArray())
 
