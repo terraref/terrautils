@@ -68,3 +68,17 @@ def centroid_from_geojson(geojson):
 def wkt_to_geojson(wkt):
     geom = ogr.CreateGeometryFromWkt(wkt)
     return geom.ExportToJson()
+
+
+def find_plots_intersect_boundingbox(bounding_box, all_plots):
+    bbox_poly = ogr.CreateGeometryFromJson(str(bounding_box))
+    intersecting_plots = []
+
+    for plotname in all_plots:
+        bounds = all_plots[plotname]
+        yaml_bounds = yaml.safe_load(bounds)
+        current_poly = ogr.CreateGeometryFromJson(str(yaml_bounds))
+        intersection = bbox_poly.Intersection(current_poly)
+        if intersection is not None:
+            intersecting_plots.append(plotname)
+    return intersecting_plots
