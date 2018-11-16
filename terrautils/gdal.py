@@ -6,6 +6,7 @@ This module provides wrappers to GDAL for manipulating geospatial data.
 import os
 import subprocess
 import numpy as np
+import yaml
 from osgeo import gdal, gdalnumeric, ogr
 
 
