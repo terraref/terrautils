@@ -107,6 +107,38 @@ def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
     return None
 
 
+def get_season_and_experiment(timestamp, terra_md_full):
+    """Attempts to extract season & experiment from TERRA-REF metadata given timestamp.
+
+    If the values weren't in TERRA metadata but were fetched from BETY, updated experiment will be returned as well.
+    """
+    season_name, experiment_name, expmd = None, None, None
+    if 'experiment_metadata' in terra_md_full and len(terra_md_full['experiment_metadata']) > 0:
+        for experiment in terra_md_full['experiment_metadata']:
+            if 'name' in experiment:
+                if ":" in experiment['name']:
+                    season_name = experiment['name'].split(": ")[0]
+                    experiment_name = experiment['name'].split(": ")[1]
+                else:
+                    experiment_name = experiment['name']
+                    season_name = None
+                break
+    else:
+        # Try to determine experiment data dynamically
+        expmd = lemnatec._get_experiment_metadata(timestamp.split("__")[0], 'scanner3DTop')
+        if len(expmd) > 0:
+            for experiment in expmd:
+                if 'name' in experiment:
+                    if ":" in experiment['name']:
+                        season_name = experiment['name'].split(": ")[0]
+                        experiment_name = experiment['name'].split(": ")[1]
+                    else:
+                        experiment_name = experiment['name']
+                        season_name = None
+                    break
+    return (season_name, experiment_name, expmd)
+
+
 def get_preferred_synonym(variable):
     """Execute a thesaurus check to see if input variable has alternate preferred name."""
     pass

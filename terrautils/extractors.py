@@ -671,16 +671,17 @@ def delete_file(host, secret_key, fileid):
     result = requests.delete(url)
     result.raise_for_status()
 
-def check_file_in_dataset(connector, host, secret_key, dsid, filepath, remove=False):
+def check_file_in_dataset(connector, host, secret_key, dsid, filepath, remove=False, forcepath=False):
     dest_files = get_file_list(connector, host, secret_key, dsid)
 
     for source_path in connector.mounted_paths:
         if filepath.startswith(connector.mounted_paths[source_path]):
             filepath = filepath.replace(connector.mounted_paths[source_path], source_path)
+            filename = os.path.basename(filepath)
 
     found_file = False
     for f in dest_files:
-        if f['filepath'] == filepath:
+        if (not forcepath and f['filename'] == filename) or (forcepath and f['filepath'] == filepath):
             if remove:
                 delete_file(host, secret_key, f['id'])
             found_file = True
