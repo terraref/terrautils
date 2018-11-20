@@ -306,8 +306,14 @@ STATIONS = {
             'bety_traits': {
                 'surface_temperature': 'surface_temperature'
             },
+        },
+
+        'plotclipper': {
+            'display': 'Plot Clipper',
+            'template': '{base}/{station}/Level_1_Plots/' + \
+                        '{sensor}/{date}/{plot}/{filename}'
         }
-    },
+    }
 }
 
 
