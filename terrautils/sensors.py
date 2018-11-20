@@ -381,7 +381,7 @@ class Sensors():
 
 
     def get_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext=''):
+                        opts=None, ext='', plot=''):
         """Get the appropritate path for writing sensor data
 
         Args:
@@ -429,13 +429,14 @@ class Sensors():
 
         # pattern should be completed with regex string using format
         if filename:
-            pattern = exact_p(s['pattern']).format(sensor='\D*',
-                    station='\D*', date=date_p, time=full_time_p,
-                    timestamp=full_date_p, opts='\D*')
+            if 'pattern' in s:
+                pattern = exact_p(s['pattern']).format(sensor='\D*',
+                        station='\D*', date=date_p, time=full_time_p,
+                        timestamp=full_date_p, opts='\D*')
 
-            result = re.match(pattern, filename)
-            if result == None:
-                raise RuntimeError('The filename given does not match the correct pattern')
+                result = re.match(pattern, filename)
+                if result == None:
+                    raise RuntimeError('The filename given does not match the correct pattern')
 
         else:
             filename = s['pattern'].format(station=self.station,
@@ -449,7 +450,7 @@ class Sensors():
 
         path = s['template'].format(base=self.base, station=self.station,
                                     sensor=sensor, timestamp=timestamp,
-                                    date=date, time=hms, filename=filename)
+                                    date=date, time=hms, filename=filename, plot=plot)
         return path
 
 
@@ -504,7 +505,7 @@ class Sensors():
 
 
     def create_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext=''):
+                        opts=None, ext='', plot=''):
         """Return the full path for the sensor data
         
         Note: this function is similar to get_sensor_path and takes
@@ -513,7 +514,7 @@ class Sensors():
         """
 
         path = self.get_sensor_path(timestamp, sensor, filename,
-                                        opts, ext)
+                                        opts, ext, plot)
         dirs = os.path.dirname(path) 
         if not os.path.exists(dirs):
             os.makedirs(dirs)
