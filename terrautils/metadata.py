@@ -107,7 +107,7 @@ def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
     return None
 
 
-def get_season_and_experiment(timestamp, terra_md_full):
+def get_season_and_experiment(timestamp, sensor, terra_md_full):
     """Attempts to extract season & experiment from TERRA-REF metadata given timestamp.
 
     If the values weren't in TERRA metadata but were fetched from BETY, updated experiment will be returned as well.
@@ -125,7 +125,7 @@ def get_season_and_experiment(timestamp, terra_md_full):
                 break
     else:
         # Try to determine experiment data dynamically
-        expmd = lemnatec._get_experiment_metadata(timestamp.split("__")[0], 'scanner3DTop')
+        expmd = lemnatec._get_experiment_metadata(timestamp.split("__")[0], sensor)
         if len(expmd) > 0:
             for experiment in expmd:
                 if 'name' in experiment:
