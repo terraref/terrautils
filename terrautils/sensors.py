@@ -154,7 +154,21 @@ STATIONS = {
             "fixed_metadata_datasetid": "5873eac64f0cad7d81349b0b"
         },
 
-        'fullfield': {
+        'rgb_fullfield': {
+            'display': 'Full Field Stitched Mosaics',
+            'template': '{base}/{station}/Level_2/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L2_{station}_{date}{opts}.tif'
+        },
+
+        'ir_fullfield': {
+            'display': 'Full Field Stitched Mosaics',
+            'template': '{base}/{station}/Level_2/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L2_{station}_{date}{opts}.tif'
+        },
+
+        'laser3d_fullfield': {
             'display': 'Full Field Stitched Mosaics',
             'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{filename}',
