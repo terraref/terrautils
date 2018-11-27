@@ -531,7 +531,11 @@ class Sensors():
                                         opts, ext, plot)
         dirs = os.path.dirname(path) 
         if not os.path.exists(dirs):
-            os.makedirs(dirs)
+            try:
+                os.makedirs(dirs)
+            except:
+                # If another extractor created the dir structure in meantime, we can continue
+                pass
 
         return path
 

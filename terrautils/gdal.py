@@ -82,8 +82,10 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots):
         yaml_bounds = yaml.safe_load(bounds)
         current_poly = ogr.CreateGeometryFromJson(str(yaml_bounds))
         intersection_with_bounding_box = bbox_poly.Intersection(current_poly)
+
         if intersection_with_bounding_box is not None:
             intersection = json.loads(intersection_with_bounding_box.ExportToJson())
             if 'coordinates' in intersection and len(intersection['coordinates']) > 0:
                 intersecting_plots[plotname] = intersection
+
     return intersecting_plots
