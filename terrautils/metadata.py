@@ -112,7 +112,7 @@ def get_season_and_experiment(timestamp, sensor, terra_md_full):
 
     If the values weren't in TERRA metadata but were fetched from BETY, updated experiment will be returned as well.
     """
-    season_name, experiment_name, expmd = None, None, None
+    season_name, experiment_name, expmd = "Unknown Season", "Unknown Experiment", None
     if 'experiment_metadata' in terra_md_full and len(terra_md_full['experiment_metadata']) > 0:
         for experiment in terra_md_full['experiment_metadata']:
             if 'name' in experiment:
@@ -136,6 +136,7 @@ def get_season_and_experiment(timestamp, sensor, terra_md_full):
                         experiment_name = experiment['name']
                         season_name = None
                     break
+
     return (season_name, experiment_name, expmd)
 
 

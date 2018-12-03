@@ -189,9 +189,24 @@ STATIONS = {
             'display': 'SWIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
-            "bety_traits": {
-                "NDVI705": "NDVI705"
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc'
+        },
+
+        'vnir_traits': {
+            'template': '{base}/{station}/Level_3/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
+            'bety_traits': {
+                'NDVI705': 'NDVI705'
+            }
+        },
+
+        'swir_traits': {
+            'template': '{base}/{station}/Level_3/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
+            'bety_traits': {
+                'NDVI705': 'NDVI705'
             }
         },
 
