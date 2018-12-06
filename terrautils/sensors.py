@@ -340,7 +340,7 @@ STATIONS = {
         'plotclipper': {
             'display': 'Plot Clipper',
             'template': '{base}/{station}/Level_1_Plots/' + \
-                        '{sensor}/{date}/{plot}/{filename}'
+                        '{subsensor}/{date}/{plot}/{filename}'
         }
     }
 }
@@ -410,7 +410,7 @@ class Sensors():
 
 
     def get_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext='', plot=''):
+                        opts=None, ext='', plot='', subsensor=''):
         """Get the appropritate path for writing sensor data
 
         Args:
@@ -479,7 +479,7 @@ class Sensors():
 
         path = s['template'].format(base=self.base, station=self.station,
                                     sensor=sensor, timestamp=timestamp,
-                                    date=date, time=hms, filename=filename, plot=plot)
+                                    date=date, time=hms, filename=filename, plot=plot, subsensor=subsensor)
         return path
 
 
@@ -534,7 +534,7 @@ class Sensors():
 
 
     def create_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext='', plot=''):
+                        opts=None, ext='', plot='', subsensor=''):
         """Return the full path for the sensor data
         
         Note: this function is similar to get_sensor_path and takes
@@ -543,7 +543,7 @@ class Sensors():
         """
 
         path = self.get_sensor_path(timestamp, sensor, filename,
-                                        opts, ext, plot)
+                                        opts, ext, plot, subsensor)
         dirs = os.path.dirname(path) 
         if not os.path.exists(dirs):
             try:

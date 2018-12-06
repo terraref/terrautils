@@ -48,6 +48,10 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
         return None
 
 
+def clip_las(las_path, bounds, out_path=None):
+    pass
+
+
 def get_raster_extents(fname):
     """Calculate the extent and the center of the given raster."""
     src = gdal.Open(fname)
