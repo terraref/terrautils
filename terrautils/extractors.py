@@ -12,6 +12,7 @@ import requests
 from urllib3.filepost import encode_multipart_formdata
 
 from pyclowder.extractors import Extractor
+from pyclowder.datasets import get_file_list
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 
@@ -26,7 +27,8 @@ def add_arguments(parser):
             default=os.getenv('CLOWDER_SPACE', "58da6b924f0c430e2baa823f"),
             help='sets the default Clowder space for creating new things')
 
-    parser.add_argument('--overwrite', default=False, 
+    parser.add_argument('--overwrite',
+                        default=False,
             action='store_true',
             help='enable overwriting of existing files')
 
@@ -138,7 +140,9 @@ def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='
         "content": content,
         "agent": {
             "@type": "cat:extractor",
-            "extractor_id": clowderhost + ("" if clowderhost.endswith("/") else "/") + "api/extractors/"+ extractorinfo['name']
+            "extractor_id": clowderhost + ("" if clowderhost.endswith("/") else "/") + "api/extractors/"+ extractorinfo['name'],
+            "version": extractorinfo['version'],
+            "name": extractorinfo['name']
         }
     }
 
@@ -190,6 +194,18 @@ def is_latest_file(resource):
         return True
 
 
+def contains_required_files(resource, required_list):
+    """Iterate through files in resource and check if all of required list is found."""
+    for req in required_list:
+        found_req = False
+        for f in resource['files']:
+            if f['filename'].endswith(req):
+                found_req = True
+        if not found_req:
+            return False
+    return True
+
+
 def load_json_file(filepath):
     """Load contents of a .json file on disk into a JSON object.
     """
@@ -217,16 +233,16 @@ def file_exists(filepath, max_age_mins=3):
     else:
         return False
 
-
-
 # CLOWDER UTILS -------------------------------------
 # TODO: Remove redundant ones of these once PyClowder2 supports user/password
-def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_space, root_coll_name,
-                            year='', month='', date='', leaf_ds_name=''):
-    """This will build collections for year, month, date level if needed in parent space.
+def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_space,
+                            season, experiment, root_coll_name, year='', month='', date='', leaf_ds_name=''):
+    """This will build collections if needed in parent space.
 
         Typical hierarchy:
         MAIN LEVEL 1 DATA SPACE IN CLOWDER
+        - Season ("Season 6")
+        - Experiment ("Sorghum BAP")
         - Root collection for sensor ("stereoRGB geotiffs")
             - Year collection ("stereoRGB geotiffs - 2017")
                 - Month collection ("stereoRGB geotiffs - 2017-01")
@@ -235,33 +251,97 @@ def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_s
 
         Omitting year, month or date will result in dataset being added to next level up.
     """
-    parent_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
+    if season:
+        season_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, season,
                                               parent_space=root_space)
+
+        experiment_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, experiment,
+                                                  season_collect, parent_space=root_space)
+
+        sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
+                                                  experiment_collect, parent_space=root_space)
+    elif experiment:
+            experiment_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, experiment,
+                                                          parent_space=root_space)
+
+            sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
+                                                      experiment_collect, parent_space=root_space)
+    else:
+        sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
+                                                  parent_space=root_space)
 
     if year:
         # Create year-level collection
         year_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                 "%s - %s" % (root_coll_name, year),
-                                                parent_collect, parent_space=root_space)
+                                                sensor_collect, parent_space=root_space)
+        #verify_collection_in_space(host, secret_key, year_collect, root_space)
         if month:
             # Create month-level collection
             month_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                      "%s - %s-%s" % (root_coll_name, year, month),
                                                      year_collect, parent_space=root_space)
+            #verify_collection_in_space(host, secret_key, month_collect, root_space)
             if date:
                 targ_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass,
                                                         "%s - %s-%s-%s" % (root_coll_name, year, month, date),
                                                         month_collect, parent_space=root_space)
+                #verify_collection_in_space(host, secret_key, targ_collect, root_space)
             else:
                 targ_collect = month_collect
         else:
             targ_collect = year_collect
     else:
-        targ_collect = parent_collect
+        targ_collect = sensor_collect
 
     target_dsid = get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, leaf_ds_name,
                                         targ_collect, root_space)
+    #verify_dataset_in_space(host, secret_key, target_dsid, root_space)
+    return target_dsid
 
+
+def build_dataset_hierarchy_crawl(host, secret_key, clowder_user, clowder_pass, root_space,
+                            season, experiment, sensor, year='', month='', date='', leaf_ds_name=''):
+    """This will build collections if needed in parent space.
+
+        Typical hierarchy:
+        MAIN LEVEL 1 DATA SPACE IN CLOWDER
+        - Season ("Season 6")
+        - Experiment ("Sorghum BAP")
+        - Root collection for sensor ("stereoRGB geotiffs")
+            - Year collection ("stereoRGB geotiffs - 2017")
+                - Month collection ("stereoRGB geotiffs - 2017-01")
+                    - Date collection ("stereoRGB geotiffs - 2017-01-01")
+                        - Dataset ("stereoRGB geotiffs - 2017-01-01__01-02-03-456")
+
+        Omitting year, month or date will result in dataset being added to next level up.
+
+        Start at the root collection and check children until we get to the final one.
+    """
+    season_c = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, season, parent_space=root_space)
+    experiment_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, season_c, experiment)
+    sensor_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, experiment_c, sensor)
+
+    if year:
+        year_c_name = "%s - %s" % (sensor, year)
+        year_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, sensor_c, year_c_name)
+
+        if month:
+            month_c_name = "%s - %s-%s" % (sensor, year, month)
+            month_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, year_c, month_c_name)
+
+            if date:
+                date_c_name = "%s - %s-%s-%s" % (sensor, year, month, date)
+                targ_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, month_c, date_c_name)
+
+            else:
+                targ_c = month_c
+        else:
+            targ_c = year_c
+    else:
+        targ_c = sensor_c
+
+    target_dsid = get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, leaf_ds_name, targ_c, root_space)
     return target_dsid
 
 
@@ -274,8 +354,19 @@ def get_collection_or_create(host, secret_key, clowder_user, clowder_pass, cname
     if len(result.json()) == 0:
         return create_empty_collection(host, clowder_user, clowder_pass, cname, "", parent_colln, parent_space)
     else:
-        return result.json()[0]['id']
+        coll_id = result.json()[0]['id']
+        if parent_colln:
+            add_collection_to_collection(host, secret_key, parent_colln, coll_id)
+        if parent_space:
+            add_collection_to_space(host, secret_key, coll_id, parent_space)
+        return coll_id
 
+def get_child_collections(host, secret_key, collection_id):
+    url = "%sapi/collections/%s/getChildCollections?key=%s" % (host, collection_id, secret_key)
+    result = requests.get(url)
+    result.raise_for_status()
+
+    return result.json()
 
 def create_empty_collection(host, clowder_user, clowder_pass, collectionname, description, parentid=None, spaceid=None):
     """Create a new collection in Clowder.
@@ -297,13 +388,13 @@ def create_empty_collection(host, clowder_user, clowder_pass, collectionname, de
             url = '%sapi/collections/newCollectionWithParent' % host
             result = requests.post(url, headers={"Content-Type": "application/json"},
                                    data=json.dumps({"name": collectionname, "description": description,
-                                                    "parentId": [parentid], "space": spaceid}),
+                                                    "parentId": parentid, "space": spaceid}),
                                    auth=(clowder_user, clowder_pass))
         else:
             url = '%sapi/collections/newCollectionWithParent' % host
             result = requests.post(url, headers={"Content-Type": "application/json"},
                                    data=json.dumps({"name": collectionname, "description": description,
-                                                    "parentId": [parentid]}),
+                                                    "parentId": parentid}),
                                    auth=(clowder_user, clowder_pass))
     else:
         if (spaceid):
@@ -324,7 +415,6 @@ def create_empty_collection(host, clowder_user, clowder_pass, collectionname, de
 
     return collectionid
 
-
 def get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
     url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
@@ -335,8 +425,12 @@ def get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, dsname, 
         return create_empty_dataset(host, clowder_user, clowder_pass, dsname, "",
                                     parent_colln, parent_space)
     else:
-        return result.json()[0]['id']
-
+        ds_id = result.json()[0]['id']
+        if parent_colln:
+            add_dataset_to_collection(host, secret_key, ds_id, parent_colln)
+        if parent_space:
+            add_dataset_to_space(host, secret_key, ds_id, parent_space)
+        return ds_id
 
 def create_empty_dataset(host, clowder_user, clowder_pass, datasetname, description, parentid=None, spaceid=None):
     """Create a new dataset in Clowder.
@@ -384,7 +478,6 @@ def create_empty_dataset(host, clowder_user, clowder_pass, datasetname, descript
 
     return datasetid
 
-
 def upload_to_dataset(connector, host, clowder_user, clowder_pass, datasetid, filepath):
     """Upload file to existing Clowder dataset.
 
@@ -415,7 +508,6 @@ def upload_to_dataset(connector, host, clowder_user, clowder_pass, datasetid, fi
         return uploadedfileid
     else:
         logger.error("unable to upload file %s (not found)", filepath)
-
 
 def _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datasetid, filepath):
     """Upload file POINTER to existing Clowder dataset. Does not copy actual file bytes.
@@ -452,8 +544,7 @@ def _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datase
     else:
         logger.error("unable to upload local file %s (not found)", filepath)
 
-
-def get_child_collections(host, clowder_user, clowder_pass, collectionid):
+def get_child_collections(host, secret_key, collectionid):
     """Get list of child collections in collection by UUID.
 
     Keyword arguments:
@@ -463,13 +554,12 @@ def get_child_collections(host, clowder_user, clowder_pass, collectionid):
     collectionid -- the collection to get children of
     """
 
-    url = "%sapi/collections/%s/getChildCollections" % (host, collectionid)
+    url = "%sapi/collections/%s/getChildCollections?key=%s" % (host, collectionid, secret_key)
 
-    result = requests.get(url, auth=(clowder_user, clowder_pass))
+    result = requests.get(url)
     result.raise_for_status()
 
     return json.loads(result.text)
-
 
 def get_datasets(host, clowder_user, clowder_pass, collectionid):
     """Get list of datasets in collection by UUID.
@@ -488,7 +578,6 @@ def get_datasets(host, clowder_user, clowder_pass, collectionid):
 
     return json.loads(result.text)
 
-
 def delete_dataset(host, clowder_user, clowder_pass, datasetid):
     url = "%sapi/datasets/%s" % (host, datasetid)
 
@@ -496,7 +585,6 @@ def delete_dataset(host, clowder_user, clowder_pass, datasetid):
     result.raise_for_status()
 
     return json.loads(result.text)
-
 
 def delete_dataset_metadata(host, clowder_user, clowder_pass, datasetid):
     url = "%sapi/datasets/%s/metadata.jsonld" % (host, datasetid)
@@ -506,7 +594,6 @@ def delete_dataset_metadata(host, clowder_user, clowder_pass, datasetid):
 
     return json.loads(result.text)
 
-
 def delete_collection(host, clowder_user, clowder_pass, collectionid):
     url = "%sapi/collections/%s" % (host, collectionid)
 
@@ -514,7 +601,6 @@ def delete_collection(host, clowder_user, clowder_pass, collectionid):
     result.raise_for_status()
 
     return json.loads(result.text)
-
 
 def delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, collectionid, recursive=True):
     dslist = get_datasets(host, clowder_user, clowder_pass, collectionid)
@@ -528,7 +614,6 @@ def delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, coll
         childcolls = get_child_collections(host, clowder_user, clowder_pass, collectionid)
         for coll in childcolls:
             delete_dataset_metadata_in_collection(host, clowder_user, clowder_pass, coll['id'], recursive)
-
 
 def delete_datasets_in_collection(host, clowder_user, clowder_pass, collectionid, recursive=True, delete_colls=True):
     dslist = get_datasets(host, clowder_user, clowder_pass, collectionid)
@@ -547,6 +632,102 @@ def delete_datasets_in_collection(host, clowder_user, clowder_pass, collectionid
         logging.info("deleting collection %s" % collectionid)
         delete_collection(host, clowder_user, clowder_pass, collectionid)
 
+def create_empty_space(host, clowder_user, clowder_pass, space_name, description=""):
+    """Create a new space in Clowder.
+
+    Keyword arguments:
+    connector -- connector information, used to get missing parameters and send status updates
+    host -- the clowder host, including http and port, should end with a /
+    key -- the secret key to login to clowder
+    space_name -- name of new space to create
+    """
+
+    logger = logging.getLogger(__name__)
+
+    url = '%sapi/spaces' % host
+    result = requests.post(url, headers={"Content-Type": "application/json"},
+                           data=json.dumps({"name": space_name, "description": description}),
+                           auth=(clowder_user, clowder_pass))
+    result.raise_for_status()
+
+    spaceid = result.json()['id']
+    logger.debug("space id = [%s]", spaceid)
+
+    return spaceid
+
+def get_space_or_create(host, secret_key, clowder_user, clowder_pass, space_name):
+    # Fetch dataset from Clowder by name, or create it if not found
+    url = "%sapi/spaces?key=%s&title=%s&exact=true" % (host, secret_key, space_name)
+    result = requests.get(url)
+    result.raise_for_status()
+
+    if len(result.json()) == 0:
+        return create_empty_collection(host, clowder_user, clowder_pass, space_name, "")
+    else:
+        return result.json()[0]['id']
+
+def delete_file(host, secret_key, fileid):
+    url = "%sapi/files/%s?key=%s" % (host, fileid, secret_key)
+    result = requests.delete(url)
+    result.raise_for_status()
+
+def check_file_in_dataset(connector, host, secret_key, dsid, filepath, remove=False, forcepath=False, replacements=[]):
+    # Replacements = [("L2","L1")]
+    # Each tuple is checked replacing first element in filepath with second element for existing
+    dest_files = get_file_list(connector, host, secret_key, dsid)
+
+    if len(replacements) > 0:
+        for r in replacements:
+            filepath = filepath.replace(r[0], r[1])
+
+    for source_path in connector.mounted_paths:
+        if filepath.startswith(connector.mounted_paths[source_path]):
+            filepath = filepath.replace(connector.mounted_paths[source_path], source_path)
+
+    filename = os.path.basename(filepath)
+
+    found_file = False
+    for f in dest_files:
+        if (not forcepath and f['filename'] == filename) or (forcepath and f['filepath'] == filepath):
+            if remove:
+                delete_file(host, secret_key, f['id'])
+            found_file = True
+
+    return found_file
+
+def ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, parent_space, parent_coll_id, child_name):
+    """Check if named collection is among parent's children, and create if not found."""
+    child_collections = get_child_collections(host, secret_key, parent_coll_id)
+    for c in child_collections:
+        if c['name'] == child_name:
+            return str(c['id'])
+
+    # If we didn't find it, create it
+    return create_empty_collection(host, clowder_user, clowder_pass, child_name, "", parent_coll_id, parent_space)
+
+def add_dataset_to_collection(host, secret_key, dataset_id, collection_id):
+    # Didn't find space, so we must associate it now
+    url = "%sapi/collections/%s/datasets/%s?key=%s" % (host, collection_id, dataset_id, secret_key)
+    result = requests.post(url)
+    result.raise_for_status()
+
+def add_dataset_to_space(host, secret_key, dataset_id, space_id):
+    # Didn't find space, so we must associate it now
+    url = "%sapi/spaces/%s/addDatasetToSpace/%s?key=%s" % (host, space_id, dataset_id, secret_key)
+    result = requests.post(url)
+    result.raise_for_status()
+
+def add_collection_to_collection(host, secret_key, parent_coll_id, child_coll_id):
+    # Didn't find space, so we must associate it now
+    url = "%sapi/collections/%s/addSubCollection/%s?key=%s" % (host, parent_coll_id, child_coll_id, secret_key)
+    result = requests.post(url)
+    result.raise_for_status()
+
+def add_collection_to_space(host, secret_key, collection_id, space_id):
+    # Didn't find space, so we must associate it now
+    url = "%sapi/spaces/%s/addCollectionToSpace/%s?key=%s" % (host, space_id, collection_id, secret_key)
+    result = requests.post(url)
+    result.raise_for_status()
 
 
 # PRIVATE -------------------------------------

@@ -35,7 +35,7 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
 
     # Clip raster to GDAL and read it to numpy array
     coords = "%s %s %s %s" % (bounds[2], bounds[1], bounds[3], bounds[0])
-    cmd = "gdal_translate -projwin %s %s %s" % (coords, rast_path, out_path)
+    cmd = 'gdal_translate -projwin %s "%s" "%s"' % (coords, rast_path, out_path)
     subprocess.call(cmd, shell=True, stdout=open(os.devnull, 'wb'))
     out_px = np.array(gdal.Open(out_path).ReadAsArray())
 
@@ -44,7 +44,12 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
             os.remove(out_path)
         return out_px
     else:
+        os.remove(out_path)
         return None
+
+
+def clip_las(las_path, bounds, out_path=None):
+    pass
 
 
 def get_raster_extents(fname):
@@ -81,8 +86,10 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots):
         yaml_bounds = yaml.safe_load(bounds)
         current_poly = ogr.CreateGeometryFromJson(str(yaml_bounds))
         intersection_with_bounding_box = bbox_poly.Intersection(current_poly)
+
         if intersection_with_bounding_box is not None:
             intersection = json.loads(intersection_with_bounding_box.ExportToJson())
             if 'coordinates' in intersection and len(intersection['coordinates']) > 0:
                 intersecting_plots[plotname] = intersection
+
     return intersecting_plots

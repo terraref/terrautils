@@ -39,6 +39,7 @@ def clean_json_keys(jsonobj):
 
     return clean_json
 
+
 def calculate_scan_time(metadata):
     """Parse scan time from metadata.
 
@@ -86,15 +87,57 @@ def get_terraref_metadata(clowder_md, sensor_id=None, station='ua-mac'):
     return terra_md
 
 
-def get_extractor_metadata(clowder_md, extractor_name):
-    """Crawl Clowder metadata object for particular extractor metadata and return if found."""
+def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
+    """Crawl Clowder metadata object for particular extractor metadata and return if found.
+
+    If extractor_version specified, returned metadata must match."""
     for sub_metadata in clowder_md:
         if 'agent' in sub_metadata:
-            sub_md = sub_metadata['agent']
-            if 'name' in sub_md and sub_md['name'].find(extractor_name) > -1:
-                return sub_md
+            agent_data = sub_metadata['agent']
+            if 'name' in agent_data and agent_data['name'].find(extractor_name) > -1:
+                if not extractor_version:
+                    return agent_data
+                else:
+                    # TODO: Eventually check this in preferred way
+                    if 'extractor_version' in sub_metadata['content']:
+                        existing_ver = str(sub_metadata['content']['extractor_version'])
+                        if existing_ver == extractor_version:
+                            return agent_data
 
     return None
+
+
+def get_season_and_experiment(timestamp, sensor, terra_md_full):
+    """Attempts to extract season & experiment from TERRA-REF metadata given timestamp.
+
+    If the values weren't in TERRA metadata but were fetched from BETY, updated experiment will be returned as well.
+    """
+    season_name, experiment_name, expmd = "Unknown Season", "Unknown Experiment", None
+    if 'experiment_metadata' in terra_md_full and len(terra_md_full['experiment_metadata']) > 0:
+        for experiment in terra_md_full['experiment_metadata']:
+            if 'name' in experiment:
+                if ":" in experiment['name']:
+                    season_name = experiment['name'].split(": ")[0]
+                    experiment_name = experiment['name'].split(": ")[1]
+                else:
+                    experiment_name = experiment['name']
+                    season_name = None
+                break
+    else:
+        # Try to determine experiment data dynamically
+        expmd = lemnatec._get_experiment_metadata(timestamp.split("__")[0], sensor)
+        if len(expmd) > 0:
+            for experiment in expmd:
+                if 'name' in experiment:
+                    if ":" in experiment['name']:
+                        season_name = experiment['name'].split(": ")[0]
+                        experiment_name = experiment['name'].split(": ")[1]
+                    else:
+                        experiment_name = experiment['name']
+                        season_name = None
+                    break
+
+    return (season_name, experiment_name, expmd)
 
 
 def get_preferred_synonym(variable):

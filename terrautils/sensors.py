@@ -130,7 +130,7 @@ STATIONS = {
             "fixed_metadata_json": "/sensors/scanner3D/sensor_fixed_metadata.json",
             "fixed_metadata_datasetid": "5873a7444f0cad7d81319b2b",
             'template': '{base}/{station}/Level_1/' + \
-                        '{sensor}/{date}/{timestamp}/{filename}',
+                        'laser3d_las/{date}/{timestamp}/{filename}',
             'pattern': 'hashid__Top-heading-{opts}_0.ply'
         },
         
@@ -154,11 +154,25 @@ STATIONS = {
             "fixed_metadata_datasetid": "5873eac64f0cad7d81349b0b"
         },
 
-        'fullfield': {
+        'rgb_fullfield': {
             'display': 'Full Field Stitched Mosaics',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{date}{opts}.tif'
+            'pattern': '{sensor}_L2_{station}_{date}{opts}.tif'
+        },
+
+        'ir_fullfield': {
+            'display': 'Full Field Stitched Mosaics',
+            'template': '{base}/{station}/Level_2/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L2_{station}_{date}{opts}.tif'
+        },
+
+        'laser3d_fullfield': {
+            'display': 'Full Field Stitched Mosaics',
+            'template': '{base}/{station}/Level_2/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L2_{station}_{date}{opts}.tif'
         },
 
         'vnir_netcdf': {
@@ -175,9 +189,24 @@ STATIONS = {
             'display': 'SWIR Hyperspectral NetCDFs',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc',
-            "bety_traits": {
-                "NDVI705": "NDVI705"
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.nc'
+        },
+
+        'vnir_traits': {
+            'template': '{base}/{station}/Level_3/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
+            'bety_traits': {
+                'NDVI705': 'NDVI705'
+            }
+        },
+
+        'swir_traits': {
+            'template': '{base}/{station}/Level_3/' + \
+                        '{sensor}/{date}/{filename}',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
+            'bety_traits': {
+                'NDVI705': 'NDVI705'
             }
         },
 
@@ -188,21 +217,21 @@ STATIONS = {
             'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.tif',
         },
 
-        'rgb_canopyCover': {
-            'template': '{base}/{station}/Level_1/' + \
+        'rgb_canopycover': {
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L2_{station}_{date}{opts}.csv',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
             'bety_traits': {
                 'canopy_cover': 'canopy_cover'
             },
             "url": ""
         },
 
-        'texture_analysis': {
+        'rgb_textureanalysis': {
             'display': 'RGB Texture Analysis',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.csv',
+            'pattern': '{sensor}_L3_{station}_{timestamp}{opts}.csv',
         },
 
         'ir_geotiff': {
@@ -221,9 +250,9 @@ STATIONS = {
 
         'ps2_fluorescence': {
             'display': 'PSII Fluorescence Features',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}.png',
+            'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.png',
         },
 
         'spectral_index_csvs': {
@@ -254,7 +283,7 @@ STATIONS = {
             'pattern': 'SWIR_L2_{station}_{timestamp}{opts}.nc'
         },
 
-        'laser3d_mergedlas': {
+        'laser3d_las': {
             'display': 'Laser Scanner 3D LAS',
             'template': '{base}/{station}/Level_1/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
@@ -262,17 +291,17 @@ STATIONS = {
                        '_merged{opts}.las'
         },
 
-        'laser3d_plant_height': {
-            'display': 'Laser Scanner 3D Plant Height',
-            'template': '{base}/{station}/Level_1/' + \
+        'laser3d_canopyheight': {
+            'display': 'Laser Scanner 3D Canopy Height',
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': 'scanner3DTop_L1_{station}_{timestamp}' + \
+            'pattern': 'scanner3DTop_L3_{station}_{timestamp}' + \
                        '_height{opts}.tif'
         },
 
         'laser3d_heightmap': {
             'display': 'Digital Surface Model GeoTiffs',
-            'template': '{base}/{station}/Level_1/' + \
+            'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
             'pattern': 'scanner3DTop_L2_{station}_{timestamp}' + \
                        '_heightmap{opts}.tif'
@@ -299,15 +328,21 @@ STATIONS = {
             'pattern': '{sensor}_L2_{station}_{timestamp}{opts}.tif'
         },
 
-        'ir_meanTemp': {
-            'template': '{base}/{station}/Level_1/' + \
+        'ir_meantemp': {
+            'template': '{base}/{station}/Level_3/' + \
                         '{sensor}/{date}/{filename}',
-            'pattern': '{sensor}_L2_{station}_{date}{opts}.csv',
+            'pattern': '{sensor}_L3_{station}_{date}{opts}.csv',
             'bety_traits': {
                 'surface_temperature': 'surface_temperature'
             },
+        },
+
+        'plotclipper': {
+            'display': 'Plot Clipper',
+            'template': '{base}/{station}/Level_1_Plots/' + \
+                        '{subsensor}/{date}/{plot}/{filename}'
         }
-    },
+    }
 }
 
 
@@ -375,7 +410,7 @@ class Sensors():
 
 
     def get_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext=''):
+                        opts=None, ext='', plot='', subsensor=''):
         """Get the appropritate path for writing sensor data
 
         Args:
@@ -423,13 +458,14 @@ class Sensors():
 
         # pattern should be completed with regex string using format
         if filename:
-            pattern = exact_p(s['pattern']).format(sensor='\D*',
-                    station='\D*', date=date_p, time=full_time_p,
-                    timestamp=full_date_p, opts='\D*')
+            if 'pattern' in s:
+                pattern = exact_p(s['pattern']).format(sensor='\D*',
+                        station='\D*', date=date_p, time=full_time_p,
+                        timestamp=full_date_p, opts='\D*')
 
-            result = re.match(pattern, filename)
-            if result == None:
-                raise RuntimeError('The filename given does not match the correct pattern')
+                result = re.match(pattern, filename)
+                if result == None:
+                    raise RuntimeError('The filename given does not match the correct pattern')
 
         else:
             filename = s['pattern'].format(station=self.station,
@@ -443,7 +479,7 @@ class Sensors():
 
         path = s['template'].format(base=self.base, station=self.station,
                                     sensor=sensor, timestamp=timestamp,
-                                    date=date, time=hms, filename=filename)
+                                    date=date, time=hms, filename=filename, plot=plot, subsensor=subsensor)
         return path
 
 
@@ -498,7 +534,7 @@ class Sensors():
 
 
     def create_sensor_path(self, timestamp, sensor='', filename='',
-                        opts=None, ext=''):
+                        opts=None, ext='', plot='', subsensor=''):
         """Return the full path for the sensor data
         
         Note: this function is similar to get_sensor_path and takes
@@ -507,10 +543,14 @@ class Sensors():
         """
 
         path = self.get_sensor_path(timestamp, sensor, filename,
-                                        opts, ext)
+                                        opts, ext, plot, subsensor)
         dirs = os.path.dirname(path) 
         if not os.path.exists(dirs):
-            os.makedirs(dirs)
+            try:
+                os.makedirs(dirs)
+            except:
+                # If another extractor created the dir structure in meantime, we can continue
+                pass
 
         return path
 
