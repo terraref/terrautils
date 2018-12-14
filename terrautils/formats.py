@@ -4,7 +4,6 @@ This module handles creation of output files in GeoTIF, netCDF, and other image 
 """
 
 import numpy
-import gdal
 from osgeo import gdal, osr
 from netCDF4 import Dataset
 from matplotlib import cm, pyplot as plt
