@@ -3,16 +3,12 @@
 This module provides useful methods for spatial referencing.
 """
 
+import os
 import utm
 import yaml
-import subprocess
-from osgeo import ogr
-
-import os
+import json
 import subprocess
 import numpy as np
-import yaml
-import json
 from osgeo import gdal, gdalnumeric, ogr
 
 
