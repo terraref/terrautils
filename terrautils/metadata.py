@@ -3,12 +3,8 @@
 This module provides useful reference methods for accessing and cleaning TERRA-REF metadata.
 """
 
-import json
-import os
-
-import pyclowder.datasets
 import lemnatec
-from sensors import Sensors
+
 
 
 def clean_metadata(json, sensorId, fixed=False):
