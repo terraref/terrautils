@@ -9,6 +9,7 @@ import yaml
 import json
 import subprocess
 import numpy as np
+import laspy
 from osgeo import gdal, gdalnumeric, ogr
 
 
@@ -150,7 +151,7 @@ def centroid_from_geojson(geojson):
     return centroid.ExportToJson()
 
 
-def clip_las(las_path, geojson, out_path):
+def clip_las(las_path, tuples, out_path):
     """Clip LAS file to polygon.
 
     Args:
@@ -158,7 +159,6 @@ def clip_las(las_path, geojson, out_path):
       geojson (str): geoJSON bounds received from get_site_boundaries() in betydb.py
       out_path: output file to write
     """
-    tuples = geojson_to_tuples_betydb(yaml.safe_load(geojson))
     utm = tuples_to_utm(tuples)
     bounds_str = "([%s, %s], [%s, %s])" % (utm[0], utm[1], utm[2], utm[3])
 
@@ -315,6 +315,27 @@ def geom_from_metadata(metadata, side='west'):
                 fov_y = sf_meta[fov_field]['y'] if 'y' in sf_meta[fov_field] else fov_y
 
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
+
+
+def get_las_extents(fname):
+    """Calculate the extent of the given pointcloud and return as GeoJSON."""
+    lasinfo = laspy.base.Reader(fname, 'r')
+    min = lasinfo.get_header().min
+    max = lasinfo.get_header().max
+
+    min_latlon = utm.to_latlon(min[0], min[1], 12, 'N')
+    max_latlon = utm.to_latlon(max[0], max[1], 12, 'N')
+
+    return {
+        "type": "Polygon",
+        "coordinates": [[
+            [min_latlon[1], min_latlon[0]],
+            [min_latlon[1], max_latlon[0]],
+            [max_latlon[1], max_latlon[0]],
+            [max_latlon[1], min_latlon[0]],
+            [min_latlon[1], min_latlon[0]]
+        ]]
+    }
 
 
 def get_raster_extents(fname):
