@@ -323,8 +323,8 @@ def get_las_extents(fname):
     min = lasinfo.get_header().min
     max = lasinfo.get_header().max
 
-    min_latlon = utm.to_latlon(min[0], min[1], 12, 'N')
-    max_latlon = utm.to_latlon(max[0], max[1], 12, 'N')
+    min_latlon = utm.to_latlon(min[1], min[0], 12, 'S')
+    max_latlon = utm.to_latlon(max[1], max[0], 12, 'S')
 
     return {
         "type": "Polygon",
