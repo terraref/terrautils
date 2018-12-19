@@ -182,7 +182,7 @@ def clip_las(las_path, tuples, out_path, merged_path=None):
     subprocess.call([cmd], shell=True)
 
     if merged_path:
-        if os.path.isfile(merged):
+        if os.path.isfile(merged_path):
             cmd = 'pdal merge "%s" "%s" "%s"' % (out_path, merged_path, merged_path)
             subprocess.call([cmd], shell=True)
         else:

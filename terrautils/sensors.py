@@ -294,9 +294,7 @@ STATIONS = {
         'laser3d_canopyheight': {
             'display': 'Laser Scanner 3D Canopy Height',
             'template': '{base}/{station}/Level_3/' + \
-                        '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': 'scanner3DTop_L3_{station}_{timestamp}' + \
-                       '_height{opts}.tif'
+                        '{sensor}/{date}/{plot}/{filename}'
         },
 
         'laser3d_heightmap': {
