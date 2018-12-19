@@ -151,7 +151,7 @@ def centroid_from_geojson(geojson):
     return centroid.ExportToJson()
 
 
-def clip_las(las_path, tuples, out_path):
+def clip_las(las_path, tuples, out_path, merged_path=None):
     """Clip LAS file to polygon.
 
     Args:
@@ -160,7 +160,7 @@ def clip_las(las_path, tuples, out_path):
       out_path: output file to write
     """
     utm = tuples_to_utm(tuples)
-    bounds_str = "([%s, %s], [%s, %s])" % (utm[0], utm[1], utm[2], utm[3])
+    bounds_str = "([%s, %s], [%s, %s])" % (utm[2], utm[3], utm[0], utm[1])
 
     pdal_dtm = out_path.replace(".las", "_dtm.json")
     with open(pdal_dtm, 'w') as dtm:
@@ -178,8 +178,15 @@ def clip_las(las_path, tuples, out_path):
             ]
         }""" % (las_path, bounds_str, out_path))
 
-    cmd = 'pdal pipeline %s' % pdal_dtm
+    cmd = 'pdal pipeline "%s"' % pdal_dtm
     subprocess.call([cmd], shell=True)
+
+    if merged_path:
+        if os.path.isfile(merged):
+            cmd = 'pdal merge "%s" "%s" "%s"' % (out_path, merged_path, merged_path)
+            subprocess.call([cmd], shell=True)
+        else:
+            os.rename(out_path, merged_path)
 
 
 def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
@@ -218,12 +225,21 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
         return None
 
 
-def find_plots_intersect_boundingbox(bounding_box, all_plots):
+def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):
+    """Take a list of plots from BETY and return only those overlapping bounding box.
+
+    fullmac -- only include full plots (omit KSU, omit E W partial plots)
+
+    """
     bbox_poly = ogr.CreateGeometryFromJson(str(bounding_box))
     intersecting_plots = dict()
 
     for plotname in all_plots:
+        if fullmac and (plotname.find("KSU") > -1 or plotname.endswith(" E") or plotname.endswith(" W")):
+            continue
+
         bounds = all_plots[plotname]
+
         yaml_bounds = yaml.safe_load(bounds)
         current_poly = ogr.CreateGeometryFromJson(str(yaml_bounds))
         intersection_with_bounding_box = bbox_poly.Intersection(current_poly)
@@ -231,7 +247,7 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots):
         if intersection_with_bounding_box is not None:
             intersection = json.loads(intersection_with_bounding_box.ExportToJson())
             if 'coordinates' in intersection and len(intersection['coordinates']) > 0:
-                intersecting_plots[plotname] = intersection
+                intersecting_plots[plotname] = bounds
 
     return intersecting_plots
 
