@@ -22,9 +22,9 @@ import logging
 import os
 import re
 import pytz, datetime
-import requests
-from sensors import Sensors
+
 import betydb
+from sensors import Sensors
 from spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
 
 

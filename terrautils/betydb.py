@@ -15,7 +15,7 @@ from osgeo import ogr
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
 
-BETYDB_CULTIVARS  = None
+BETYDB_CULTIVARS = None
 BETYDB_TRAITS = None
 BETYDB_EXPERIMENTS = None
 

@@ -3,8 +3,15 @@
 This module provides useful methods for spatial referencing.
 """
 
+import os
 import utm
-from osgeo import ogr
+import yaml
+import json
+import subprocess
+import numpy as np
+import laspy
+from osgeo import gdal, gdalnumeric, ogr
+
 
 
 def calculate_bounding_box(gps_bounds, z_value=0):
@@ -136,6 +143,150 @@ def calculate_gps_bounds(metadata, sensor="stereoTop"):
     return { sensor : _get_bounding_box_with_formula(center_position, [fov_x, fov_y]) }
 
 
+def centroid_from_geojson(geojson):
+    """Return centroid lat/lon of a geojson object."""
+    geom_poly = ogr.CreateGeometryFromJson(geojson)
+    centroid = geom_poly.Centroid()
+
+    return centroid.ExportToJson()
+
+
+def clip_las(las_path, tuples, out_path, merged_path=None):
+    """Clip LAS file to polygon.
+
+    Args:
+      las_path (str): path to pointcloud file
+      geojson (str): geoJSON bounds received from get_site_boundaries() in betydb.py
+      out_path: output file to write
+    """
+    utm = tuples_to_utm(tuples)
+    bounds_str = "([%s, %s], [%s, %s])" % (utm[2], utm[3], utm[0], utm[1])
+
+    pdal_dtm = out_path.replace(".las", "_dtm.json")
+    with open(pdal_dtm, 'w') as dtm:
+        dtm.write("""{
+            "pipeline": [
+                "%s",
+                {
+                    "type": "filters.crop",
+                    "bounds": "%s"
+                },
+                {
+                    "type": "writers.las",
+                    "filename": "%s"
+                }
+            ]
+        }""" % (las_path, bounds_str, out_path))
+
+    cmd = 'pdal pipeline "%s"' % pdal_dtm
+    subprocess.call([cmd], shell=True)
+
+    if merged_path:
+        if os.path.isfile(merged_path):
+            cmd = 'pdal merge "%s" "%s" "%s"' % (out_path, merged_path, merged_path)
+            subprocess.call([cmd], shell=True)
+        else:
+            os.rename(out_path, merged_path)
+
+
+def clip_raster(rast_path, bounds, out_path=None, nodata=-9999):
+    """Clip raster to polygon.
+
+    Args:
+      rast_path (str): path to raster file
+      bounds (tuple): (min_y, max_y, min_x, max_x)
+      out_path: if provided, where to save as output file
+      nodata: the no data value
+
+    Returns: (numpy array, GeoTransform)
+
+    Notes: Oddly, the "features path" can be either a filename
+      OR a geojson string. GDAL seems to figure it out and do
+      the right thing.
+
+      From http://karthur.org/2015/clipping-rasters-in-python.html
+    """
+
+    if not out_path:
+        out_path = "temp.tif"
+
+    # Clip raster to GDAL and read it to numpy array
+    coords = "%s %s %s %s" % (bounds[2], bounds[1], bounds[3], bounds[0])
+    cmd = 'gdal_translate -projwin %s "%s" "%s"' % (coords, rast_path, out_path)
+    subprocess.call(cmd, shell=True, stdout=open(os.devnull, 'wb'))
+    out_px = np.array(gdal.Open(out_path).ReadAsArray())
+
+    if np.count_nonzero(out_px) > 0:
+        if out_path == "temp.tif":
+            os.remove(out_path)
+        return out_px
+    else:
+        os.remove(out_path)
+        return None
+
+
+def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):
+    """Take a list of plots from BETY and return only those overlapping bounding box.
+
+    fullmac -- only include full plots (omit KSU, omit E W partial plots)
+
+    """
+    bbox_poly = ogr.CreateGeometryFromJson(str(bounding_box))
+    intersecting_plots = dict()
+
+    for plotname in all_plots:
+        if fullmac and (plotname.find("KSU") > -1 or plotname.endswith(" E") or plotname.endswith(" W")):
+            continue
+
+        bounds = all_plots[plotname]
+
+        yaml_bounds = yaml.safe_load(bounds)
+        current_poly = ogr.CreateGeometryFromJson(str(yaml_bounds))
+        intersection_with_bounding_box = bbox_poly.Intersection(current_poly)
+
+        if intersection_with_bounding_box is not None:
+            intersection = json.loads(intersection_with_bounding_box.ExportToJson())
+            if 'coordinates' in intersection and len(intersection['coordinates']) > 0:
+                intersecting_plots[plotname] = bounds
+
+    return intersecting_plots
+
+
+def geojson_to_tuples(bounding_box):
+    """
+    Given a GeoJSON polygon, returns in tuple format
+     (lat(y) min, lat(y) max, long(x) min, long(x) max)
+    """
+    lat_max = bounding_box["coordinates"][0][0]
+    long_min = bounding_box["coordinates"][0][1]
+    long_max = bounding_box["coordinates"][1][1]
+    lat_min = bounding_box["coordinates"][2][0]
+    
+    return (lat_min, lat_max, long_min, long_max)
+
+
+def geojson_to_tuples_betydb(bounding_box):
+    """Convert GeoJSON from BETYdb to
+        ( lat (y) min, lat (y) max,
+          long (x) min, long (x) max) for geotiff creation"""
+    min_x, min_y, max_x, max_y  = None, None, None, None
+
+    if isinstance(bounding_box, dict):
+        bounding_box = bounding_box["coordinates"]
+
+    for coord in bounding_box[0][0]:
+        if not min_x or coord[0] < min_x:
+            min_x = coord[0]
+        if not max_x or coord[0] > max_x:
+            max_x = coord[0]
+        if not min_y or coord[1] < min_y:
+            min_y = coord[1]
+        if not max_y or coord[1] > max_y:
+            max_y = coord[1]
+
+    return (min_y, max_y, min_x, max_x)
+
+
 def geom_from_metadata(metadata, side='west'):
     """Parse location elements from metadata.
 
@@ -182,65 +333,44 @@ def geom_from_metadata(metadata, side='west'):
     return (gantry_x, gantry_y, gantry_z, cambox_x, cambox_y, cambox_z, fov_x, fov_y)
 
 
-def tuples_to_geojson(bounds):
-    """
-    Given bounding box in tuple format, returns GeoJSON polygon
-    
-    Input bounds: (lat(y) min, lat(y) max, long(x) min, long(x) max)
-    """
-    lat_min = bounds[0]
-    lat_max = bounds[1]
-    long_min = bounds[2]
-    long_max = bounds[3]
-    
-    bounding_box = {}
-    bounding_box["type"] = "Polygon"
-    bounding_box["coordinates"]  =  [ 
-            [lat_max, long_min], # NW
-            [lat_max, long_max], # NE
-            [lat_min, long_max], # SE
-            [lat_min, long_min]  # SW
-        ]
+def get_las_extents(fname):
+    """Calculate the extent of the given pointcloud and return as GeoJSON."""
+    lasinfo = laspy.base.Reader(fname, 'r')
+    min = lasinfo.get_header().min
+    max = lasinfo.get_header().max
 
-    return bounding_box
+    min_latlon = utm.to_latlon(min[1], min[0], 12, 'S')
+    max_latlon = utm.to_latlon(max[1], max[0], 12, 'S')
+
+    return {
+        "type": "Polygon",
+        "coordinates": [[
+            [min_latlon[1], min_latlon[0]],
+            [min_latlon[1], max_latlon[0]],
+            [max_latlon[1], max_latlon[0]],
+            [max_latlon[1], min_latlon[0]],
+            [min_latlon[1], min_latlon[0]]
+        ]]
+    }
 
 
-def geojson_to_tuples(bounding_box):
-    """
-    Given a GeoJSON polygon, returns in tuple format
-     (lat(y) min, lat(y) max, long(x) min, long(x) max)
-    """
-    lat_max = bounding_box["coordinates"][0][0]
-    long_min = bounding_box["coordinates"][0][1]
-    long_max = bounding_box["coordinates"][1][1]
-    lat_min = bounding_box["coordinates"][2][0]
-    
-    return (lat_min, lat_max, long_min, long_max)
+def get_raster_extents(fname):
+    """Calculate the extent and the center of the given raster."""
+    src = gdal.Open(fname)
+    ulx, xres, xskew, uly, yskew, yres = src.GetGeoTransform()
+    lrx = ulx + (src.RasterXSize * xres)
+    lry = uly + (src.RasterYSize * yres)
+    extent = (ulx, lry, lrx, uly)
+    center = ((ulx+lrx)/2, (uly+lry)/2)
 
-
-def geojson_to_tuples_betydb(bounding_box):
-    """Convert GeoJSON from BETYdb to
-        ( lat (y) min, lat (y) max,
-          long (x) min, long (x) max) for geotiff creation"""
-    min_x, min_y, max_x, max_y  = None, None, None, None
-
-    if isinstance(bounding_box, dict):
-        bounding_box = bounding_box["coordinates"]
-
-    for coord in bounding_box[0][0]:
-        if not min_x or coord[0] < min_x:
-            min_x = coord[0]
-        if not max_x or coord[0] > max_x:
-            max_x = coord[0]
-        if not min_y or coord[1] < min_y:
-            min_y = coord[1]
-        if not max_y or coord[1] > max_y:
-            max_y = coord[1]
-
-    return (min_y, max_y, min_x, max_x)
+    return (extent, center)
 
 
 def scanalyzer_to_mac(scan_x, scan_y):
+    """This is used to translate gantry coordinates in meters offset from corner of field
+    to UTM 12N coordinate system.
+    """
+
     # TODO: Hard-coded
     # Linear transformation coefficients
     ay = 3659974.971; by = 1.0002; cy = 0.0078;
@@ -250,6 +380,46 @@ def scanalyzer_to_mac(scan_x, scan_y):
     mac_y =  ay + (by * scan_x) + (cy * scan_y)
 
     return mac_x, mac_y
+
+
+def tuples_to_geojson(bounds):
+    """
+    Given bounding box in tuple format, returns GeoJSON polygon
+
+    Input bounds: (lat(y) min, lat(y) max, long(x) min, long(x) max)
+    """
+    lat_min = bounds[0]
+    lat_max = bounds[1]
+    long_min = bounds[2]
+    long_max = bounds[3]
+
+    bounding_box = {}
+    bounding_box["type"] = "Polygon"
+    bounding_box["coordinates"]  =  [
+        [lat_max, long_min], # NW
+        [lat_max, long_max], # NE
+        [lat_min, long_max], # SE
+        [lat_min, long_min]  # SW
+    ]
+
+    return bounding_box
+
+
+def tuples_to_utm(bounds):
+    """Given bounding box in tuple format, returns UTM equivalent
+
+    Input bounds: (lat(y) min, lat(y) max, long(x) min, long(x) max)
+    """
+
+    min = utm.from_latlon(bounds[0], bounds[2])
+    max = utm.from_latlon(bounds[1], bounds[3])
+
+    return (min[0], max[0], min[1], max[1])
+
+
+def wkt_to_geojson(wkt):
+    geom = ogr.CreateGeometryFromWkt(wkt)
+    return geom.ExportToJson()
 
 
 # PRIVATE -------------------------------------

@@ -11,3 +11,4 @@ python-logstash==0.4.6
 enum34==1.1.6
 PyYAML==3.12
 pyclowder==2.1.1
+laspy
