@@ -231,7 +231,7 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):
     fullmac -- only include full plots (omit KSU, omit E W partial plots)
 
     """
-    bbox_poly = ogr.CreateGeometryFromJson(str(bounding_box))
+    bbox_poly = ogr.CreateGeometryFromJson(yaml.safe_load(bounding_box))
     intersecting_plots = dict()
 
     for plotname in all_plots:
