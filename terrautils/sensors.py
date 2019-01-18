@@ -221,14 +221,14 @@ STATIONS = {
             'display': 'RGB GeoTIFFs (NRMAC Quality Score)',
             'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}_nrmac{opts}.tif',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}_nrmac.tif',
         },
 
         'rgb_mask': {
             'display': 'RGB GeoTIFFs (Masked)',
             'template': '{base}/{station}/Level_2/' + \
                         '{sensor}/{date}/{timestamp}/{filename}',
-            'pattern': '{sensor}_L1_{station}_{timestamp}_mask{opts}.tif',
+            'pattern': '{sensor}_L1_{station}_{timestamp}{opts}_mask.tif',
         },
 
         'rgb_canopycover': {
