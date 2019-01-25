@@ -1,6 +1,8 @@
 # terrautils
 Python library for TERRA-REF specific modules and methods, e.g. those shared by multiple extractors.
 
+Installation instructions for terrautils can be found [here](https://pypi.org/project/terrautils/). 
+
 **betydb.py**
 * get\_sites() -- Gets list of stations from BETYdb, filtered by city or sitename prefix if provided.
 * submit\_traits() -- Submit a CSV containing traits to the BETYdb API.
