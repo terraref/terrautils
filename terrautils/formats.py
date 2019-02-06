@@ -58,8 +58,28 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
     output_raster.SetMetadata(extra_metadata)
 
         
-    if channels > 1:
+    if channels == 3:
         # typically 3 channels = RGB channels
+        # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
+        output_raster.GetRasterBand(1).WriteArray(pixels[:,:,0].astype('uint8'))
+        output_raster.GetRasterBand(1).SetColorInterpretation(gdal.GCI_RedBand)
+        output_raster.GetRasterBand(1).FlushCache()
+        if nodata:
+            output_raster.GetRasterBand(1).SetNoDataValue(nodata)
+
+        output_raster.GetRasterBand(2).WriteArray(pixels[:,:,1].astype('uint8'))
+        output_raster.GetRasterBand(2).SetColorInterpretation(gdal.GCI_GreenBand)
+        output_raster.GetRasterBand(2).FlushCache()
+        if nodata:
+            output_raster.GetRasterBand(2).SetNoDataValue(nodata)
+
+        output_raster.GetRasterBand(3).WriteArray(pixels[:,:,2].astype('uint8'))
+        output_raster.GetRasterBand(3).SetColorInterpretation(gdal.GCI_BlueBand)
+        output_raster.GetRasterBand(3).FlushCache()
+        if nodata:
+            output_raster.GetRasterBand(3).SetNoDataValue(nodata)
+
+    elif channels > 1:
         # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
         for chan in range(channels):
             band = chan + 1
