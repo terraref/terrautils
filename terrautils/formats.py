@@ -4,13 +4,23 @@ This module handles creation of output files in GeoTIF, netCDF, and other image 
 """
 
 import numpy
+import subprocess
+import os
 from osgeo import gdal, osr
 from netCDF4 import Dataset
 from matplotlib import cm, pyplot as plt
 from PIL import Image
 
 
-def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None, extra_metadata=None):
+def compress_geotiff(input_file):
+    temp_out = input_file.replace(".tif", "_compress.tif")
+    subprocess.call(["gdal_translate", "-co", "COMPRESS=LZW", input_file, temp_out])
+    if os.path.isfile(temp_out):
+        os.remove(input_file)
+        os.rename(temp_out, input_file)
+
+
+def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extractor_info=None, system_md=None, extra_metadata=None, compress=False):
     """Generate output GeoTIFF file given a numpy pixel array and GPS boundary.
 
         Keyword arguments:
@@ -95,6 +105,9 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
             output_raster.GetRasterBand(1).SetNoDataValue(nodata)
 
     output_raster = None
+
+    if compress:
+        compress_geotiff(out_path)
 
 
 def prepare_metadata_for_geotiff(extractor_info=None, terra_md=None):
