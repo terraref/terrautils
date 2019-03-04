@@ -9,6 +9,6 @@ scipy==0.17.1
 utm==0.4.1
 python-logstash==0.4.6
 enum34==1.1.6
-PyYAML==3.12
+PyYAML>=4.2b1
 pyclowder==2.1.1
 laspy
