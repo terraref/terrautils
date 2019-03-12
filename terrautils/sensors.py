@@ -616,6 +616,12 @@ class Sensors():
         """Get display name for a sensor."""
 
         if sensor:
-            return self.stations[self.station][sensor]['display']
+            if 'display' in self.stations[self.station][sensor]:
+                return self.stations[self.station][sensor]['display']
+            else:
+                return sensor
         else:
-            return self.stations[self.station][self.sensor]['display']
+            if 'display' in self.stations[self.station][self.sensor]:
+                return self.stations[self.station][self.sensor]['display']
+            else:
+                return self.sensor
