@@ -228,7 +228,6 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999, compress=False):
 
 
 def compress_geotiff(input_file):
-    print("Compressing %s" % input_file)
     temp_out = input_file.replace(".tif", "_compress.tif")
     subprocess.call(["gdal_translate", "-co", "COMPRESS=LZW", input_file, temp_out])
     if os.path.isfile(temp_out):
