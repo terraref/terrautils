@@ -54,9 +54,17 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
 
     # Create output GeoTIFF and set coordinates & projection
     if asfloat:
-        output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Float32)
+        dtype = gdal.GDT_Float32
     else:
-        output_raster = gdal.GetDriverByName('GTiff').Create(out_path, ncols, nrows, channels, gdal.GDT_Byte)
+        dtype = gdal.GDT_Byte
+
+    if compress:
+        output_raster = gdal.GetDriverByName('GTiff') \
+            .Create(out_path, ncols, nrows, channels, dtype, ['COMPRESS=LZW'])
+    else:
+        output_raster = gdal.GetDriverByName('GTiff') \
+            .Create(out_path, ncols, nrows, channels, dtype)
+
     output_raster.SetGeoTransform(geotransform)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326) # google mercator
@@ -67,7 +75,6 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
 
     output_raster.SetMetadata(extra_metadata)
 
-        
     if channels == 3:
         # typically 3 channels = RGB channels
         # TODO: Something wonky w/ uint8s --> ending up w/ lots of gaps in data (white pixels)
@@ -105,9 +112,6 @@ def create_geotiff(pixels, gps_bounds, out_path, nodata=-99, asfloat=False, extr
             output_raster.GetRasterBand(1).SetNoDataValue(nodata)
 
     output_raster = None
-
-    if compress:
-        compress_geotiff(out_path)
 
 
 def prepare_metadata_for_geotiff(extractor_info=None, terra_md=None):
