@@ -212,27 +212,20 @@ def clip_raster(rast_path, bounds, out_path=None, nodata=-9999, compress=False):
 
     # Clip raster to GDAL and read it to numpy array
     coords = "%s %s %s %s" % (bounds[2], bounds[1], bounds[3], bounds[0])
-    cmd = 'gdal_translate -projwin %s "%s" "%s"' % (coords, rast_path, out_path)
+    if compress:
+        cmd = 'gdal_translate -projwin %s "%s" "%s"' % (coords, rast_path, out_path)
+    else:
+        cmd = 'gdal_translate -co COMPRESS=LZW -projwin %s "%s" "%s"' % (coords, rast_path, out_path)
     subprocess.call(cmd, shell=True, stdout=open(os.devnull, 'wb'))
     out_px = np.array(gdal.Open(out_path).ReadAsArray())
 
     if np.count_nonzero(out_px) > 0:
         if out_path == "temp.tif":
             os.remove(out_path)
-        elif compress:
-            compress_geotiff(out_path)
         return out_px
     else:
         os.remove(out_path)
         return None
-
-
-def compress_geotiff(input_file):
-    temp_out = input_file.replace(".tif", "_compress.tif")
-    subprocess.call(["gdal_translate", "-co", "COMPRESS=LZW", input_file, temp_out])
-    if os.path.isfile(temp_out):
-        os.remove(input_file)
-        os.rename(temp_out, input_file)
 
 
 def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):

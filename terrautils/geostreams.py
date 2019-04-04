@@ -8,7 +8,7 @@ import logging
 import requests
 
 from terrautils.betydb import get_sites_by_latlon
-from terrautils.gdal import wkt_to_geojson
+from terrautils.spatial import wkt_to_geojson
 
 
 def create_sensor(connector, host, key, sensorname, geom, type, region):

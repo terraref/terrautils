@@ -92,13 +92,13 @@ def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
             agent_data = sub_metadata['agent']
             if 'name' in agent_data and agent_data['name'].find(extractor_name) > -1:
                 if not extractor_version:
-                    return agent_data
+                    return sub_metadata['content']
                 else:
                     # TODO: Eventually check this in preferred way
                     if 'extractor_version' in sub_metadata['content']:
                         existing_ver = str(sub_metadata['content']['extractor_version'])
                         if existing_ver == extractor_version:
-                            return agent_data
+                            return sub_metadata['content']
 
     return None
 

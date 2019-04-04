@@ -303,7 +303,7 @@ def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_s
 
 
 def build_dataset_hierarchy_crawl(host, secret_key, clowder_user, clowder_pass, root_space,
-                            season, experiment, sensor, year='', month='', date='', leaf_ds_name=''):
+                            season=None, experiment=None, sensor=None, year=None, month=None, date=None, leaf_ds_name=None):
     """This will build collections if needed in parent space.
 
         Typical hierarchy:
@@ -320,9 +320,14 @@ def build_dataset_hierarchy_crawl(host, secret_key, clowder_user, clowder_pass, 
 
         Start at the root collection and check children until we get to the final one.
     """
-    season_c = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, season, parent_space=root_space)
-    experiment_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, season_c, experiment)
-    sensor_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, experiment_c, sensor)
+    if season and experiment and sensor:
+        season_c = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, season, parent_space=root_space)
+        experiment_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, season_c, experiment)
+        sensor_c = ensure_collection_in_children(host, secret_key, clowder_user, clowder_pass, root_space, experiment_c, sensor)
+    elif sensor:
+        sensor_c = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, sensor, parent_space=root_space)
+    else:
+        sensor_c = None
 
     if year:
         year_c_name = "%s - %s" % (sensor, year)
@@ -556,12 +561,15 @@ def get_child_collections(host, secret_key, collectionid):
     collectionid -- the collection to get children of
     """
 
-    url = "%sapi/collections/%s/getChildCollections?key=%s" % (host, collectionid, secret_key)
+    if collectionid:
+        url = "%sapi/collections/%s/getChildCollections?key=%s" % (host, collectionid, secret_key)
 
-    result = requests.get(url)
-    result.raise_for_status()
+        result = requests.get(url)
+        result.raise_for_status()
 
-    return json.loads(result.text)
+        return json.loads(result.text)
+    else:
+        return []
 
 def get_datasets(host, clowder_user, clowder_pass, collectionid):
     """Get list of datasets in collection by UUID.
