@@ -103,6 +103,38 @@ def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
     return None
 
 
+def get_pipeline_metadata(metadata):
+    """Look through the metadata looking for pipeline configuration
+    Returns:
+        The first instance of found pipeline data, or None if not found
+    Notes:
+        If the metadata parameter is an a list, it will be iterated over and each list element
+        inspected for pipeline data. The first found instance is returned.
+        If the metadata parameter is not a list, it's inspected to see if it contains
+        pipeline data, and that's returned if found.
+    """
+    found_metadata = None
+
+    # Look for a list of JSON
+    if isinstance(metadata, list):
+        for one_metadata in metadata:
+            if 'content' in one_metadata:
+                if 'pipeline' in one_metadata['content']:
+                    found_metadata = one_metadata['content']['pipeline']
+                    break
+
+        if found_metadata is None:
+            for one_metadata in metadata:
+                if 'pipeline' in one_metadata:
+                    found_metadata = one_metadata['pipeline']
+                    break
+
+    elif 'pipeline' in metadata:
+        found_metadata = metadata['pipeline']
+
+    return found_metadata
+
+
 def get_season_and_experiment(timestamp, sensor, terra_md_full):
     """Attempts to extract season & experiment from TERRA-REF metadata given timestamp.
 

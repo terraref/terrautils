@@ -8,17 +8,22 @@ import time
 import logging
 import json
 import os
+import re
 import requests
+import utm
 from urllib3.filepost import encode_multipart_formdata
 
 from pyclowder.extractors import Extractor
-from pyclowder.datasets import get_file_list
+from pyclowder.datasets import get_file_list, download_metadata as download_dataset_metadata
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
+from terrautils.metadata import get_terraref_metadata, get_pipeline_metadata
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
+from terrautils.users import get_dataset_username
 
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 
+DEFAULT_EXPERIMENT_JSON_FILENAME='experiment.json'
 
 def add_arguments(parser):
 
@@ -44,6 +49,11 @@ def add_arguments(parser):
                         default=os.getenv('CLOWDER_PASS', ''),
                         help='clowder password to use when creating new datasets')
 
+    parser.add_argument('--experiment_json_file', nargs='?', dest='experiment_json_file',
+                        default=os.getenv('EXPERIMENT_CONFIG', DEFAULT_EXPERIMENT_JSON_FILENAME),
+                        help='Default name of experiment configuration file used to' \
+                             ' provide additional processing information')
+
 
 class TerrarefExtractor(Extractor):
 
@@ -55,6 +65,9 @@ class TerrarefExtractor(Extractor):
         add_sensor_arguments(self.parser)
         add_influx_arguments(self.parser)
 
+        self.dataset_metadata = None
+        self.terraref_metadata = None
+        self.experiment_metadata = None
 
     def setup(self, base='', site='', sensor=''):
 
@@ -65,6 +78,7 @@ class TerrarefExtractor(Extractor):
         self.overwrite = self.args.overwrite
         self.clowder_user = self.args.clowder_user
         self.clowder_pass = self.args.clowder_pass
+        self.experiment_json_file = self.args.experiment_json_file
 
         if not base: base = self.args.terraref_base
         if not site: site = self.args.terraref_site
@@ -82,6 +96,30 @@ class TerrarefExtractor(Extractor):
                              self.args.influx_db, self.args.influx_user,
                              self.args.influx_pass)
 
+
+    @property
+    def config_file_name(self):
+        """Returns the name of the expected configuration file
+        """
+        # pylint: disable=line-too-long
+        return DEFAULT_EXPERIMENT_JSON_FILENAME if not self.experiment_json_file \
+                                                else self.experiment_json_file
+        # pylint: enable=line-too-long
+
+    @property
+    def date_format_regex(self):
+        """Returns array of regex expressions for different date formats
+        """
+        # We lead with the best formatting to use, add on the rest
+        return [r'(\d{4}(/|-){1}\d{1,2}(/|-){1}\d{1,2})',
+                r'(\d{1,2}(/|-){1}\d{1,2}(/|-){1}\d{4})'
+               ]
+
+    @property
+    def dataset_metadata_file_ending(self):
+        """ Returns the ending string of a dataset metadata JSON file name
+        """
+        return '_dataset_metadata.json'
 
     def start_check(self, resource):
         """Standard format for extractor logs on check_message."""
@@ -116,6 +154,212 @@ class TerrarefExtractor(Extractor):
     def log_skip(self, resource, msg):
         """Standard format for extractor logs regarding skipped extractions."""
         self.logger.info("[%s] %s - SKIP: %s" % (resource['id'], resource['name'], msg))
+
+    def process_message(self, connector, host, secret_key, resource, parameters):
+        """Preliminary handling of a message
+        Keyword arguments:
+            connector(obj): the message queue connector instance
+            host(str): the URI of the host making the connection
+            secret_key(str): used with the host API
+            resource(dict): dictionary containing the resources associated with the request
+            parameters(json): json object of the triggering message contents
+        Notes:
+            Loads dataset metadata if it's available. Looks for terraref metadata in the dataset
+            metadata and stores a reference to that, if available. Looks for an experiment
+            configuration file and loads that, if found.
+        """
+        # Setup to default value
+        self.dataset_metadata = None
+        self.terraref_metadata = None
+        self.experiment_metadata = None
+
+        try:
+            # Find the meta data for the dataset and other files of interest
+            dataset_file = None
+            experiment_file = None
+            for onefile in resource['local_paths']:
+                if onefile.endswith(self.dataset_metadata_file_ending):
+                    dataset_file = onefile
+                elif os.path.basename(onefile) == self.config_file_name:
+                    experiment_file = onefile
+                if not dataset_file is None and not experiment_file is None:
+                    break;
+
+            # If we don't have dataset metadata already, download it
+            dataset_md = None
+            if dataset_file is None:
+                dataset_id = None
+                if 'type' in resource:
+                    if resource['type'] == 'dataset':
+                        dataset_id = resource['id']
+                    elif resource['type'] == 'file' and 'parent' in resource:
+                        if 'type' in resource['parent'] and resource['parent']['type'] == 'dataset':
+                            dataset_id = resource['parent']['id'] if 'id' in resource['parent'] \
+                                                                                    else dataset_id
+                if not dataset_id is None:
+                    dataset_md = download_dataset_metadata(connector, host, secret_key, dataset_id)
+            else:
+                # Load the dataset metadata from disk
+                dataset_md = load_json_file(dataset_file)
+
+            # If we have terraref metadata then store it and dataset metadata for later use
+            if not dataset_md is None:
+                terraref_md = get_terraref_metadata(dataset_md)
+                if terraref_md:
+                    md_len = len(terraref_md)
+                    if md_len > 0:
+                        self.terraref_metadata = terraref_md
+
+                md_len = len(dataset_md)
+                if md_len > 0:
+                    self.dataset_metadata = dataset_md
+                    self.experiment_metadata = get_pipeline_metadata(dataset_md)
+
+            # Now we load any experiment configuration file
+            if not experiment_file is None:
+                experiment_md = load_json_file(experiment_file)
+                if experiment_md:
+                    md_len = len(experiment_md)
+                    if md_len > 0:
+                        if 'pipeline' in experiment_md:
+                            self.experiment_metadata = experiment_md['pipeline']
+                        else:
+                            self.experiment_metadata = experiment_md
+
+        # pylint: disable=broad-except
+        except Exception as ex:
+            self.log_error(resource, "Exception caught while loading dataset metadata: " + str(ex))
+
+    # pylint: disable=too-many-nested-blocks
+    def extract_datestamp(self, date_string):
+        """Extracts the timestamp from a string. The parts of a date can be separated by
+           single hyphens or slashes ('-' or '/') and no white space.
+        Keyword arguments:
+            date_string(str): string to lookup a datestamp in. The first found datestamp is
+            returned.
+        Returns:
+            The extracted datestamp as YYYY-MM-DD. Returns None if a date isn't found
+        Notes:
+            This function only cares if the timestamp looks correct. It doesn't try to figure
+            out if year, month, and day have correct values. The found date string may be
+            reformatted to match the expected return.
+        """
+
+        # Check the string
+        if not date_string or not isinstance(date_string, basestring):
+            return None
+
+        date_string_len = len(date_string)
+        if date_string_len <= 0:
+            return None
+
+        # Find a date
+        for part in date_string.split(' - '):
+            for form in self.date_format_regex:
+                res = re.search(form, part)
+                if res:
+                    date = res.group(0).replace('/', '-')
+                    # Check for hyphen in first 4 characters to see if we need to move things
+                    if not '-' in date[:4]:
+                        return date
+                    else:
+                        split_date = date.split('-')
+                        if len(split_date) == 3:
+                            return split_date[2] + "-" + split_date[1] + "-" + split_date[0]
+
+        return None
+
+    def find_datestamp(self, text=None):
+        """Returns a date stamp
+        Keyword arguments:
+            text(str): optional text string to search for a date stamp
+        Return:
+            A date stamp in the format of YYYY-MM-DD. No checks are made to determine if the
+            returned string is a valid date.
+        Notes:
+            The following places are searched for a valid date; the first date found is the one
+            that's returned: the text parameter, the name of the dataset associated with the
+            current message being processed, the JSON configuration file as defined by the
+            config_file_name() property, the current GMT date.
+        """
+        datestamp = None
+
+        if not text is None:
+            datestamp = self.extract_datestamp(text)
+
+        if datestamp is None and not self.dataset_metadata is None:
+            if 'name' in self.dataset_metadata:
+                datestamp = self.extract_datestamp(self.dataset_metadata['name'])
+
+        if datestamp is None and not self.experiment_metadata is None:
+            if 'observationTimeStamp' in self.experiment_metadata:
+                datestamp = self.extract_datestamp(self.experiment_metadata['observationTimeStamp'])
+
+        if datestamp is None:
+            datestamp = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+
+        return datestamp
+
+    def get_username_with_base_path(self, host, key, dataset_id, base_path=None):
+        """Looks up the name of the user associated with the dataset. If unable to find
+           the user's name from the dataset, the clowder_user variable is used instead.
+           If not able to find a valid user name, the string 'unknown' is returned.
+
+        Keyword arguments:
+            host(str): the partial URI of the API path including protocol ('/api' portion and
+                       after is not needed); assumes a terminating '/'
+            key(str): access key for API use
+            dataset_id(str): the id of the dataset belonging to the user to lookup
+            base_path(str): optional starting path which will have the user name appended
+        Return:
+            A list of user name and modified base_path.
+            The user name as defined in get_dataset_username(), or the specified clowder user
+            name, or, finally, the string 'unknown'. Underscores replace whitespace, and invalid
+            characters are changed to periods ('.').
+            The base_path with the user name appended to it, or None if base_path is None
+        """
+        try:
+            username = get_dataset_username(host, key, dataset_id)
+        # pylint: disable=broad-except
+        except Exception:
+            username = None
+        # pylint: enable=broad-except
+
+        # If we don't have a name, see if a user name was specified at runtime
+        if (username is None) and (not self.clowder_user is None):
+            username = self.clowder_user.strip()
+            un_len = len(username)
+            if un_len <= 0:
+                username = None
+
+        # If we have an experiment configuation, look for a name in there
+        if not self.experiment_metadata is None:
+            if 'extractors' in self.experiment_metadata:
+                ex_username = None
+                if 'firstName' in self.experiment_metadata['extractors']:
+                    ex_username = self.experiment_metadata['extractors']['firstName']
+                if 'lastName' in self.experiment_metadata['extractors']:
+                    ex_username = ex_username + ('' if ex_username is None else ' ') + \
+                                                self.experiment_metadata['extractors']['lastName']
+                if not ex_username is None:
+                    username = ex_username
+
+        # Clean up the string
+        if not username is None:
+            # pylint: disable=line-too-long
+            username = username.replace('/', '.').replace('\\', '.').replace('&', '.').replace('*', '.').replace("'", '.').replace('"', '.').replace('`', '.')
+            username = username.replace(' ', '_').replace('\t', '_').replace('\r', '_')
+            # pylint: enable=line-too-long
+        else:
+            username = 'unknown'
+
+        # Build up the path if the caller desired that
+        new_base_path = None
+        if not base_path is None:
+            new_base_path = os.path.join(base_path, username)
+            new_base_path = new_base_path.rstrip('/')
+
+        return (username, new_base_path)
 
 
 # BASIC UTILS -------------------------------------
