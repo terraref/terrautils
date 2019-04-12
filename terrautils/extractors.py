@@ -16,7 +16,8 @@ from urllib3.filepost import encode_multipart_formdata
 from pyclowder.extractors import Extractor
 from pyclowder.datasets import get_file_list, download_metadata as download_dataset_metadata
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
-from terrautils.metadata import get_terraref_metadata, get_pipeline_metadata
+from terrautils.metadata import get_terraref_metadata, get_pipeline_metadata, \
+                get_season_and_experiment
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 from terrautils.users import get_dataset_username
 
@@ -360,6 +361,73 @@ class TerrarefExtractor(Extractor):
             new_base_path = new_base_path.rstrip('/')
 
         return (username, new_base_path)
+
+    def get_season_and_experiment(self, timestamp, sensor):
+        """Retrieves the season and experiment from either BETYdb for TERRA REF projects,
+           or the experiment configuration file.
+
+        Keyword arguments:
+            timestamp(str): The timestamp associated with the season and experiement to return
+            sensor(str): Name of the sensor used to retrieve data from BETYdb
+
+        Return:
+            Returns a list of the found season name, experiment name, and experiment metadata.
+            The returned season name can contain None, 'Unknown Season', of the retrieved season's
+            name.
+            The returned experiment name can contain None, 'Unknown Experiment', or the
+            experiment's name.
+            Receiving 'Unknown Season' or 'Unknown Experiment' indicates the lookup failed.
+            Experiment metadata is None if it wasn't used during the lookup. Otherwise the
+            loaded metadata is returned as the third item in the list (replacing None).
+        Notes:
+            The TERRA REF lookup is skipped if either, or both, of the timestamp or sensor
+            parameters are None, or the terraref metadata was not found for the current message
+            being processed.
+            The experiment configuration file lookup for season and experiment values is only done
+            if the TERRA REF lookup isn't performed.
+        """
+        season_name, experiment_name, experiment_md = \
+                                                    ('Unknown Season', 'Unknown Experiment', None)
+
+        # We first see if the caller is asking for TERRA REF metadata
+        if not self.terraref_metadata is None and not timestamp is None and not sensor is None:
+            season_name, experiment_name, experiment_md = \
+                            get_season_and_experiment(timestamp, sensor, self.terraref_metadata)
+
+        # Look up our fields in the experiment metadata
+        if (season_name == 'Unknown Season' or experiment_name == 'Unknown Experiment') and \
+                                                            (not self.experiment_metadata is None):
+            if 'season' in self.experiment_metadata:
+                season_name = self.experiment_metadata['season']
+            if 'studyName' in self.experiment_metadata:
+                experiment_name = self.experiment_metadata['studyName']
+
+        return (season_name, experiment_name, experiment_md)
+
+    def get_clowder_context(self):
+        """Returns the best known username, password, and clowder space ID. By default the values
+           as defined in the current running environment are returned. If an experiment
+           configuration file was loaded, and it has clowder configuration, the values found will
+           be returned. No checks are made on the validity of the returned values.
+
+        Returns:
+            A list of username, password, and clowder space ID
+        """
+        # Set the default return values
+        ret_username, ret_password, ret_space = (self.clowder_user, self.clowder_pass, self.clowderspace)
+
+        # Check for overrides
+        if not self.experiment_metadata is None:
+            if 'clowder' in self.experiment_metadata:
+                clowder_md = self.experiment_metadata['clowder']
+                if 'username' in clowder_md:
+                    ret_username = clowder_md['username']
+                if 'password' in clowder_md:
+                    ret_password = clowder_md['password']
+                if 'space' in clowder_md:
+                    ret_space = clowder_md['space']
+
+        return (ret_username, ret_password, ret_space)
 
 
 # BASIC UTILS -------------------------------------
