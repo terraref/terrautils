@@ -180,6 +180,7 @@ def clip_las(las_path, tuples, out_path, merged_path=None):
 
     cmd = 'pdal pipeline "%s"' % pdal_dtm
     subprocess.call([cmd], shell=True)
+    os.remove(pdal_dtm)
 
     if merged_path:
         if os.path.isfile(merged_path):
