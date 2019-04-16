@@ -24,7 +24,7 @@ from terrautils.users import get_dataset_username
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 
-DEFAULT_EXPERIMENT_JSON_FILENAME='experiment.json'
+DEFAULT_EXPERIMENT_JSON_FILENAME = 'experiment.json'
 
 def add_arguments(parser):
 
@@ -693,7 +693,8 @@ def create_empty_collection(host, clowder_user, clowder_pass, collectionname, de
     Keyword arguments:
     connector -- connector information, used to get missing parameters and send status updates
     host -- the clowder host, including http and port, should end with a /
-    key -- the secret key to login to clowder
+    clowder_user -- the username to login to clowder
+    clowder_pass -- the password associated with the username
     collectionname -- name of new dataset to create
     description -- description of new dataset
     parentid -- id of parent collection
@@ -1050,6 +1051,67 @@ def add_collection_to_space(host, secret_key, collection_id, space_id):
     url = "%sapi/spaces/%s/addCollectionToSpace/%s?key=%s" % (host, space_id, collection_id, secret_key)
     result = requests.post(url)
     result.raise_for_status()
+
+def confirm_clowder_info(host, secret_key, space_id, clowder_user=None, clowder_pass=None):
+    """Confirms that the information provided is valid in the clowder instance
+
+    Keyword arguments:
+        host(str): the partial URI of the API path including protocol ('/api' portion and
+                   after is not needed); assumes a terminating '/'
+        secret_key(str): access key for API use
+        space_id(str): the id of the space to check
+        clowder_user(str): the clowder username
+        clowder_pass(str): the password associated with the username
+
+    Returns:
+        True is returned if the parameters appear to be good. False is returned otherwise
+    """
+    logger = logging.getLogger(__name__)
+
+    # Check that we have good parameters
+    if not secret_key or not space_id:
+        logger.error("One or more required parameters is empty")
+        return False
+    if (not clowder_user and clowder_pass) or (clowder_user and not clowder_pass):
+        logger.error("Both a user name and password must be specified or set to None, only one "\
+                     "value was was detected")
+        return False
+
+    # Now check with clowder
+    try:
+        # First try to find the user name
+        url = "%sapi/users?key=%s&limit=50000" % (host, secret_key)
+        result = requests.get(url)
+        result.raise_for_status()
+
+        ret = result.json()
+        found = False
+        for user in ret:
+            if ("email" in user) and (user["email"] == clowder_user):
+                found = True
+                break
+        if not found:
+            logger.info("Clowder user not found: %s", clowder_user)
+            return False
+
+        # Try to find the space in Clowder
+        url = '%sapi/spaces/%s?key=%s' % (host, space_id, secret_key)
+        result = requests.get(url)
+        result.raise_for_status()
+
+        ret = result.json()
+        found = False
+        if ('id' in ret) and (ret['id'] == space_id):
+            found = True
+        if not found:
+            logger.info("Clowder space not found: %s", space_id)
+            return False
+    # pylint: disable=broad-except
+    except Exception as ex:
+        logger.error("Exception caught checking clowder information: %s", str(ex))
+        return False
+
+    return True
 
 
 # PRIVATE -------------------------------------
