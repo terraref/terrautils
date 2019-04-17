@@ -16,7 +16,7 @@ from urllib3.filepost import encode_multipart_formdata
 from pyclowder.extractors import Extractor
 from pyclowder.datasets import get_file_list, download_metadata as download_dataset_metadata
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
-from terrautils.metadata import get_terraref_metadata, get_pipeline_metadata, \
+from terrautils.metadata import get_terraref_metadata, pipeline_get_metadata, \
                 get_season_and_experiment
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
 from terrautils.users import get_dataset_username
@@ -122,6 +122,12 @@ class TerrarefExtractor(Extractor):
         """
         return '_dataset_metadata.json'
 
+    @property
+    def file_infodata_file_ending(self):
+        """ Returns the ending string of a file's info JSON file name
+        """
+        return '_info.json'
+
     def start_check(self, resource):
         """Standard format for extractor logs on check_message."""
         self.logger.info("[%s] %s - Checking message." % (resource['id'], resource['name']))
@@ -214,7 +220,7 @@ class TerrarefExtractor(Extractor):
                 md_len = len(dataset_md)
                 if md_len > 0:
                     self.dataset_metadata = dataset_md
-                    self.experiment_metadata = get_pipeline_metadata(dataset_md)
+                    self.experiment_metadata = pipeline_get_metadata(dataset_md)
 
             # Now we load any experiment configuration file
             if not experiment_file is None:
@@ -222,10 +228,7 @@ class TerrarefExtractor(Extractor):
                 if experiment_md:
                     md_len = len(experiment_md)
                     if md_len > 0:
-                        if 'pipeline' in experiment_md:
-                            self.experiment_metadata = experiment_md['pipeline']
-                        else:
-                            self.experiment_metadata = experiment_md
+                        self.experiment_metadata = pipeline_get_metadata(experiment_md)
 
         # pylint: disable=broad-except
         except Exception as ex:
@@ -414,7 +417,8 @@ class TerrarefExtractor(Extractor):
             A list of username, password, and clowder space ID
         """
         # Set the default return values
-        ret_username, ret_password, ret_space = (self.clowder_user, self.clowder_pass, self.clowderspace)
+        ret_username, ret_password, ret_space = \
+                                        (self.clowder_user, self.clowder_pass, self.clowderspace)
 
         # Check for overrides
         if not self.experiment_metadata is None:
