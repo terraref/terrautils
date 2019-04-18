@@ -5,8 +5,6 @@ This module provides useful reference methods for accessing and cleaning TERRA-R
 
 import lemnatec
 
-from terrautils.extractors import load_json_file
-
 def clean_metadata(json, sensorId, fixed=False):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
