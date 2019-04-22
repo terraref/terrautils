@@ -10,6 +10,7 @@ import json
 import os
 import re
 import requests
+import yaml
 import utm
 from urllib3.filepost import encode_multipart_formdata
 
@@ -24,7 +25,7 @@ from terrautils.users import get_dataset_username
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 
-DEFAULT_EXPERIMENT_JSON_FILENAME = 'experiment.json'
+DEFAULT_EXPERIMENT_JSON_FILENAME = 'experiment.yaml'
 
 def add_arguments(parser):
 
@@ -224,7 +225,7 @@ class TerrarefExtractor(Extractor):
 
             # Now we load any experiment configuration file
             if not experiment_file is None:
-                experiment_md = load_json_file(experiment_file)
+                experiment_md = load_yaml_file(experiment_file)
                 if experiment_md:
                     md_len = len(experiment_md)
                     if md_len > 0:
@@ -532,6 +533,23 @@ def load_json_file(filepath):
             return json.load(jsonfile)
     except:
         logging.error('could not load .json file %s' % filepath)
+        return None
+
+
+def load_yaml_file(filepath):
+    """Load contents of a YAML file on disk into a Python object.
+
+    Keyword arguments:
+        filepath(str): the path to the YAML file to load
+    Return:
+        The python object representing the YAML file contents. None is returned if the file
+        couldn't be loaded.
+    """
+    try:
+        with open(filepath, 'r') as yamlfile:
+            return yaml.safe_load(yamlfile)
+    except:
+        logging.error('could not load YAML file %s' % filepath)
         return None
 
 
