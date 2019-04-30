@@ -98,6 +98,14 @@ class TerrarefExtractor(Extractor):
                              self.args.influx_db, self.args.influx_user,
                              self.args.influx_pass)
 
+    @property
+    def sensor_name(self):
+        """Returns the sensor name the instance is configured with. Returns None if
+           sensor information is not available
+        """
+        if self.sensors:
+            return self.sensors.sensor
+        return None
 
     @property
     def config_file_name(self):
@@ -118,6 +126,24 @@ class TerrarefExtractor(Extractor):
                ]
 
     @property
+    def terraref_timestamp_format_regex(self):
+        """Returns array of regex expressions for different timestamp formats
+        """
+        return [r'(\d{4}(/|-){1}\d{1,2}(/|-){1}\d{1,2}__\d{2}-\d{2}-\d{2}[\-{1}\d{3}]*)'
+                ]
+
+    @property
+    def iso_timestamp_format_regex(self):
+        """Returns array of regex expressions for different timestamp formats
+        """
+        return [r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})[+-](\d{2})\:(\d{2})',
+                r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})(.\d+)[+-](\d{2})\:(\d{2})',
+                r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})(.\d+)',
+                r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
+                r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})Z'
+                ]    
+
+    @property
     def dataset_metadata_file_ending(self):
         """ Returns the ending string of a dataset metadata JSON file name
         """
@@ -128,6 +154,13 @@ class TerrarefExtractor(Extractor):
         """ Returns the ending string of a file's info JSON file name
         """
         return '_info.json'
+
+    @property
+    def get_terraref_metadata(self):
+        """Returns any loaded terraref metadata
+        """
+        return self.terraref_metadata
+    
 
     def start_check(self, resource):
         """Standard format for extractor logs on check_message."""
@@ -237,7 +270,7 @@ class TerrarefExtractor(Extractor):
 
     # pylint: disable=too-many-nested-blocks
     def extract_datestamp(self, date_string):
-        """Extracts the timestamp from a string. The parts of a date can be separated by
+        """Extracts the datestamp from a string. The parts of a date can be separated by
            single hyphens or slashes ('-' or '/') and no white space.
         Keyword arguments:
             date_string(str): string to lookup a datestamp in. The first found datestamp is
@@ -274,6 +307,63 @@ class TerrarefExtractor(Extractor):
 
         return None
 
+    def extract_timestamp(self, time_string):
+        """Extracts a timestamp from the string and returns it
+        Args:
+            time_string(str): the string in which to look for a timestamp
+        Return:
+            The found timestamp or None if one isn't found.
+        Notes:
+            This function will look for both a ISO 8601 long format timestamp as weill as a
+            legacy TERRA REF timestamp. If only one is found, that is returned. If both are
+            found, the more detailed timestamp is returned. For example, if the TERRA REF
+            timestamp only has a date but the ISO timestamp has time as well as date, the ISO
+            timestamp will be returned.
+        """
+        tr_ts, iso_ts = None, None
+
+        # define helper function for parsing the string using regex
+        def search_regex(self, time_string, regex_exprs):
+            """ Hidden function used for searching a string using an array of regex expressions
+            """
+            ret_str = None
+            ts_parts = time_string.split(" - ")
+
+            # Look for the terra ref timestamp
+            for one_part in ts_parts:
+                for form in regex_exprs:
+                    res = re.search(form, one_part)
+                    if res:
+                        ret_str = res.group(0)
+                        break
+                if not ret_str is None:
+                    break
+            if ret_str is None:
+                ret_str = self.extract_datestamp(time_string)
+            return ret_str
+
+        # Look for the timestamps
+        tr_ts = search_regex(self, time_string, self.terraref_timestamp_format_regex)
+        iso_ts = search_regex(self, time_string, self.iso_timestamp_format_regex)
+
+        # If we have none, or one timestamp, return what we have
+        if tr_ts is None:
+            return iso_ts
+        elif iso_ts is None:
+            return tr_ts
+
+        # Return the full terraref timestamp if we have it. Otherwise check
+        # if the ISO timestamp is more complete and return the most complete
+        # timestamp
+
+        # The double undewrscore seperates date from time in TERRA REF
+        if '__' in tr_ts:
+            return tr_ts
+
+        # If the ISO timestamp contains colons it contains a time and will be better than the
+        # date-only TERRA REF string
+        return iso_ts if ':' in iso_ts else tr_ts
+
     def find_datestamp(self, text=None):
         """Returns a date stamp
         Keyword arguments:
@@ -304,6 +394,46 @@ class TerrarefExtractor(Extractor):
             datestamp = datetime.datetime.utcnow().strftime('%Y-%m-%d')
 
         return datestamp
+
+    def find_timestamp(self, text=None):
+        """Returns a time stamp consisting of a date and time
+        Keyword arguments:
+            text(str): optional text string to search for a time stamp
+        Return:
+            A time stamp in the format of YYYY-MM-DDThh:mm:ss[.sss]|Z|<offset>] or
+            YYYY-MM-DD__hh-mm-ss_<id>. No checks are made to determine if the returned string is
+            a valid timestamp.
+        Notes:
+            The following places are searched for a valid timestamp; the first timestamp found is
+            the one that's returned: the text parameter, the name of the dataset associated with
+            the current message being processed, the JSON configuration file as defined by the
+            config_file_name() property, the current GMT timestamp in ISO format.
+        """
+        timestamp = None
+
+        if not text is None:
+            timestamp = self.extract_timestamp(text)
+
+        if timestamp is None and not self.dataset_metadata is None:
+            if 'name' in self.dataset_metadata:
+                timestamp = self.extract_timestamp(self.dataset_metadata['name'])
+
+        if timestamp is None and not self.experiment_metadata is None:
+            if 'observationTimeStamp' in self.experiment_metadata:
+                timestamp = self.experiment_metadata['observationTimeStamp']
+
+        if timestamp is None:
+            _zero = datetime.timedelta(0)
+            class TZ(datetime.tzinfo):
+                """Internal class used to format UTC timestamps properly
+                """
+                def utcoffset(self, _dt):
+                    return _zero
+                def dst(self, _dt):
+                    return _zero
+            timestamp = datetime.datetime.utcnow(tz=TZ()).isoformat()
+
+        return timestamp
 
     def get_username_with_base_path(self, host, key, dataset_id, base_path=None):
         """Looks up the name of the user associated with the dataset. If unable to find
@@ -436,6 +566,28 @@ class TerrarefExtractor(Extractor):
 
 
 # BASIC UTILS -------------------------------------
+def timestamp_to_terraref(timestamp):
+    """Converts a timestamp to TERRA REF format
+    Args:
+        timestamp(str): the ISO timestamp to convert
+    Returns:
+        The ISO string reformatted to match the TERRA REF time & date stamp. Returns the original
+        string if time units aren't specified
+    Note:
+        Does a simple replacement of the 'T' to '__' and stripping the fraction of seconds and
+        timezone information from the string.
+    """
+    return_ts = timestamp
+
+    if 'T' in timestamp:
+        regex_mask = r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})'
+        res = re.search(regex_mask, timestamp)
+        if res:
+            return_ts = res.group(0)
+            return_ts = return_ts.replace('T', '__').replace(':', '-')
+
+    return return_ts 
+
 def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='file', context=[]):
     """Construct extractor metadata object ready for submission to a Clowder file/dataset.
 
