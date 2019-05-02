@@ -6,6 +6,8 @@ import subprocess
 from osgeo import gdal, ogr
 from numpy import nan
 
+import osr
+
 from terrautils.extractors import file_exists, load_json_file
 
 # Returns if the MIME type of 'image' is found in the text passed in. A reasonable effort is
@@ -171,3 +173,25 @@ def polygon_to_tuples(polygon):
     # pylint: enable=broad-except
 
     return (min_y, max_y, min_x, max_x)
+
+def get_epsg(filename):
+    """Returns the EPSG of the georeferenced image file
+    Args:
+        filename(str): path of the file to retrieve the EPSG code from
+    Return:
+        Returns the found EPSG code, or None if it's not found or an error ocurred
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        src = gdal.Open(filename)
+
+        proj = osr.SpatialReference(wkt=src.GetProjection())
+
+        return proj.GetAttrValue('AUTHORITY', 1)
+    # pylint: disable=broad-except
+    except Exception as ex:
+        logger.warn("[get_epsg] Exception caught: %s", str(ex))
+    # pylint: enable=broad-except
+
+    return None

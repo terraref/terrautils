@@ -99,6 +99,12 @@ class TerrarefExtractor(Extractor):
                              self.args.influx_pass)
 
     @property
+    def default_epsg(self):
+        """Returns the default EPSG code that utilities expect
+        """
+        return 4326
+    
+    @property
     def sensor_name(self):
         """Returns the sensor name the instance is configured with. Returns None if
            sensor information is not available
