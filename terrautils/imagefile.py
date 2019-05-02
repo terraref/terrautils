@@ -123,7 +123,12 @@ def image_get_geobounds(filename):
         lrx = ulx + (src.RasterXSize * xres)
         lry = uly + (src.RasterYSize * yres)
 
-        return [ulx, uly, lrx, lry]
+        min_y = min(uly, lry)
+        max_y = max(uly, lry)
+        min_x = min(ulx, lrx)
+        max_x = max(ulx, lrx)
+
+        return [min_y, max_y, min_x, max_x]
     # pylint: disable=broad-except
     except Exception as ex:
         logger.info("[image_get_geobounds] Exception caught: %s", str(ex))
