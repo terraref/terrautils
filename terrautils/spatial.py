@@ -370,20 +370,35 @@ def get_raster_extents(fname):
     return (extent, center)
 
 
-def scanalyzer_to_mac(scan_x, scan_y):
-    """This is used to translate gantry coordinates in meters offset from corner of field
-    to UTM 12N coordinate system.
-    """
+def utm_to_latlon(utm_x, utm_y):
+    """Convert coordinates from UTM 12N to lat/lon"""
+
+    # Get UTM information from southeast corner of field
+    SE_utm = utm.from_latlon(33.07451869, -111.97477775)
+    utm_zone = SE_utm[2]
+    utm_num  = SE_utm[3]
+
+    return utm.to_latlon(utm_x, utm_y, utm_zone, utm_num)
+
+
+def scanalyzer_to_latlon(gantry_x, gantry_y):
+    """Convert coordinates from gantry to lat/lon"""
+    utm_x, utm_y = scanalyzer_to_utm(gantry_x, gantry_y)
+    return utm_to_latlon(utm_x, utm_y)
+
+
+def scanalyzer_to_utm(gantry_x, gantry_y):
+    """Convert coordinates from gantry to UTM 12N"""
 
     # TODO: Hard-coded
     # Linear transformation coefficients
     ay = 3659974.971; by = 1.0002; cy = 0.0078;
     ax = 409012.2032; bx = 0.009; cx = - 0.9986;
 
-    mac_x = ax + (bx * scan_x) + (cx * scan_y)
-    mac_y =  ay + (by * scan_x) + (cy * scan_y)
+    utm_x = ax + (bx * gantry_x) + (cx * gantry_y)
+    utm_y = ay + (by * gantry_x) + (cy * gantry_y)
 
-    return mac_x, mac_y
+    return utm_x, utm_y
 
 
 def tuples_to_geojson(bounds):
@@ -444,17 +459,9 @@ def _get_bounding_box_with_formula(center_position, fov):
     x_n = center_position[0] + fov[0]/2
     x_s = center_position[0] - fov[0]/2
     # coordinates of northwest bounding box vertex
-    Mx_nw, My_nw = scanalyzer_to_mac(x_n, y_w)
+    bbox_nw_latlon = scanalyzer_to_latlon(x_n, y_w)
     # coordinates if southeast bounding box vertex
-    Mx_se, My_se = scanalyzer_to_mac(x_s, y_e)
-
-    # Get UTM information from southeast corner of field
-    SE_utm = utm.from_latlon(33.07451869, -111.97477775)
-    utm_zone = SE_utm[2]
-    utm_num  = SE_utm[3]
-    # bounding box vertex coordinates
-    bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
-    bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
+    bbox_se_latlon = scanalyzer_to_latlon(x_s, y_e)
 
     # TODO: Hard-coded
     lon_shift = 0.000020308287
