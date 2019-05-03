@@ -387,7 +387,7 @@ def scanalyzer_to_latlon(gantry_x, gantry_y):
     return utm_to_latlon(utm_x, utm_y)
 
 
-def scanalyzer_to_utm(scan_x, scan_y):
+def scanalyzer_to_utm(gantry_x, gantry_y):
     """Convert coordinates from gantry to UTM 12N"""
 
     # TODO: Hard-coded
@@ -395,8 +395,8 @@ def scanalyzer_to_utm(scan_x, scan_y):
     ay = 3659974.971; by = 1.0002; cy = 0.0078;
     ax = 409012.2032; bx = 0.009; cx = - 0.9986;
 
-    utm_x = ax + (bx * scan_x) + (cx * scan_y)
-    utm_y = ay + (by * scan_x) + (cy * scan_y)
+    utm_x = ax + (bx * gantry_x) + (cx * gantry_y)
+    utm_y = ay + (by * gantry_x) + (cy * gantry_y)
 
     return utm_x, utm_y
 
