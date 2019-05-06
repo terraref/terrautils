@@ -116,6 +116,7 @@ def _get_sites(cleaned_md, date, sensorId):
             site_id = str(bety_site["id"])
             sites[site_id] = {}
             sites[site_id]["sitename"] = bety_site["sitename"]
+            # TODO add other metadata from betydb here
             if "view_url" in bety_site:
                 sites[site_id]["url"] = bety_site["view_url"]
             else:
