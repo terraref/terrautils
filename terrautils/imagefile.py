@@ -113,8 +113,9 @@ def image_get_geobounds(filename):
         filename(str): path of the file to get the boundaries from
 
     Returns:
-        The upper-left and calculated lower-right boundaries of the image in a list upon success
-        A list of numpy.nan is returned if the boundaries can't be determined
+        The upper-left and calculated lower-right boundaries of the image in a list upon success.
+        The values are returned in following order: min_y, max_y, min_x, max_x. A list of numpy.nan
+        is returned if the boundaries can't be determined
     """
     logger = logging.getLogger(__name__)
 
@@ -173,6 +174,38 @@ def polygon_to_tuples(polygon):
     # pylint: enable=broad-except
 
     return (min_y, max_y, min_x, max_x)
+
+def polygon_to_tuples_transform(polygon, dest_spatial):
+    """Transforms the polygon to the specified transformation if the polygon's coordinate system
+       doesn't match. If there isn't a coordinate system associated with the polygon then no
+       transformation is done.
+    Args:
+        polygon(object) - OGR Polygon (type ogr.wkbPolygon)
+        dest_spatial(ogr.spatialReference): the spatial reference of target polygon values
+    Return:
+        A tuple of (min Y, max Y, min X, max X)
+    Notes:
+        The original polygon is unchanged whether or not a transformation takes place
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        src_ref = polygon.GetSpatialReference()
+        if src_ref and dest_spatial and not src_ref.IsSame(dest_spatial):
+            transform = osr.CoordinateTransformation(src_ref, dest_spatial)
+            new_src = polygon.Clone()
+            if new_src:
+                new_src.Transform(transform)
+                return polygon_to_tuples(new_src)
+            logger.error("[polygon_to_tuples_transform] Unable to create a polygon copy for " +
+                         "coordinate transformation")
+    # pylint: disable=broad-except
+    except Exception as ex:
+        logger.warn("[polygon_to_tuples_transform] Exception caught: %s", str(ex))
+        logger.warn("[polygon_to_tuples_transform] returning non-transformed polygon points")
+    # pylint: enable=broad-except
+
+    return polygon_to_tuples(polygon)
 
 def get_epsg(filename):
     """Returns the EPSG of the georeferenced image file
