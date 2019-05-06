@@ -209,27 +209,3 @@ def get_date_from_cleaned_metadata(md):
             return default
     else:
         return default
-
-# Returns season, experiement, and timestamp from json
-def pipeline_get_season_experiment_timestamp(pipeline_json):
-    """Returns the found season, experiment, and timestamp
-
-    Args:
-        pipeline_json(JSON): the JSON to search
-
-    Return:
-        Returns the found season, experiment, and timestamp.
-
-    Note:
-        None is returned for any fields that are not found
-    """
-    (ret_season, ret_experiment, ret_timestamp) = (None, None, None)
-
-    if 'season' in pipeline_json:
-        ret_season = pipeline_json['season']
-    if 'studyName' in pipeline_json:
-        ret_experiment = pipeline_json['studyName']
-    if 'observationTimeStamp' in pipeline_json:
-        ret_timestamp = pipeline_json['observationTimeStamp']
-
-    return (ret_season, ret_experiment, ret_timestamp)
