@@ -242,6 +242,9 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                     if 'sites' in exp:
                         for t in exp['sites']:
                             s = t['site']
+                            # TODO add experiment id here ?
+                            s['experiment_id'] = exp['id']
+
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
@@ -328,3 +331,16 @@ def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
     else:
         logging.error("Error submitting data to BETYdb: %s -- %s" % (resp.status_code, resp.reason))
         resp.raise_for_status()
+
+def get_experiment_id_for_site_id(site_id):
+    experiments = get_experiments()
+
+    result = None
+
+    for exp in experiments:
+        exp_sites = exp['sites']
+        for s in exp_sites:
+            current_site_id = s['experiments_site']['site_id']
+            if site_id == current_site_id:
+                result = exp['id']
+    return result

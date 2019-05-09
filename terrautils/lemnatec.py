@@ -108,6 +108,8 @@ def _get_sites(cleaned_md, date, sensorId):
     """
     gps_bounds = calculate_gps_bounds(cleaned_md, sensorId)
 
+    experiments = betydb.get_experiments()
+
     sites = {}
     for label, bounds in gps_bounds.iteritems():
         centroid = calculate_centroid(bounds)
@@ -116,7 +118,9 @@ def _get_sites(cleaned_md, date, sensorId):
             site_id = str(bety_site["id"])
             sites[site_id] = {}
             sites[site_id]["sitename"] = bety_site["sitename"]
-            # TODO add other metadata from betydb here
+            experiment_id = betydb.get_experiment_id_for_site_id(site_id)
+            #cultivar md
+            #treatments metadata
             if "view_url" in bety_site:
                 sites[site_id]["url"] = bety_site["view_url"]
             else:
