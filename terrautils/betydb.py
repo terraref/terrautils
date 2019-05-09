@@ -11,6 +11,7 @@ import requests
 import json
 from osgeo import ogr
 
+BRAPI_URL="https://brapi.workbench.terraref.org/brapi"
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
@@ -46,6 +47,16 @@ def get_bety_key():
         raise RuntimeError("BETYDB_KEY not found. Set environmental variable "
                        "or create $HOME/.betykey.")
 
+
+def get_brapi_url(path=''):
+
+    url = os.environ['BRAPI_URL', BRAPI_URL]
+    return os.path.join(url,path)
+
+def get_brapi_api(endpoint=None):
+
+    url = get_brapi_url(path='/v1/{}'.format(endpoint))
+    return url
 
 def get_bety_url(path=''):
     """return betydb url from environment with optional path
