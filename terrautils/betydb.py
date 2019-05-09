@@ -49,13 +49,20 @@ def get_bety_key():
 
 
 def get_brapi_url(path=''):
+    """return brapi url from environment with optional path
 
-    url = os.environ['BRAPI_URL', BRAPI_URL]
-    return os.path.join(url,path)
+    Of 3 options string join, os.path.join and urlparse.urljoin, os.path.join
+    is the best at handling excessive / characters.
+    """
+
+    url = os.environ.get('BRAPI_URL', BRAPI_URL)
+    return os.path.join(url, path)
+
 
 def get_brapi_api(endpoint=None):
+    """return brapi API based on brapi url"""
 
-    url = get_brapi_url(path='/v1/{}'.format(endpoint))
+    url = get_brapi_url(path='v1/{}'.format(endpoint))
     return url
 
 def get_bety_url(path=''):
@@ -342,6 +349,13 @@ def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
     else:
         logging.error("Error submitting data to BETYdb: %s -- %s" % (resp.status_code, resp.reason))
         resp.raise_for_status()
+
+def get_germplasm_cultivar_from_brapi(studyDbId):
+    return 0
+
+def get_treatments_from_brapi(studyDbId):
+    endpoint = 'studies/'+studyDbId
+    return 0
 
 def get_experiment_id_for_site_id(site_id):
     experiments = get_experiments()
