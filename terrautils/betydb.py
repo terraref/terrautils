@@ -65,6 +65,24 @@ def get_brapi_api(endpoint=None):
     url = get_brapi_url(path='v1/{}'.format(endpoint))
     return url
 
+
+def get_brapi_study(studyDbId):
+    """return study from brapi based on brapi url"""
+    endpoint = 'studies'
+    study_url = get_brapi_api(endpoint)
+    request_params = {'studyDbId':studyDbId}
+    r = requests.get(url=study_url, params=request_params)
+    return r.json()
+
+
+def get_brapi_study_germplasm(studyDbId):
+    """return study germplasm from brapi based on brapi url"""
+    URL = os.environ.get('BRAPI_URL',BRAPI_URL)
+    request_url = os.path.join(URL,'v1','studies',studyDbId,'germplasm')
+    r = requests.get(request_url)
+    return r.json()
+
+
 def get_bety_url(path=''):
     """return betydb url from environment with optional path
 
