@@ -278,7 +278,6 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                     if 'sites' in exp:
                         for t in exp['sites']:
                             s = t['site']
-                            # TODO add experiment id here ?
                             s['experiment_id'] = exp['id']
 
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
