@@ -116,10 +116,8 @@ def _get_sites(cleaned_md, date, sensorId):
             site_id = str(bety_site["id"])
             sites[site_id] = {}
             sites[site_id]["sitename"] = bety_site["sitename"]
-            experiment_id = bety_site["experiment_id"]
-
-            site_cultivar_map = betydb.get_site_id_cultivar_info_map(experiment_id)
-            cultivar_info = site_cultivar_map[site_id]
+            sites[site_id]["experiment_id"] = bety_site["experiment_id"]
+            sites[site_id]["cultivar"] = bety_site["cultivar"]
 
             if "view_url" in bety_site:
                 sites[site_id]["url"] = bety_site["view_url"]

@@ -89,6 +89,7 @@ def get_brapi_study_germplasm(studyDbId):
             germplasm['germplasmName'] = entry['germplasmName']
             germplasm['species'] = entry['species']
             germplasm['genus'] = entry['genus']
+            germplasm['germplasmDbId'] = entry['germplasmDbId']
             germplasm_id_data_map[entry['germplasmDbId']] = germplasm
     return germplasm_id_data_map
 
@@ -311,6 +312,7 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
         if query_data:
             results = []
             for exp in query_data:
+                exp_site_cultivar_map = get_site_id_cultivar_info_map(exp['id'])
                 start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
                 end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
                 if start <= targ_date <= end:
@@ -318,7 +320,8 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                         for t in exp['sites']:
                             s = t['site']
                             s['experiment_id'] = exp['id']
-
+                            cultivar_info_for_site = exp_site_cultivar_map[s]
+                            s['cultivar'] = cultivar_info_for_site
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
@@ -405,23 +408,3 @@ def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
     else:
         logging.error("Error submitting data to BETYdb: %s -- %s" % (resp.status_code, resp.reason))
         resp.raise_for_status()
-
-def get_germplasm_cultivar_from_brapi(studyDbId):
-    return 0
-
-def get_treatments_from_brapi(studyDbId):
-    endpoint = 'studies/'+studyDbId
-    return 0
-
-def get_experiment_id_for_site_id(site_id):
-    experiments = get_experiments()
-
-    result = None
-
-    for exp in experiments:
-        exp_sites = exp['sites']
-        for s in exp_sites:
-            current_site_id = s['experiments_site']['site_id']
-            if site_id == current_site_id:
-                result = exp['id']
-    return result
