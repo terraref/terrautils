@@ -77,7 +77,7 @@ def get_brapi_study(studyDbId):
 
 def get_brapi_study_germplasm(studyDbId):
     URL = os.environ.get('BRAPI_URL',BRAPI_URL)
-    request_url = os.path.join(URL,'v1','studies',studyDbId,'germplasm')
+    request_url = os.path.join(URL,'v1','studies',str(studyDbId),'germplasm')
     r = requests.get(request_url)
 
     germplasm_id_data_map = {}
@@ -86,18 +86,18 @@ def get_brapi_study_germplasm(studyDbId):
        data = r.json()['result']['data']
        for entry in data:
             germplasm = {}
-            germplasm['germplasmName'] = entry['germplasmName']
-            germplasm['species'] = entry['species']
-            germplasm['genus'] = entry['genus']
-            germplasm['germplasmDbId'] = entry['germplasmDbId']
-            germplasm_id_data_map[entry['germplasmDbId']] = germplasm
+            germplasm['germplasmName'] = str(entry['germplasmName'])
+            germplasm['species'] = str(entry['species'])
+            germplasm['genus'] = str(entry['genus'])
+            germplasm['germplasmDbId'] = str(entry['germplasmDbId'])
+            germplasm_id_data_map[str(entry['germplasmDbId'])] = germplasm
     return germplasm_id_data_map
 
 
 def get_brapi_study_layouts(studyDbId):
     """return study layouts from brapi based on brapi url"""
     URL = os.environ.get('BRAPI_URL', BRAPI_URL)
-    request_url = os.path.join(URL, 'v1', 'studies', studyDbId, 'layouts')
+    request_url = os.path.join(URL, 'v1', 'studies', str(studyDbId), 'layouts')
     r = requests.get(request_url)
 
     site_id_germplasm_map = {}
@@ -105,8 +105,8 @@ def get_brapi_study_layouts(studyDbId):
     if r.status_code == 200:
         data = r.json()['result']['data']
         for entry in data:
-            site_id = entry['observationUnitDbId']
-            cultivar_id = entry['germPlasmDbId']
+            site_id = str(entry['observationUnitDbId'])
+            cultivar_id = str(entry['germPlasmDbId'])
             site_id_germplasm_map[site_id] = cultivar_id
     return site_id_germplasm_map
 
