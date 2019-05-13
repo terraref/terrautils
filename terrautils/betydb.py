@@ -354,7 +354,9 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                             s = t['site']
                             s['experiment_id'] = exp['id']
                             cultivar_info_for_site = exp_site_cultivar_map[s]['cultivar_info']
+                            treatment_info_for_site = exp_site_cultivar_map[s]['treatment_info']
                             s['cultivar'] = cultivar_info_for_site
+                            s['treatments'] = treatment_info_for_site
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
