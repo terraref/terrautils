@@ -106,8 +106,12 @@ def get_brapi_study_layouts(studyDbId):
         data = r.json()['result']['data']
         for entry in data:
             site_id = str(entry['observationUnitDbId'])
+            site_name = str(entry['observationUnitName'])
             cultivar_id = str(entry['germPlasmDbId'])
-            site_id_germplasm_map[site_id] = cultivar_id
+            site_info = {}
+            site_info['sitename'] = site_name
+            site_info['germplasmDbId'] = cultivar_id
+            site_id_germplasm_map[site_id] = site_info
     return site_id_germplasm_map
 
 
@@ -118,10 +122,25 @@ def get_site_id_cultivar_info_map(studyDbId):
     site_ids = layouts.keys()
 
     for site_id in site_ids:
-        corresponding_site_cultivar_id = layouts[site_id]
+        corresponding_site_cultivar_id = layouts[site_id]['germplasmDbId']
         cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
-        layouts[site_id] = cultivar_info_from_germplasm
+        layouts[site_id]['cultivar_info'] = cultivar_info_from_germplasm
     return layouts
+
+def get_experiment_observation_units_map(studyDbId):
+    endpoint = 'observationunits'
+    study_url = get_brapi_api(endpoint)
+    request_params = {'studyDbId': studyDbId}
+    r = requests.get(url=study_url, params=request_params)
+    data = r.json()['result']['data']
+    location_name_treatments_map = {}
+    for entry in data:
+        treatment = {}
+        treatment['treatment_description'] = entry['observationtreatment']
+        treatment['id'] = entry['treatmentDbId']
+        treatment['experiment_id'] = entry['studyDbId']
+        location_name_treatments_map[entry['location_abbreviation']] = treatment
+    return location_name_treatments_map
 
 def get_bety_url(path=''):
     """return betydb url from environment with optional path
@@ -320,7 +339,7 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                         for t in exp['sites']:
                             s = t['site']
                             s['experiment_id'] = exp['id']
-                            cultivar_info_for_site = exp_site_cultivar_map[s]
+                            cultivar_info_for_site = exp_site_cultivar_map[s]['cultivar_info']
                             s['cultivar'] = cultivar_info_for_site
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
