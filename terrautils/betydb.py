@@ -74,6 +74,12 @@ def get_brapi_study(studyDbId):
     r = requests.get(url=study_url, params=request_params)
     return r.json()
 
+def get_brapi_observationunits(studyDbId):
+    endpoint = 'observationunits'
+    study_url = get_brapi_api(endpoint)
+    request_params = {'studyDbId': studyDbId}
+    r = requests.get(url=study_url, params=request_params)
+    return r.json()
 
 def get_brapi_study_germplasm(studyDbId):
     URL = os.environ.get('BRAPI_URL',BRAPI_URL)
@@ -115,17 +121,6 @@ def get_brapi_study_layouts(studyDbId):
     return site_id_germplasm_map
 
 
-def get_site_id_cultivar_info_map(studyDbId):
-    layouts = get_brapi_study_layouts(studyDbId)
-    germplasm = get_brapi_study_germplasm(studyDbId)
-
-    site_ids = layouts.keys()
-
-    for site_id in site_ids:
-        corresponding_site_cultivar_id = layouts[site_id]['germplasmDbId']
-        cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
-        layouts[site_id]['cultivar_info'] = cultivar_info_from_germplasm
-    return layouts
 
 def get_experiment_observation_units_map(studyDbId):
     endpoint = 'observationunits'
@@ -141,6 +136,25 @@ def get_experiment_observation_units_map(studyDbId):
         treatment['experiment_id'] = entry['studyDbId']
         location_name_treatments_map[entry['location_abbreviation']] = treatment
     return location_name_treatments_map
+
+
+def get_site_id_cultivar_info_map(studyDbId):
+    layouts = get_brapi_study_layouts(studyDbId)
+    germplasm = get_brapi_study_germplasm(studyDbId)
+    observationunits = get_experiment_observation_units_map(studyDbId)
+
+    site_ids = layouts.keys()
+
+    for site_id in site_ids:
+        corresponding_site_cultivar_id = layouts[site_id]['germplasmDbId']
+        corresponding_site_name = layouts[site_id]['sitename']
+        treatment_info = observationunits[corresponding_site_name]
+        layouts[site_id]['treatment_info'] = treatment_info
+        cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
+        layouts[site_id]['cultivar_info'] = cultivar_info_from_germplasm
+    return layouts
+
+
 
 def get_bety_url(path=''):
     """return betydb url from environment with optional path
