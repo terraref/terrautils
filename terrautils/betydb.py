@@ -111,9 +111,9 @@ def get_brapi_study_layouts(studyDbId):
     if r.status_code == 200:
         data = r.json()['result']['data']
         for entry in data:
-            site_id = str(entry['observationUnitDbId'])
+            site_id = int(entry['observationUnitDbId'])
             site_name = str(entry['observationUnitName'])
-            cultivar_id = str(entry['germPlasmDbId'])
+            cultivar_id = int(entry['germPlasmDbId'])
             site_info = {}
             site_info['sitename'] = site_name
             site_info['germplasmDbId'] = cultivar_id
@@ -132,8 +132,8 @@ def get_experiment_observation_units_map(studyDbId):
     for entry in data:
         treatment = {}
         treatment['treatment_description'] = entry['observationtreatment']
-        treatment['id'] = entry['treatmentDbId']
-        treatment['experiment_id'] = entry['studyDbId']
+        treatment['id'] = int(entry['treatmentDbId'])
+        treatment['experiment_id'] = int(entry['studyDbId'])
         location_name_treatments_map[entry['location_abbreviation']] = treatment
     return location_name_treatments_map
 
@@ -148,10 +148,16 @@ def get_site_id_cultivar_info_map(studyDbId):
     for site_id in site_ids:
         corresponding_site_cultivar_id = layouts[site_id]['germplasmDbId']
         corresponding_site_name = layouts[site_id]['sitename']
-        treatment_info = observationunits[corresponding_site_name]
-        layouts[site_id]['treatment_info'] = treatment_info
-        cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
-        layouts[site_id]['cultivar_info'] = cultivar_info_from_germplasm
+        try:
+            treatment_info = observationunits[corresponding_site_name]
+            layouts[site_id]['treatment_info'] = treatment_info
+        except:
+            layouts[site_id]['treatment_info'] = "no treatment data available"
+        try:
+            cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
+            layouts[site_id]['cultivar_info'] = cultivar_info_from_germplasm
+        except:
+            layouts[site_id]['cultivar_info'] = "no cultivar data available"
     return layouts
 
 
@@ -353,10 +359,15 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                         for t in exp['sites']:
                             s = t['site']
                             s['experiment_id'] = exp['id']
-                            cultivar_info_for_site = exp_site_cultivar_map[s]['cultivar_info']
-                            treatment_info_for_site = exp_site_cultivar_map[s]['treatment_info']
-                            s['cultivar'] = cultivar_info_for_site
-                            s['treatments'] = treatment_info_for_site
+                            current_site_id = s['id']
+                            if current_site_id in exp_site_cultivar_map:
+                                cultivar_info_for_site = exp_site_cultivar_map[s['id']]['cultivar_info']
+                                treatment_info_for_site = exp_site_cultivar_map[s['id']]['treatment_info']
+                                s['cultivar'] = cultivar_info_for_site
+                                s['treatments'] = treatment_info_for_site
+                            else:
+                                s['cultivar'] = 'no info available'
+                                s['treatments'] = 'no info available'
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
