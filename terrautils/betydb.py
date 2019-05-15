@@ -148,16 +148,20 @@ def get_site_id_cultivar_info_map(studyDbId):
     for site_id in site_ids:
         corresponding_site_cultivar_id = layouts[site_id]['germplasmDbId']
         corresponding_site_name = layouts[site_id]['sitename']
-        try:
-            treatment_info = observationunits[corresponding_site_name]
-            layouts[site_id]['treatment_info'] = treatment_info
-        except:
-            layouts[site_id]['treatment_info'] = "no treatment data available"
-        try:
+        if corresponding_site_name.endswith(' W'):
+            corresponding_site_name = corresponding_site_name.replace(' W', '')
+        if corresponding_site_name.endswith(' E'):
+            corresponding_site_name.replace(' E', '')
+        if corresponding_site_cultivar_id in germplasm:
             cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
-            layouts[site_id]['cultivar_info'] = cultivar_info_from_germplasm
-        except:
-            layouts[site_id]['cultivar_info'] = "no cultivar data available"
+            layouts[site_id]['cultivar'] = cultivar_info_from_germplasm
+        else:
+            layouts[site_id]['cultivar'] = 'no info'
+        if corresponding_site_name in observationunits:
+            treatment_info = observationunits[corresponding_site_name]
+            layouts[site_id]['treatments'] = treatment_info
+        else:
+            layouts[site_id]['treatments'] = 'no info'
     return layouts
 
 
@@ -361,13 +365,13 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
                             s['experiment_id'] = exp['id']
                             current_site_id = s['id']
                             if current_site_id in exp_site_cultivar_map:
-                                cultivar_info_for_site = exp_site_cultivar_map[s['id']]['cultivar_info']
-                                treatment_info_for_site = exp_site_cultivar_map[s['id']]['treatment_info']
+                                cultivar_info_for_site = exp_site_cultivar_map[s['id']]['cultivar']
+                                treatment_info_for_site = exp_site_cultivar_map[s['id']]['treatments']
                                 s['cultivar'] = cultivar_info_for_site
                                 s['treatments'] = treatment_info_for_site
                             else:
-                                s['cultivar'] = 'no info available'
-                                s['treatments'] = 'no info available'
+                                s['cultivar'] = 'no info'
+                                s['treatments'] = 'no info'
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
