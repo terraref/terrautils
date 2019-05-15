@@ -106,19 +106,19 @@ def get_brapi_study_layouts(studyDbId):
     request_url = os.path.join(URL, 'v1', 'studies', str(studyDbId), 'layouts')
     r = requests.get(request_url)
 
-    site_id_germplasm_map = {}
+    site_id_layouts_map = {}
 
     if r.status_code == 200:
         data = r.json()['result']['data']
         for entry in data:
-            site_id = int(entry['observationUnitDbId'])
+            site_id = str(entry['observationUnitDbId'])
             site_name = str(entry['observationUnitName'])
-            cultivar_id = int(entry['germPlasmDbId'])
+            cultivar_id = str(entry['germPlasmDbId'])
             site_info = {}
             site_info['sitename'] = site_name
             site_info['germplasmDbId'] = cultivar_id
-            site_id_germplasm_map[site_id] = site_info
-    return site_id_germplasm_map
+            site_id_layouts_map[site_id] = site_info
+    return site_id_layouts_map
 
 
 
@@ -131,10 +131,10 @@ def get_experiment_observation_units_map(studyDbId):
     location_name_treatments_map = {}
     for entry in data:
         treatment = {}
-        treatment['treatment_description'] = entry['observationtreatment']
-        treatment['id'] = int(entry['treatmentDbId'])
-        treatment['experiment_id'] = int(entry['studyDbId'])
-        location_name_treatments_map[entry['location_abbreviation']] = treatment
+        treatment['treatment_description'] = str(entry['observationtreatment'])
+        treatment['id'] = str(entry['treatmentDbId'])
+        treatment['experiment_id'] = str(entry['studyDbId'])
+        location_name_treatments_map[str(entry['location_abbreviation'])] = treatment
     return location_name_treatments_map
 
 
