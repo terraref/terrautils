@@ -58,3 +58,61 @@ def get_dataset_username(host, key, dataset_id):
                 user_name = ((user_name + ' ') if not user_name is None else '') + ret['firstName']
 
     return user_name
+
+def find_user_name(host, secret_key, clowder_user, dataset_id=None):
+    """Try to find the user in the clowder instance
+    Args:
+        host(str): the partial URI of the API path including protocol ('/api' portion and
+                   after is not needed); assumes a terminating '/'
+        secret_key(str): access key for API use
+        clowder_user(str): the clowder username
+        dataset_id(str): optional dataset identifier for looking up the user
+    Return:
+        Returns True if the user was found and False if not
+    Exceptions:
+        None
+    """
+    uris = ["%sapi/me?key=%s" % (host, secret_key),
+            "%sapi/users?key=%s&limit=50000" % (host, secret_key)
+           ]
+
+    # Find additional places to look
+    id_uris = []
+    if not dataset_id is None:
+        id_uris.append("%sapi/datasets/%s?key=%s" % (host, dataset_id, secret_key))
+    for url in id_uris:
+        try:
+            result = requests.get(url)
+            result.raise_for_status()
+
+            # Get the author ID of the dataset
+            ret = result.json()
+            if 'authorId' in ret:
+                user_id = ret['authorId']
+                user_url = "%sapi/users/%s?key=%s" % (host, user_id, secret_key)
+                uris.insert(0, user_url)
+        # pylint: disable=broad-except
+        except Exception:
+            pass
+        # pylint: enable=broad-except
+
+    # Now look through all the places to look
+    for url in uris:
+        try:
+            result = requests.get(url)
+            result.raise_for_status()
+
+            ret = result.json()
+            if not isinstance(ret, list):
+                ret = [ret]
+
+            for user in ret:
+                if ("email" in user) and (user["email"] == clowder_user):
+                    return True
+        # pylint: disable=broad-except
+        except Exception:
+            pass
+        # pylint: enable=broad-except
+
+    # We didn't find the user
+    return False

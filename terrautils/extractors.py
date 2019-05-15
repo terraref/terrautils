@@ -20,7 +20,7 @@ from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.metadata import get_terraref_metadata, pipeline_get_metadata, \
                 get_season_and_experiment
 from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
-from terrautils.users import get_dataset_username
+from terrautils.users import get_dataset_username, find_user_name
 
 
 logging.basicConfig(format='%(asctime)s %(message)s')
@@ -1260,19 +1260,9 @@ def confirm_clowder_info(host, secret_key, space_id, clowder_user=None, clowder_
     # Now check with clowder
     try:
         # First try to find the user name
-        url = "%sapi/users?key=%s&limit=50000" % (host, secret_key)
-        result = requests.get(url)
-        result.raise_for_status()
-
-        ret = result.json()
-        found = False
-        for user in ret:
-            if ("email" in user) and (user["email"] == clowder_user):
-                found = True
-                break
+        found = find_user_name(host, secret_key, clowder_user)
         if not found:
-            logger.info("Clowder user not found: %s", clowder_user)
-            return False
+            logger.info("Clowder user not found by querying users: %s", clowder_user)
 
         # Try to find the space in Clowder
         url = '%sapi/spaces/%s?key=%s' % (host, space_id, secret_key)
