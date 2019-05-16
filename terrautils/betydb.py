@@ -81,6 +81,12 @@ def get_brapi_observationunits(studyDbId):
     r = requests.get(url=study_url, params=request_params)
     return r.json()
 
+def get_brapi_all_observation_units(studyDbId):
+    first_page_results = get_brapi_observationunits(studyDbId)
+    results_count = first_page_results['metadata']['pagination']['totalCount']
+    all_observation_units = get_brapi_observationunits(studyDbId, pageSize=results_count)
+    return all_observation_units
+
 def get_brapi_study_germplasm(studyDbId):
     URL = os.environ.get('BRAPI_URL',BRAPI_URL)
     request_url = os.path.join(URL,'v1','studies',str(studyDbId),'germplasm')
@@ -123,11 +129,7 @@ def get_brapi_study_layouts(studyDbId):
 
 
 def get_experiment_observation_units_map(studyDbId):
-    endpoint = 'observationunits'
-    study_url = get_brapi_api(endpoint)
-    request_params = {'studyDbId': studyDbId}
-    r = requests.get(url=study_url, params=request_params)
-    data = r.json()['result']['data']
+    data = get_brapi_all_observation_units(studyDbId)
     location_name_treatments_map = {}
     for entry in data:
         treatment = {}
