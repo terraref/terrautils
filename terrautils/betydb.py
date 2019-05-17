@@ -133,7 +133,7 @@ def get_experiment_observation_units_map(studyDbId):
     location_name_treatments_map = {}
     for entry in data:
         treatment = {}
-        treatment['treatment_description'] = str(entry['observationtreatment'])
+        treatment['definition'] = str(entry['observationtreatment'])
         treatment['id'] = str(entry['treatmentDbId'])
         treatment['experiment_id'] = str(entry['studyDbId'])
         location_name_treatments_map[str(entry['observationUnitName'])] = treatment
