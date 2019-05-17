@@ -136,7 +136,7 @@ def get_experiment_observation_units_map(studyDbId):
         treatment['treatment_description'] = str(entry['observationtreatment'])
         treatment['id'] = str(entry['treatmentDbId'])
         treatment['experiment_id'] = str(entry['studyDbId'])
-        location_name_treatments_map[str(entry['location_abbreviation'])] = treatment
+        location_name_treatments_map[str(entry['observationUnitName'])] = treatment
     return location_name_treatments_map
 
 
