@@ -74,10 +74,12 @@ def get_brapi_study(studyDbId):
     r = requests.get(url=study_url, params=request_params)
     return r.json()
 
-def get_brapi_observationunits(studyDbId):
+def get_brapi_observationunits(studyDbId, pageSize=None):
     endpoint = 'observationunits'
     study_url = get_brapi_api(endpoint)
     request_params = {'studyDbId': studyDbId}
+    if pageSize:
+        request_params['pageSize'] = pageSize
     r = requests.get(url=study_url, params=request_params)
     return r.json()
 
@@ -85,7 +87,7 @@ def get_brapi_all_observation_units(studyDbId):
     first_page_results = get_brapi_observationunits(studyDbId)
     results_count = first_page_results['metadata']['pagination']['totalCount']
     all_observation_units = get_brapi_observationunits(studyDbId, pageSize=results_count)
-    return all_observation_units
+    return all_observation_units['result']['data']
 
 def get_brapi_study_germplasm(studyDbId):
     URL = os.environ.get('BRAPI_URL',BRAPI_URL)
