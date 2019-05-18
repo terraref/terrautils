@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 
 import requests
+import urllib
 import json
 from osgeo import ogr
 
@@ -56,7 +57,7 @@ def get_brapi_url(path=''):
     """
 
     url = os.environ.get('BRAPI_URL', BRAPI_URL)
-    return os.path.join(url, path)
+    return urllib.parse.urljoin(url, path)
 
 
 def get_brapi_api(endpoint=None):
@@ -65,23 +66,32 @@ def get_brapi_api(endpoint=None):
     url = get_brapi_url(path='v1/{}'.format(endpoint))
     return url
 
+def brapi_get(path='', request_params=None):
+    brapi_url = os.environ.get('BRAPI_URL', BRAPI_URL)
+    request_url = urllib.parse.join(brapi_url, 'v1', path)
+    return request_url
+    if request_params:
+        r = requests.get(url=request_url, params=request_params)
+        return r.json()
+    else:
+        r = requests.get(url=request_url)
+        return r.json()
+
 
 def get_brapi_study(studyDbId):
     """return study from brapi based on brapi url"""
-    endpoint = 'studies'
-    study_url = get_brapi_api(endpoint)
+    studies_path = 'v1/studies'
     request_params = {'studyDbId':studyDbId}
-    r = requests.get(url=study_url, params=request_params)
-    return r.json()
+    studies_result = brapi_get(path=studies_path, request_params=request_params)
+    return studies_result
 
-def get_brapi_observationunits(studyDbId, pageSize=None):
-    endpoint = 'observationunits'
-    study_url = get_brapi_api(endpoint)
+def get_brapi_observationunits(studyDbId, page=None):
+    observation_units_path = 'v1/observationunits'
     request_params = {'studyDbId': studyDbId}
-    if pageSize:
-        request_params['pageSize'] = pageSize
-    r = requests.get(url=study_url, params=request_params)
-    return r.json()
+    if page:
+        request_params['page'] = page
+    observationunits_result = brapi_get(path=observation_units_path, request_params=request_params)
+    return observationunits_result
 
 def get_brapi_all_observation_units(studyDbId):
     first_page_results = get_brapi_observationunits(studyDbId)
@@ -90,14 +100,13 @@ def get_brapi_all_observation_units(studyDbId):
     return all_observation_units['result']['data']
 
 def get_brapi_study_germplasm(studyDbId):
-    URL = os.environ.get('BRAPI_URL',BRAPI_URL)
-    request_url = os.path.join(URL,'v1','studies',str(studyDbId),'germplasm')
-    r = requests.get(request_url)
+    current_path = 'v1/studies/' + str(studyDbId) + '/germplasm'
+    germplasm_results = brapi_get(current_path)
 
     germplasm_id_data_map = {}
 
-    if r.status_code == 200:
-       data = r.json()['result']['data']
+    if germplasm_results.status_code == 200:
+       data = germplasm_results.json()['result']['data']
        for entry in data:
             germplasm = {}
             germplasm['germplasmName'] = str(entry['germplasmName'])
@@ -110,9 +119,8 @@ def get_brapi_study_germplasm(studyDbId):
 
 def get_brapi_study_layouts(studyDbId):
     """return study layouts from brapi based on brapi url"""
-    URL = os.environ.get('BRAPI_URL', BRAPI_URL)
-    request_url = os.path.join(URL, 'v1', 'studies', str(studyDbId), 'layouts')
-    r = requests.get(request_url)
+    current_path = 'v1/studies/' + str(studyDbId) + '/germplasm'
+    r = brapi_get(path=current_path)
 
     site_id_layouts_map = {}
 
