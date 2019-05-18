@@ -95,9 +95,13 @@ def get_brapi_observationunits(studyDbId, page=None):
 
 def get_brapi_all_observation_units(studyDbId):
     first_page_results = get_brapi_observationunits(studyDbId)
-    results_count = first_page_results['metadata']['pagination']['totalCount']
-    all_observation_units = get_brapi_observationunits(studyDbId, pageSize=results_count)
-    return all_observation_units['result']['data']
+    total_pages = first_page_results['metadata']['pagination']['totalPages']
+    results = first_page_results['result']['data']
+    if total_pages > 1:
+        for i in range(1,   total_pages-1):
+            current_results = get_brapi_observationunits(studyDbId, page=i)
+            results.update(current_results)
+    return results
 
 def get_brapi_study_germplasm(studyDbId):
     current_path = 'v1/studies/' + str(studyDbId) + '/germplasm'
