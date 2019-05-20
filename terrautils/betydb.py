@@ -13,6 +13,7 @@ import json
 from osgeo import ogr
 
 BRAPI_URL="https://brapi.workbench.terraref.org/brapi"
+BRAPI_VERSION="v1"
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
@@ -49,101 +50,95 @@ def get_bety_key():
                        "or create $HOME/.betykey.")
 
 
-def get_brapi_url(path=''):
-    """return brapi url from environment with optional path
-
-    Of 3 options string join, os.path.join and urlparse.urljoin, os.path.join
-    is the best at handling excessive / characters.
-    """
-
-    url = os.environ.get('BRAPI_URL', BRAPI_URL)
-    return urllib.parse.urljoin(url, path)
-
-
-def get_brapi_api(endpoint=None):
-    """return brapi API based on brapi url"""
-
-    url = get_brapi_url(path='v1/{}'.format(endpoint))
-    return url
-
-def brapi_get(path='', request_params=None):
+def brapi_get(path='',request_params=None):
     brapi_url = os.environ.get('BRAPI_URL', BRAPI_URL)
-    request_url = urllib.parse.join(brapi_url, 'v1', path)
-    return request_url
+    version = os.environ.get('BRAPI_VERSION', BRAPI_VERSION)
+    path = 'brapi/'+version+'/'+path
+    request_url = urllib.parse.urljoin(brapi_url, path)
+
+    result = []
+
     if request_params:
         r = requests.get(url=request_url, params=request_params)
-        return r.json()
+        totalPages = r.json()['metadata']['pagination']['totalPages']
+        current_data = r.json()['result']['data']
+        result.extend(current_data)
+        if totalPages > 1:
+            for i in range(1, totalPages -1):
+                request_params['page']=i
+                r = requests.get(url=request_url, params=request_params)
+                current_data = r.json()['result']['data']
+                result.extend(current_data)
+        return result
     else:
         r = requests.get(url=request_url)
-        return r.json()
+        totalPages = r.json()['metadata']['pagination']['totalPages']
+        current_data = r.json()['result']['data']
+        result.extend(current_data)
+        if totalPages > 1:
+            for i in range(1, totalPages -1):
+                request_params['page']=i
+                r = requests.get(url=request_url, params=request_params)
+                current_data = r.json()['result']['data']
+                result.extend(current_data)
+        return result
 
 
 def get_brapi_study(studyDbId):
     """return study from brapi based on brapi url"""
-    studies_path = 'v1/studies'
-    request_params = {'studyDbId':studyDbId}
+    studies_path = 'studies'
+    request_params = {'studyDbId': studyDbId}
     studies_result = brapi_get(path=studies_path, request_params=request_params)
     return studies_result
 
+
 def get_brapi_observationunits(studyDbId, page=None):
-    observation_units_path = 'v1/observationunits'
+    observation_units_path = 'observationunits'
     request_params = {'studyDbId': studyDbId}
     if page:
         request_params['page'] = page
     observationunits_result = brapi_get(path=observation_units_path, request_params=request_params)
+
     return observationunits_result
-
-def get_brapi_all_observation_units(studyDbId):
-    first_page_results = get_brapi_observationunits(studyDbId)
-    total_pages = first_page_results['metadata']['pagination']['totalPages']
-    results = first_page_results['result']['data']
-    if total_pages > 1:
-        for i in range(1,   total_pages-1):
-            current_results = get_brapi_observationunits(studyDbId, page=i)
-            results.update(current_results)
-    return results
-
-def get_brapi_study_germplasm(studyDbId):
-    current_path = 'v1/studies/' + str(studyDbId) + '/germplasm'
-    germplasm_results = brapi_get(current_path)
-
-    germplasm_id_data_map = {}
-
-    if germplasm_results.status_code == 200:
-       data = germplasm_results.json()['result']['data']
-       for entry in data:
-            germplasm = {}
-            germplasm['germplasmName'] = str(entry['germplasmName'])
-            germplasm['species'] = str(entry['species'])
-            germplasm['genus'] = str(entry['genus'])
-            germplasm['germplasmDbId'] = str(entry['germplasmDbId'])
-            germplasm_id_data_map[str(entry['germplasmDbId'])] = germplasm
-    return germplasm_id_data_map
 
 
 def get_brapi_study_layouts(studyDbId):
     """return study layouts from brapi based on brapi url"""
-    current_path = 'v1/studies/' + str(studyDbId) + '/germplasm'
-    r = brapi_get(path=current_path)
+    current_path = 'studies/' + str(studyDbId) + '/layouts'
+    data = brapi_get(path=current_path)
 
     site_id_layouts_map = {}
 
-    if r.status_code == 200:
-        data = r.json()['result']['data']
-        for entry in data:
-            site_id = str(entry['observationUnitDbId'])
-            site_name = str(entry['observationUnitName'])
-            cultivar_id = str(entry['germPlasmDbId'])
-            site_info = {}
-            site_info['sitename'] = site_name
-            site_info['germplasmDbId'] = cultivar_id
-            site_id_layouts_map[site_id] = site_info
+    for entry in data:
+        site_id = str(entry['observationUnitDbId'])
+        site_name = str(entry['observationUnitName'])
+        cultivar_id = str(entry['germPlasmDbId'])
+        site_info = {}
+        site_info['sitename'] = site_name
+        site_info['germplasmDbId'] = cultivar_id
+        site_id_layouts_map[site_id] = site_info
     return site_id_layouts_map
 
 
+def get_brapi_study_germplasm(studyDbId):
+    current_path = 'studies/' + str(studyDbId) + '/germplasm'
+    data = brapi_get(current_path)
+
+    germplasm_id_data_map = {}
+    # data = germplasm_results['result']['data']
+    for entry in data:
+        germplasm = {}
+        germplasm['germplasmName'] = str(entry['germplasmName'])
+        germplasm['species'] = str(entry['species'])
+        germplasm['genus'] = str(entry['genus'])
+        germplasm['germplasmDbId'] = str(entry['germplasmDbId'])
+        germplasm_id_data_map[str(entry['germplasmDbId'])] = germplasm
+
+    return germplasm_id_data_map
+
 
 def get_experiment_observation_units_map(studyDbId):
-    data = get_brapi_all_observation_units(studyDbId)
+    data = get_brapi_observationunits(studyDbId)
     location_name_treatments_map = {}
     for entry in data:
         treatment = {}
