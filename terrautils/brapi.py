@@ -13,8 +13,7 @@ BRAPI_VERSION="v1"
 
 def brapi_get(path='',request_params=None):
     brapi_url = os.environ.get('BRAPI_URL', BRAPI_URL)
-    version = os.environ.get('BRAPI_VERSION', BRAPI_VERSION)
-    path = 'brapi/'+version+'/'+path
+    path = 'brapi/'+path
     request_url = urllib.parse.urljoin(brapi_url, path)
 
     result = []
@@ -47,14 +46,14 @@ def brapi_get(path='',request_params=None):
 
 def get_brapi_study(studyDbId):
     """return study from brapi based on brapi url"""
-    studies_path = 'studies'
+    studies_path = 'v1/studies'
     request_params = {'studyDbId': studyDbId}
     studies_result = brapi_get(path=studies_path, request_params=request_params)
     return studies_result
 
 
 def get_brapi_observationunits(studyDbId):
-    observation_units_path = 'observationunits'
+    observation_units_path = 'v1/observationunits'
     request_params = {'studyDbId': studyDbId}
     observationunits_result = brapi_get(path=observation_units_path, request_params=request_params)
 
@@ -63,7 +62,7 @@ def get_brapi_observationunits(studyDbId):
 
 def get_brapi_study_layouts(studyDbId):
     """return study layouts from brapi based on brapi url"""
-    current_path = 'studies/' + str(studyDbId) + '/layouts'
+    current_path = 'v1/studies/' + str(studyDbId) + '/layouts'
     data = brapi_get(path=current_path)
 
     site_id_layouts_map = {}
@@ -80,7 +79,7 @@ def get_brapi_study_layouts(studyDbId):
 
 
 def get_brapi_study_germplasm(studyDbId):
-    current_path = 'studies/' + str(studyDbId) + '/germplasm'
+    current_path = 'v1/studies/' + str(studyDbId) + '/germplasm'
     data = brapi_get(current_path)
 
     germplasm_id_data_map = {}
