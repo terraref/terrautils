@@ -7,6 +7,7 @@ import os
 
 import requests
 import urllib
+
 BRAPI_URL="https://brapi.workbench.terraref.org/brapi"
 BRAPI_VERSION="v1"
 
@@ -116,10 +117,6 @@ def get_site_id_cultivar_info_map(studyDbId):
     for site_id in site_ids:
         corresponding_site_cultivar_id = layouts[site_id]['germplasmDbId']
         corresponding_site_name = layouts[site_id]['sitename']
-        if corresponding_site_name.endswith(' W'):
-            corresponding_site_name = corresponding_site_name.replace(' W', '')
-        if corresponding_site_name.endswith(' E'):
-            corresponding_site_name.replace(' E', '')
         if corresponding_site_cultivar_id in germplasm:
             cultivar_info_from_germplasm = germplasm[corresponding_site_cultivar_id]
             layouts[site_id]['cultivar'] = cultivar_info_from_germplasm
