@@ -5,8 +5,6 @@ This module provides useful reference methods for accessing and cleaning TERRA-R
 
 import lemnatec
 
-
-
 def clean_metadata(json, sensorId, fixed=False):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
@@ -103,10 +101,66 @@ def get_extractor_metadata(clowder_md, extractor_name, extractor_version=None):
     return None
 
 
+# pylint: disable=too-many-branches
+def pipeline_get_metadata(metadata):
+    """Look through the metadata looking for pipeline configuration
+    Args:
+        metadata(JSON): the JSON object, or list of JSON objects, to search
+    Returns:
+        The found JSON is returned, otherwise None is returned. None is also returned
+        if the passed in JSON is invalid or is empty.
+    Notes:
+        If the metadata parameter is an a list, it will be iterated over and each list element
+        inspected for pipeline data. The first found instance is returned.
+        If the metadata parameter is not a list, it's inspected to see if it contains
+        pipeline data, and that's returned if found.
+
+        There are two keys looked for off the JSON passed in, as follows, in order:
+            1) "content" -> "pipeline"
+            2) "pipeline"
+    """
+    found_metadata = None
+
+    # Check the parameter
+    if not metadata:
+        return found_metadata
+
+    json_len = len(metadata)
+    if json_len <= 0:
+        return found_metadata
+
+    try:
+        # Look for a list of JSON
+        if isinstance(metadata, list):
+            for one_metadata in metadata:
+                if 'content' in one_metadata:
+                    if 'pipeline' in one_metadata['content']:
+                        found_metadata = one_metadata['content']['pipeline']
+                        break
+
+            if found_metadata is None:
+                for one_metadata in metadata:
+                    if 'pipeline' in one_metadata:
+                        found_metadata = one_metadata['pipeline']
+                        break
+
+        elif 'content' in metadata:
+            if 'pipeline' in metadata['content']:
+                found_metadata = one_metadata['content']['pipeline']
+
+        elif 'pipeline' in metadata:
+            found_metadata = metadata['pipeline']
+    finally:
+        pass
+
+    return found_metadata
+
+
 def get_season_and_experiment(timestamp, sensor, terra_md_full):
     """Attempts to extract season & experiment from TERRA-REF metadata given timestamp.
 
-    If the values weren't in TERRA metadata but were fetched from BETY, updated experiment will be returned as well.
+    If the values weren't in TERRA metadata but were fetched from BETY, updated experiment will be
+    returned as well.
     """
     season_name, experiment_name, expmd = "Unknown Season", "Unknown Experiment", None
     if 'experiment_metadata' in terra_md_full and len(terra_md_full['experiment_metadata']) > 0:
@@ -155,4 +209,3 @@ def get_date_from_cleaned_metadata(md):
             return default
     else:
         return default
-
