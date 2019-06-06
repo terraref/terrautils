@@ -7,6 +7,7 @@ import os
 
 import requests
 import urllib
+import urlparse
 
 BRAPI_URL="https://brapi.workbench.terraref.org/brapi"
 BRAPI_VERSION="v1"
@@ -15,7 +16,7 @@ BRAPI_VERSION="v1"
 def brapi_get(path='',request_params=None):
     brapi_url = os.environ.get('BRAPI_URL', BRAPI_URL)
     path = 'brapi/'+path
-    request_url = urllib.parse.urljoin(brapi_url, path)
+    request_url = urlparse.urljoin(brapi_url, path)
 
     result = []
 
