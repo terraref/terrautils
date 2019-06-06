@@ -9,6 +9,7 @@ import requests
 import urllib
 import urlparse
 
+
 BRAPI_URL="https://brapi.workbench.terraref.org/brapi"
 BRAPI_VERSION="v1"
 
@@ -22,6 +23,8 @@ def brapi_get(path='',request_params=None):
 
     if request_params:
         r = requests.get(url=request_url, params=request_params)
+        if r.status_code != 200:
+            return result
         totalPages = r.json()['metadata']['pagination']['totalPages']
         current_data = r.json()['result']['data']
         result.extend(current_data)
@@ -34,11 +37,15 @@ def brapi_get(path='',request_params=None):
         return result
     else:
         r = requests.get(url=request_url)
+        if r.status_code != 200:
+            return result
         totalPages = r.json()['metadata']['pagination']['totalPages']
         current_data = r.json()['result']['data']
         result.extend(current_data)
         if totalPages > 1:
             for i in range(1, totalPages -1):
+                if request_params is None:
+                    request_params = {}
                 request_params['page']=i
                 r = requests.get(url=request_url, params=request_params)
                 current_data = r.json()['result']['data']
