@@ -3,7 +3,7 @@
 This module provides useful reference methods for accessing and cleaning TERRA-REF metadata.
 """
 
-import lemnatec
+import terrautils.lemnatec
 
 def clean_metadata(json, sensorId, fixed=False):
     """ Given a metadata object, returns a cleaned object with standardized structure 

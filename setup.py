@@ -6,7 +6,7 @@ def description():
 
 setup(name='terrautils',
       packages=find_packages(),
-      version='1.5.0',
+      version='1.5.2',
       include_package_data=True,
       description='TERRA-REF workflow utilities',
       long_description=description(),

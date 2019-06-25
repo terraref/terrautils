@@ -23,9 +23,9 @@ import os
 import re
 import pytz, datetime
 
-import betydb
-from sensors import Sensors
-from spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
+import terrautils.betydb
+from terrautils.sensors import Sensors
+from terrautils.spatial import calculate_gps_bounds, calculate_centroid, tuples_to_geojson
 
 
 STATION_NAME = "ua-mac"
@@ -971,4 +971,4 @@ if __name__ == "__main__":
     clean_md = [{"content":  clean(json_data, args.sensor)}]
     
     if args.output:
-        print json.dumps(clean_md, indent=4, sort_keys=False)
+        print(json.dumps(clean_md, indent=4, sort_keys=False))
