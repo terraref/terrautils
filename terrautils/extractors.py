@@ -437,7 +437,7 @@ class TerrarefExtractor(Extractor):
                     return _zero
                 def dst(self, _dt):
                     return _zero
-            timestamp = datetime.datetime.utcnow(tz=TZ()).isoformat()
+            timestamp = datetime.datetime.utcnow().isoformat()
 
         return timestamp
 
