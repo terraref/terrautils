@@ -11,7 +11,7 @@ def clean_metadata(json, sensorId, fixed=False):
     """
     cleaned = clean_json_keys(json)
     if 'lemnatec_measurement_metadata' in json.keys():
-        cleaned = lemnatec.clean(cleaned, sensorId, fixed=fixed)
+        cleaned = terrautils.lemnatec.clean(cleaned, sensorId, fixed=fixed)
     else:
         return None
 
@@ -175,7 +175,7 @@ def get_season_and_experiment(timestamp, sensor, terra_md_full):
                 break
     else:
         # Try to determine experiment data dynamically
-        expmd = lemnatec._get_experiment_metadata(timestamp.split("__")[0], sensor)
+        expmd = terrautils.lemnatec._get_experiment_metadata(timestamp.split("__")[0], sensor)
         if len(expmd) > 0:
             for experiment in expmd:
                 if 'name' in experiment:
@@ -197,7 +197,7 @@ def get_preferred_synonym(variable):
 
 def get_sensor_fixed_metadata(sensor_id, query_date):
     """Get fixed sensor metadata from Clowder."""
-    return lemnatec._get_sensor_fixed_metadata(sensor_id, query_date)
+    return terrautils.lemnatec._get_sensor_fixed_metadata(sensor_id, query_date)
 
 
 def get_date_from_cleaned_metadata(md):

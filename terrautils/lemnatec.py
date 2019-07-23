@@ -111,7 +111,7 @@ def _get_sites(cleaned_md, date, sensorId):
     sites = {}
     for label, bounds in gps_bounds.iteritems():
         centroid = calculate_centroid(bounds)
-        bety_sites = betydb.get_sites_by_latlon(centroid, date)
+        bety_sites = terrautils.betydb.get_sites_by_latlon(centroid, date)
         for bety_site in bety_sites:
             site_id = str(bety_site["id"])
             sites[site_id] = {}
