@@ -569,11 +569,16 @@ class TerrarefExtractor(Extractor):
 
         return (season_name, experiment_name, experiment_md)
 
-    def get_clowder_context(self):
+    def get_clowder_context(self, host, key):
         """Returns the best known username, password, and clowder space ID. By default the values
            as defined in the current running environment are returned. If an experiment
            configuration file was loaded, and it has clowder configuration, the values found will
            be returned. No checks are made on the validity of the returned values.
+
+        Keyword arguments:
+            host(str): the partial URI of the API path including protocol ('/api' portion and
+                       after is not needed); assumes a terminating '/'
+            key(str): access key for API use
 
         Returns:
             A list of username, password, and clowder space ID
@@ -588,7 +593,18 @@ class TerrarefExtractor(Extractor):
             if clowder_md:
                 ret_username = __internal__.case_insensitive_find(clowder_md, 'username', ret_username)
                 ret_password = __internal__.case_insensitive_find(clowder_md, 'password', ret_password)
-                ret_space = __internal__.case_insensitive_find(clowder_md, 'space', ret_space)
+                cur_space = __internal__.case_insensitive_find(clowder_md, 'space')
+
+                # Try to look up the space by name, otherwise assume we have an ID
+                if cur_space:
+                    url = "%sapi/spaces?key=%s&title=%s&exact=true" % (host, secret_key, cur_space)
+                    result = requests.get(url)
+                    result.raise_for_status()
+
+                    if not len(result.json()) == 0:
+                        ret_space = result.json()[0]['id']
+                    else:
+                        ret_space = cur_space
 
         return (ret_username, ret_password, ret_space)
 
