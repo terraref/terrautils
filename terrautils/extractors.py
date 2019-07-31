@@ -27,21 +27,55 @@ logging.basicConfig(format='%(asctime)s %(message)s')
 
 DEFAULT_EXPERIMENT_JSON_FILENAME = 'experiment.yaml'
 
+class __internal__(object):
+    """Class for functions intended for internal use only for this file
+    """
+    def __init__(self):
+        """Performs initialization of class instance
+        """
+        pass
+
+    @staticmethod
+    def case_insensitive_find(data, key, default_value=None):
+        """Performs a shallow case insensitive lookup of the key in the data.
+        Args:
+            data(dict): The haystack to search
+            key(str): The key to find
+            default_value: optional parameter returned if the key isn't found
+        Return:
+            The found value is returned, None if there's an error, and default_value if it
+            isn't found
+        """
+        if not data or not key:
+            return None
+
+        # Return exact match value [assuming this is faster than iterating]
+        if key in data:
+            return data[key]
+
+        # Find the key
+        lower_key = key.lower()
+        for item in data:
+            if item.lower() == lower_key:
+                return data[item]
+
+        return default_value
+
 def add_arguments(parser):
 
     # TODO: Move defaults into a level-based dict
     parser.add_argument('--clowderspace',
-            default=os.getenv('CLOWDER_SPACE', "58da6b924f0c430e2baa823f"),
-            help='sets the default Clowder space for creating new things')
+                        default=os.getenv('CLOWDER_SPACE', "58da6b924f0c430e2baa823f"),
+                        help='sets the default Clowder space for creating new things')
 
     parser.add_argument('--overwrite',
                         default=False,
-            action='store_true',
-            help='enable overwriting of existing files')
+                        action='store_true',
+                        help='enable overwriting of existing files')
 
     parser.add_argument('--debug', '-d', action='store_const',
-            default=logging.INFO, const=logging.DEBUG,
-            help='enable debugging (default=WARN)')
+                        default=logging.INFO, const=logging.DEBUG,
+                        help='enable debugging (default=WARN)')
 
     parser.add_argument('--clowder_user',
                         default=os.getenv('CLOWDER_USER', "terrarefglobus+uamac@ncsa.illinois.edu"),
@@ -136,7 +170,7 @@ class TerrarefExtractor(Extractor):
         """Returns array of regex expressions for different timestamp formats
         """
         return [r'(\d{4}(/|-){1}\d{1,2}(/|-){1}\d{1,2}__\d{2}-\d{2}-\d{2}[\-{1}\d{3}]*)'
-                ]
+               ]
 
     @property
     def iso_timestamp_format_regex(self):
@@ -147,7 +181,7 @@ class TerrarefExtractor(Extractor):
                 r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})(.\d+)',
                 r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
                 r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})Z'
-                ]    
+               ]
 
     @property
     def dataset_metadata_file_ending(self):
@@ -230,7 +264,7 @@ class TerrarefExtractor(Extractor):
                 elif os.path.basename(onefile) == self.config_file_name:
                     experiment_file = onefile
                 if not dataset_file is None and not experiment_file is None:
-                    break;
+                    break
 
             # If we don't have dataset metadata already, download it
             dataset_md = None
@@ -393,15 +427,15 @@ class TerrarefExtractor(Extractor):
                 datestamp = self.extract_datestamp(self.dataset_metadata['name'])
 
         if datestamp is None and not self.experiment_metadata is None:
-            if 'observationTimeStamp' in self.experiment_metadata:
-                datestamp = self.extract_datestamp(self.experiment_metadata['observationTimeStamp'])
+            datestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp',
+                                                           datestamp)
 
         if datestamp is None:
             datestamp = datetime.datetime.utcnow().strftime('%Y-%m-%d')
 
         return datestamp
 
-    def find_timestamp(self, text=None):
+    def find_timestamp(self, text=None):    # pylint: disable=no-self-use
         """Returns a time stamp consisting of a date and time
         Keyword arguments:
             text(str): optional text string to search for a time stamp
@@ -425,18 +459,11 @@ class TerrarefExtractor(Extractor):
                 timestamp = self.extract_timestamp(self.dataset_metadata['name'])
 
         if timestamp is None and not self.experiment_metadata is None:
-            if 'observationTimeStamp' in self.experiment_metadata:
-                timestamp = self.experiment_metadata['observationTimeStamp']
+            timestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp',
+                                                           timestamp)
 
         if timestamp is None:
             _zero = datetime.timedelta(0)
-            class TZ(datetime.tzinfo):
-                """Internal class used to format UTC timestamps properly
-                """
-                def utcoffset(self, _dt):
-                    return _zero
-                def dst(self, _dt):
-                    return _zero
             timestamp = datetime.datetime.utcnow().isoformat()
 
         return timestamp
@@ -461,10 +488,8 @@ class TerrarefExtractor(Extractor):
         """
         try:
             username = get_dataset_username(host, key, dataset_id)
-        # pylint: disable=broad-except
-        except Exception:
+        except Exception:       # pylint: disable=broad-except
             username = None
-        # pylint: enable=broad-except
 
         # If we don't have a name, see if a user name was specified at runtime
         if (username is None) and (not self.clowder_user is None):
@@ -475,13 +500,12 @@ class TerrarefExtractor(Extractor):
 
         # If we have an experiment configuation, look for a name in there
         if not self.experiment_metadata is None:
-            if 'extractors' in self.experiment_metadata:
-                ex_username = None
-                if 'firstName' in self.experiment_metadata['extractors']:
-                    ex_username = self.experiment_metadata['extractors']['firstName']
-                if 'lastName' in self.experiment_metadata['extractors']:
-                    ex_username = ex_username + ('' if ex_username is None else ' ') + \
-                                                self.experiment_metadata['extractors']['lastName']
+            extractors = __internal__.case_insensitive_find(self.experiment_metadata, 'extractors')
+            if extractors:
+                ex_username = __internal__.case_insensitive_find(extractors, 'firstName')
+                last_name = __internal__.case_insensitive_find(extractors, 'lastName')
+                if last_name:
+                    ex_username = ex_username + ('' if ex_username is None else ' ') + last_name
                 if not ex_username is None:
                     username = ex_username
 
@@ -537,10 +561,11 @@ class TerrarefExtractor(Extractor):
         # Look up our fields in the experiment metadata
         if (season_name == 'Unknown Season' or experiment_name == 'Unknown Experiment') and \
                                                             (not self.experiment_metadata is None):
-            if 'season' in self.experiment_metadata:
-                season_name = self.experiment_metadata['season']
-            if 'studyName' in self.experiment_metadata:
-                experiment_name = self.experiment_metadata['studyName']
+            if season_name == 'Unknown Season':
+                season_name = __internal__.case_insensitive_find(self.experiment_metadata, 'season', season_name)
+
+            if experiment_name == 'Unknown Experiment':
+                experiment_name = __internal__.case_insensitive_find(self.experiment_metadata, 'studyName', experiment_name)
 
         return (season_name, experiment_name, experiment_md)
 
@@ -559,14 +584,11 @@ class TerrarefExtractor(Extractor):
 
         # Check for overrides
         if not self.experiment_metadata is None:
-            if 'clowder' in self.experiment_metadata:
-                clowder_md = self.experiment_metadata['clowder']
-                if 'username' in clowder_md:
-                    ret_username = clowder_md['username']
-                if 'password' in clowder_md:
-                    ret_password = clowder_md['password']
-                if 'space' in clowder_md:
-                    ret_space = clowder_md['space']
+            clowder_md = __internal__.case_insensitive_find(self.experiment_metadata, 'clowder')
+            if clowder_md:
+                ret_username = __internal__.case_insensitive_find(clowder_md, 'username', ret_username)
+                ret_password = __internal__.case_insensitive_find(clowder_md, 'password', ret_password)
+                ret_space = __internal__.case_insensitive_find(clowder_md, 'space', ret_space)
 
         return (ret_username, ret_password, ret_space)
 
@@ -592,7 +614,7 @@ def timestamp_to_terraref(timestamp):
             return_ts = res.group(0)
             return_ts = return_ts.replace('T', '__').replace(':', '-')
 
-    return return_ts 
+    return return_ts
 
 def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='file', context=[]):
     """Construct extractor metadata object ready for submission to a Clowder file/dataset.
@@ -650,7 +672,7 @@ def is_latest_file(resource):
 
         for f in resource['files']:
             try:
-                create_time = datetime.datetime.strptime(f['date-created'],"%a %b %d %H:%M:%S %Z %Y")
+                create_time = datetime.datetime.strptime(f['date-created'], "%a %b %d %H:%M:%S %Z %Y")
                 latest_dt = datetime.datetime.strptime(latest_time, "%a %b %d %H:%M:%S %Z %Y")
 
                 if f['filename'] == trig:
@@ -747,19 +769,19 @@ def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_s
     """
     if season:
         season_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, season,
-                                              parent_space=root_space)
+                                                  parent_space=root_space)
 
         experiment_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, experiment,
-                                                  season_collect, parent_space=root_space)
+                                                      season_collect, parent_space=root_space)
 
         sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
                                                   experiment_collect, parent_space=root_space)
     elif experiment:
-            experiment_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, experiment,
-                                                          parent_space=root_space)
+        experiment_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, experiment,
+                                                      parent_space=root_space)
 
-            sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
-                                                      experiment_collect, parent_space=root_space)
+        sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
+                                                  experiment_collect, parent_space=root_space)
     else:
         sensor_collect = get_collection_or_create(host, secret_key, clowder_user, clowder_pass, root_coll_name,
                                                   parent_space=root_space)
@@ -795,7 +817,7 @@ def build_dataset_hierarchy(host, secret_key, clowder_user, clowder_pass, root_s
 
 
 def build_dataset_hierarchy_crawl(host, secret_key, clowder_user, clowder_pass, root_space,
-                            season=None, experiment=None, sensor=None, year=None, month=None, date=None, leaf_ds_name=None):
+                                  season=None, experiment=None, sensor=None, year=None, month=None, date=None, leaf_ds_name=None):
     """This will build collections if needed in parent space.
 
         Typical hierarchy:
@@ -1008,6 +1030,7 @@ def upload_to_dataset(connector, host, clowder_user, clowder_pass, datasetid, fi
         return uploadedfileid
     else:
         logger.error("unable to upload file %s (not found)", filepath)
+        return None
 
 def _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datasetid, filepath):
     """Upload file POINTER to existing Clowder dataset. Does not copy actual file bytes.
@@ -1043,6 +1066,7 @@ def _upload_to_dataset_local(connector, host, clowder_user, clowder_pass, datase
         return uploadedfileid
     else:
         logger.error("unable to upload local file %s (not found)", filepath)
+        return None
 
 def get_child_collections(host, secret_key, collectionid):
     """Get list of child collections in collection by UUID.
@@ -1303,8 +1327,8 @@ def _get_bounding_box_with_formula(center_position, fov):
 
     # TODO: Hard-coded
     # Linear transformation coefficients
-    ay = 3659974.971; by = 1.0002; cy = 0.0078;
-    ax = 409012.2032; bx = 0.009; cx = - 0.9986;
+    ay = 3659974.971; by = 1.0002; cy = 0.0078
+    ax = 409012.2032; bx = 0.009; cx = - 0.9986
     lon_shift = 0.000020308287
     lat_shift = 0.000015258894
 
@@ -1323,10 +1347,10 @@ def _get_bounding_box_with_formula(center_position, fov):
     bbox_nw_latlon = utm.to_latlon(Mx_nw, My_nw, utm_zone, utm_num)
     bbox_se_latlon = utm.to_latlon(Mx_se, My_se, utm_zone, utm_num)
 
-    return ( bbox_se_latlon[0] - lat_shift,
-             bbox_nw_latlon[0] - lat_shift,
-             bbox_nw_latlon[1] + lon_shift,
-             bbox_se_latlon[1] + lon_shift )
+    return (bbox_se_latlon[0] - lat_shift,
+            bbox_nw_latlon[0] - lat_shift,
+            bbox_nw_latlon[1] + lon_shift,
+            bbox_se_latlon[1] + lon_shift)
 
 
 def _search_for_key(metadata, key_variants):
