@@ -427,8 +427,7 @@ class TerrarefExtractor(Extractor):
                 datestamp = self.extract_datestamp(self.dataset_metadata['name'])
 
         if datestamp is None and not self.experiment_metadata is None:
-            datestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp',
-                                                           datestamp)
+            datestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp')
 
         if datestamp is None:
             datestamp = datetime.datetime.utcnow().strftime('%Y-%m-%d')
@@ -459,8 +458,7 @@ class TerrarefExtractor(Extractor):
                 timestamp = self.extract_timestamp(self.dataset_metadata['name'])
 
         if timestamp is None and not self.experiment_metadata is None:
-            timestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp',
-                                                           timestamp)
+            timestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp')
 
         if timestamp is None:
             _zero = datetime.timedelta(0)
@@ -597,7 +595,7 @@ class TerrarefExtractor(Extractor):
 
                 # Try to look up the space by name, otherwise assume we have an ID
                 if cur_space:
-                    url = "%sapi/spaces?key=%s&title=%s&exact=true" % (host, secret_key, cur_space)
+                    url = "%sapi/spaces?key=%s&title=%s&exact=true" % (host, key, cur_space)
                     result = requests.get(url)
                     result.raise_for_status()
 
