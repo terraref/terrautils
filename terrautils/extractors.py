@@ -137,7 +137,7 @@ class TerrarefExtractor(Extractor):
         """Returns the default EPSG code that utilities expect
         """
         return 4326
-    
+
     @property
     def sensor_name(self):
         """Returns the sensor name the instance is configured with. Returns None if
@@ -200,7 +200,16 @@ class TerrarefExtractor(Extractor):
         """Returns any loaded terraref metadata
         """
         return self.terraref_metadata
-    
+
+    @property
+    def overwrite_ok(self):
+        """Returns whether or not it's OK to overwrite data"""
+        if not self.experiment_metadata is None:
+            overwrite = __internal__.case_insensitive_find(self.experiment_metadata, 'overwrite')
+            if not overwrite is None:
+                return overwrite
+
+        return self.overwrite
 
     def start_check(self, resource):
         """Standard format for extractor logs on check_message."""
