@@ -470,7 +470,6 @@ class TerrarefExtractor(Extractor):
             timestamp = __internal__.case_insensitive_find(self.experiment_metadata, 'observationTimeStamp')
 
         if timestamp is None:
-            _zero = datetime.timedelta(0)
             timestamp = datetime.datetime.utcnow().isoformat()
 
         return timestamp

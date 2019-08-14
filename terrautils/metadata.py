@@ -11,7 +11,7 @@ def clean_metadata(json, sensorId, fixed=False):
     """
     cleaned = clean_json_keys(json)
     if 'lemnatec_measurement_metadata' in json.keys():
-        cleaned = lemnatec.clean(cleaned, sensorId, fixed=fixed)
+        cleaned = terrautils.lemnatec.clean(cleaned, sensorId, fixed=fixed)
     else:
         return None
 
@@ -119,6 +119,8 @@ def pipeline_get_metadata(metadata):
             1) "content" -> "pipeline"
             2) "pipeline"
     """
+    from terrautils.secure import decrypt_pipeline_string
+
     found_metadata = None
 
     # Check the parameter
@@ -153,7 +155,37 @@ def pipeline_get_metadata(metadata):
     finally:
         pass
 
+    # Check if we need to perform additional actions on the metadata
+    if found_metadata and "clowder" in found_metadata:
+        if "password" in found_metadata["clowder"]:
+            clowder_pass = found_metadata["clowder"]["password"]
+            if clowder_pass.begins_with("secured:"):
+                plain_pass = decrypt_pipeline_string(clowder_pass[8:])
+                if not plain_pass is None:
+                    found_metadata["clowder"]["password"] = plain_pass
+
     return found_metadata
+
+def prepare_pipeline_metadata(metadata):
+    """Fixes the metadata so that the drone pipeline easily reference it
+    Args:
+        metadata(JSON): the JSON object to format
+    Returns:
+        A deep copy of the metadata with any necessary changes made.
+    """
+    from copy import deepcopy
+    from terrautils.secure import encrypt_pipeline_string
+
+    return_metadata = deepcopy(metadata)
+    if "clowder" in return_metadata:
+        if "password" in return_metadata["clowder"]:
+            encrypted = encrypt_pipeline_string(return_metadata["clowder"]["password"])
+            if not encrypted is None:
+                return_metadata["clowder"]["password"] = "secured:" + encrypted
+            else:
+                return_metadata["clowder"]["password"] = "<removed>"
+            
+    return {"pipeline" : return_metadata}
 
 
 def get_season_and_experiment(timestamp, sensor, terra_md_full):
@@ -175,7 +207,7 @@ def get_season_and_experiment(timestamp, sensor, terra_md_full):
                 break
     else:
         # Try to determine experiment data dynamically
-        expmd = lemnatec._get_experiment_metadata(timestamp.split("__")[0], sensor)
+        expmd = terrautils.lemnatec._get_experiment_metadata(timestamp.split("__")[0], sensor)
         if len(expmd) > 0:
             for experiment in expmd:
                 if 'name' in experiment:
@@ -197,7 +229,7 @@ def get_preferred_synonym(variable):
 
 def get_sensor_fixed_metadata(sensor_id, query_date):
     """Get fixed sensor metadata from Clowder."""
-    return lemnatec._get_sensor_fixed_metadata(sensor_id, query_date)
+    return terrautils.lemnatec._get_sensor_fixed_metadata(sensor_id, query_date)
 
 
 def get_date_from_cleaned_metadata(md):
