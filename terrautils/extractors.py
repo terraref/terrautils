@@ -61,6 +61,61 @@ class __internal__(object):
 
         return default_value
 
+    @staticmethod
+    def merge_experiment_json(start_json, more_json):
+        """Performs a merge on the json dictionary data without overwriting
+           complex upper level keys. Lists and tuples are replaced if keys match.
+           Dictionaries are merged with only lowest level keys being replaced when
+           there's a key match.
+        Args:
+            start_json(dict): the starting json to work with
+            more_json(dict or list): another json dict or a list of dicts
+        Return:
+            A unified dictionary
+        Notes:
+            All the parameter JSON objects are left intact. New JSON objects are
+            created as needed.
+        """
+        return_json = dict(start_json)
+        if more_json is None:
+            return return_json
+
+        def _recurse_item(item_old, item_new):
+            """Internal function to merge_experiment_json() function"""
+            # Use item types to decide what to do
+            if not type(item_old) == type(item_new):
+                return item_new
+            if not isinstance(item_old, dict):
+                return item_new
+
+            # Setup to merge
+            new_json = dict(item_old)
+            cur_keys = new_json.keys()
+            new_keys = item_new.keys()
+
+            # Merge or replace values for same-name keys
+            for one_key in cur_keys:
+                if one_key in new_keys:
+                    new_json[one_key] = _recurse_item(new_json[one_key], item_new[one_key])
+
+            # Add new items from the new JSON into what we're building up
+            for one_key in new_keys:
+                if not one_key in cur_keys:
+                    new_json[one_key] = item_new[one_key]
+
+            return new_json
+
+        # Loop through our json objects
+        if not isinstance(more_json, list):
+            more_json = [more_json]
+
+        for one_json in more_json:
+            # We only deal with json dictionary objects
+            if isinstance(one_json, dict):
+                return_json = _recurse_item(return_json, one_json)
+
+        return return_json
+
 def add_arguments(parser):
 
     # TODO: Move defaults into a level-based dict
@@ -311,7 +366,17 @@ class TerrarefExtractor(Extractor):
                 if experiment_md:
                     md_len = len(experiment_md)
                     if md_len > 0:
-                        self.experiment_metadata = pipeline_get_metadata(experiment_md)
+                        cur_experiment_md = self.experiment_metadata
+                        new_experiment_md = pipeline_get_metadata(experiment_md)
+
+                        if cur_experiment_md and new_experiment_md:
+                            # The contents of the file override the contents of any stored metadata
+                            self.experiment_metadata = __internal__.merge_experiment_json(cur_experiment_md,
+                                                                                          new_experiment_md)
+                        elif cur_experiment_md:
+                            self.experiment_metadata = cur_experiment_md
+                        else:
+                            self.experiment_metadata = new_experiment_md
 
         # pylint: disable=broad-except
         except Exception as ex:

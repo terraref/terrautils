@@ -159,7 +159,7 @@ def pipeline_get_metadata(metadata):
     if found_metadata and "clowder" in found_metadata:
         if "password" in found_metadata["clowder"]:
             clowder_pass = found_metadata["clowder"]["password"]
-            if clowder_pass.begins_with("secured:"):
+            if clowder_pass.startswith("secured:"):
                 plain_pass = decrypt_pipeline_string(clowder_pass[8:])
                 if not plain_pass is None:
                     found_metadata["clowder"]["password"] = plain_pass
