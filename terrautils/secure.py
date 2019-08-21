@@ -4,6 +4,7 @@
 import os
 import logging
 import math
+import sys
 import base64
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
@@ -15,9 +16,38 @@ PIPELINE_KEY_NAME = "PIPELINE_KEY"
 CRYPT_KEY = os.getenv(PIPELINE_KEY_NAME)
 
 # Lengths of encryption key, iv (initialization vector), and other required sizes
-CRYPT_KEY_BYTE_LEN = (256 / 8)      # 256 bits length
+CRYPT_KEY_BYTE_LEN = int((256 / 8)) # 256 bits length
 CRYPT_IV_BYTE_LEN = (16)            # We are using AES -> block size is 16
 CRYPT_SOURCE_BLOCK_SIZE = (16)      # Reesize the source block to a multiple of this value; zero for no change
+
+def _sized_byte_like(value, size):
+    """Make the value byte like and the correct size. If the value is not the correct size
+       it will be either padded with spaces or trancated
+    Args:
+        value(str, bytes, bytearray): The value to make byte-like and correctly sized
+        size(int): The correct size of the value
+    Return:
+        Returns the correctly sized value as bytes
+    """
+    if isinstance(value, str):
+        value_len = len(value)
+        new_value = b''
+        for idx in range(0, value_len):
+            if sys.version_info[0] < 3:
+                new_value += bytes(value[idx])
+            else:
+                new_value += bytes([ord(value[idx])])
+    else:
+        new_value = value
+
+    value_len = len(new_value)
+    while value_len < size:
+        new_value += b' '
+        value_len += 1
+    if value_len > size:
+        new_value = new_value[:size]
+
+    return new_value
 
 def _perform_encrypt(plain_text):
     """Encrypts the plain text using environmental variables
@@ -30,7 +60,11 @@ def _perform_encrypt(plain_text):
         Will log warnings and return None if the PIPELINE_KEY or PIPELINE_IV environment
         variables haven't been set
     """
-    global CRYPT_KEY   # pylint: disable=global-statement
+    global CRYPT_KEY                # pylint: disable=global-statement
+    global CRYPT_IV_BYTE_LEN        # pylint: disable=global-statement
+    global CRYPT_KEY_BYTE_LEN       # pylint: disable=global-statement
+    global CRYPT_SOURCE_BLOCK_SIZE  # pylint: disable=global-statement
+    global PIPELINE_KEY_NAME        # pylint: disable=global-statement
 
     if not CRYPT_KEY:
         logging.warning("Missing %s environment variable needed for securing data", PIPELINE_KEY_NAME)
@@ -40,7 +74,9 @@ def _perform_encrypt(plain_text):
     crypt_iv = os.urandom(CRYPT_IV_BYTE_LEN)
     size_the_str = lambda source, length: source if len(source) == length else source[:length] if len(source) > length \
                             else '{str:{fill}{align}{width}}'.format(str=source, fill=' ', align='<', width=length)
-    key = size_the_str(CRYPT_KEY, CRYPT_KEY_BYTE_LEN)
+
+    # The key needs to be byte-like and the right size
+    key = _sized_byte_like(CRYPT_KEY, CRYPT_KEY_BYTE_LEN)
 
     # See if we need to resize the source string
     encrypt_text = plain_text
@@ -75,12 +111,11 @@ def _perform_decrypt(encrypted, plain_len, crypt_iv):
 
     if not CRYPT_KEY:
         logging.warning("Missing %s environment variable needed for securing data", PIPELINE_KEY_NAME)
-        return (None, 0, None)
+        return None
 
-    # Make sure the key is the right size
-    size_the_str = lambda source, length: source if len(source) == length else source[:length] if len(source) > length \
-                                else '{str:{fill}{align}{width}}'.format(str=source, fill=' ', align='<', width=length)
-    key = size_the_str(CRYPT_KEY, CRYPT_KEY_BYTE_LEN)
+    # The key and iv needs to be byte-like and the right size
+    key = _sized_byte_like(CRYPT_KEY, CRYPT_KEY_BYTE_LEN)
+    crypt_iv = _sized_byte_like(crypt_iv, CRYPT_KEY_BYTE_LEN)
 
     # Perform the decryption
     backend = default_backend()
@@ -94,9 +129,9 @@ def _perform_decrypt(encrypted, plain_len, crypt_iv):
 def _package_encrypted(encrypted, plain_len, crypt_iv):
     """Packages up the parameters into a base64 encoded string
     Args:
-        encrypted(str): an string representing encrypted data
+        encrypted(bytes, bytearray): an string representing encrypted data
         plain_len(int): the length of the plain text data
-        crypt_iv(str): the iv (initialization vector) encryption value
+        crypt_iv(bytes, bytearray): the iv (initialization vector) value
     Return:
         A base64 string representing the data.
     Note:
@@ -105,22 +140,26 @@ def _package_encrypted(encrypted, plain_len, crypt_iv):
         parameter contents, and finally the iv value. The concatenated string
         is then base64 encoded and returned
     """
-    len_str = '{0:06d}'.format(plain_len)
-    encrypt_len = '{0:06d}'.format(len(encrypted))
+    if not isinstance(encrypted, (bytes, bytearray)):
+        raise RuntimeError("Invalid encrypted text passed into _package_encrypted() - must be byte-like")
 
-    return base64.b64encode(encrypt_len + len_str + encrypted + crypt_iv)
+    encrypt_len = '{0:06d}'.format(len(encrypted))
+    len_str = '{0:06d}'.format(plain_len)
+
+    return base64.b64encode(encrypt_len.encode('utf-8') + len_str.encode('utf-8') + encrypted + \
+                            crypt_iv).decode('utf-8')
 
 def _unpackage_encoded(encoded):
     """The encoded string fron _package_encrypted()
     Args:
         encoded(str): the base64 encoded string to take apart
     Return:
-        Returns the tuple of encoded string, plain text length, and the iv
+        Returns the tuple of encoded string, plain text length, and the iv as a string
     """
     base_str = base64.b64decode(encoded)
 
-    encrypt_len = int(base_str[0:6])
-    plain_len = int(base_str[6:12])
+    encrypt_len = int(base_str[0:6].decode('utf-8'))
+    plain_len = int(base_str[6:12].decode('utf-8'))
     encrypted = base_str[12:encrypt_len+12]
     crypt_iv = base_str[encrypt_len+12:]
 

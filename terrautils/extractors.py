@@ -9,6 +9,7 @@ import logging
 import json
 import os
 import re
+import sys
 import requests
 import yaml
 import utm
@@ -115,6 +116,21 @@ class __internal__(object):
                 return_json = _recurse_item(return_json, one_json)
 
         return return_json
+
+    @staticmethod
+    def is_string(to_check):
+        """Performs checks to ensure the parameter is a string type and also not None
+        Keyword Arguments:
+            to_check: The value to check for string-ness
+        Return:
+            Returns True if the parameter is a string and False if None or not a string
+        """
+        if not to_check or not isinstance(to_check, str):
+            return False
+        if sys.version_info[0] < 3:
+            if not isinstance(to_check, unicode):
+                return False
+        return True
 
 def add_arguments(parser):
 
@@ -398,7 +414,7 @@ class TerrarefExtractor(Extractor):
         """
 
         # Check the string
-        if not date_string or not isinstance(date_string, basestring):
+        if not __internal__.is_string(date_string):
             return None
 
         date_string_len = len(date_string)
