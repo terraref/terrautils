@@ -695,6 +695,24 @@ class TerrarefExtractor(Extractor):
 
         return (ret_username, ret_password, ret_space)
 
+    def get_file_filters():
+        """Gets file filters from the experiment metadata
+        Returns:
+            Returns the list of file filters if they are found, or None
+        """
+        file_filters = None
+        if self.get_terraref_metadata is None and self.experiment_metadata:
+            if 'extractors' in self.experiment_metadata:
+                extractor_json = self.experiment_metadata['extractors']
+                if self.sensor_name in extractor_json:
+                    if 'filters' in extractor_json[self.sensor_name]:
+                        file_filters = extractor_json[self.sensor_name]['filters']
+                        if ',' in file_filters:
+                            file_filters = file_filters.split(',')
+                        elif file_filters:
+                            file_filters = [file_filters]
+        return file_filters
+
 
 # BASIC UTILS -------------------------------------
 def timestamp_to_terraref(timestamp):
@@ -1409,6 +1427,22 @@ def confirm_clowder_info(host, secret_key, space_id, clowder_user=None, clowder_
         return False
 
     return True
+
+def file_filtered_in(filename, filters):
+    """Checks the filename against a list of filters
+    Keyword arguments:
+        filename(str): the filename to check
+        filters(list): list of string parts to check the filename against
+    Return:
+        True is returned if a filter matches part of the file name. False if no match found
+    """
+    filtered = False
+    if filters:
+        for one_filter in filters:
+            if one_filter in os.path.basename(filename):
+                filtered = True
+                break
+    return filtered
 
 
 # PRIVATE -------------------------------------

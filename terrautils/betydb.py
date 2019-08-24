@@ -7,12 +7,12 @@ import os
 import logging
 from datetime import datetime
 
-import requests
 import json
+import requests
 from osgeo import ogr
 
 
-BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
+BETYDB_URL = "https://terraref.ncsa.illinois.edu/bety"
 BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
 
 BETYDB_CULTIVARS = None
@@ -21,6 +21,10 @@ BETYDB_EXPERIMENTS = None
 
 
 def add_arguments(parser):
+    """Adds BETYdb related arguments to the command line argument parser
+
+    parser - the argument parser to add our definitions to
+    """
     parser.add_argument('--betyURL', dest="bety_url", type=str, nargs='?',
                         default="https://terraref.ncsa.illinois.edu/bety/api/v1/traits.csv",
                         help="traits API endpoint of BETY instance that outputs should be posted to")
@@ -43,15 +47,15 @@ def get_bety_key():
         return keyfile.readline().strip()
 
     else:
-        raise RuntimeError("BETYDB_KEY not found. Set environmental variable "
-                       "or create $HOME/.betykey.")
+        raise RuntimeError("BETYDB_KEY not found. Set environmental variable " +
+                           "or create $HOME/.betykey.")
 
 
 def get_bety_url(path=''):
     """return betydb url from environment with optional path
 
     Of 3 options string join, os.path.join and urlparse.urljoin, os.path.join
-    is the best at handling excessive / characters. 
+    is the best at handling excessive / characters.
     """
 
     url = os.environ.get('BETYDB_URL', BETYDB_URL)
@@ -72,21 +76,20 @@ def query(endpoint="search", **kwargs):
     decodes the json response if one is returned.
     """
 
-    payload = { 'key': get_bety_key() }
+    payload = {'key': get_bety_key()}
     payload.update(kwargs)
 
-    r = requests.get(get_bety_api(endpoint), params=payload)
-    r.raise_for_status()
-    return r.json()
-
+    req = requests.get(get_bety_api(endpoint), params=payload)
+    req.raise_for_status()
+    return req.json()
 
 def search(**kwargs):
     """Return cleaned up array from query() for the search table."""
 
     query_data = query(**kwargs)
     if query_data:
-        return [ view["traits_and_yields_view"] for view in query_data['data']]
-
+        return [view["traits_and_yields_view"] for view in query_data['data']]
+    return []
 
 def get_cultivars(**kwargs):
     """Return cleaned up array from query() for the cultivars table.
@@ -99,7 +102,7 @@ def get_cultivars(**kwargs):
 
     if BETYDB_CULTIVARS is None:
         cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_cultivars.json")
-        if (os.path.exists(cache_file)):
+        if os.path.exists(cache_file):
             with open(cache_file) as infile:
                 query_data = json.load(infile)
                 if query_data:
@@ -113,14 +116,15 @@ def get_cultivars(**kwargs):
     else:
         return [t["cultivar"] for t in BETYDB_CULTIVARS['data']]
 
+    return []
 
 def dump_cultivars(**kwargs):
     """Generate bety_cultivars.json file"""
     query_data = query(endpoint="cultivars", limit='none', **kwargs)
     if query_data:
         cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_cultivars.json")
-        with open(cache_file, 'w') as cf:
-            cf.write(json.dumps(query_data))
+        with open(cache_file, 'w') as cache_out:
+            cache_out.write(json.dumps(query_data))
 
 
 def get_experiments(**kwargs):
@@ -134,7 +138,7 @@ def get_experiments(**kwargs):
 
     if BETYDB_EXPERIMENTS is None:
         cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_experiments.json")
-        if (os.path.exists(cache_file)):
+        if os.path.exists(cache_file):
             with open(cache_file) as infile:
                 query_data = json.load(infile)
                 if query_data:
@@ -150,14 +154,15 @@ def get_experiments(**kwargs):
     else:
         return [t["experiment"] for t in BETYDB_EXPERIMENTS['data']]
 
+    return []
 
 def dump_experiments(**kwargs):
     """Generate bety_experiments.json file"""
     query_data = query(endpoint="experiments", associations_mode='full_info', limit='none', **kwargs)
     if query_data:
         cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_experiments.json")
-        with open(cache_file, 'w') as cf:
-            cf.write(json.dumps(query_data))
+        with open(cache_file, 'w') as cache_out:
+            cache_out.write(json.dumps(query_data))
 
 
 def get_trait(trait_id):
@@ -165,6 +170,8 @@ def get_trait(trait_id):
     query_data = get_traits(id=trait_id)
     if query_data:
         return query_data[0]
+
+    return []
 
 
 def get_traits(**kwargs):
@@ -178,7 +185,7 @@ def get_traits(**kwargs):
 
     if BETYDB_TRAITS is None:
         cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_traits.json")
-        if (os.path.exists(cache_file)):
+        if os.path.exists(cache_file):
             with open(cache_file) as infile:
                 query_data = json.load(infile)
                 if query_data:
@@ -192,14 +199,15 @@ def get_traits(**kwargs):
     else:
         return [t["trait"] for t in BETYDB_TRAITS['data']]
 
+    return []
 
 def dump_traits(**kwargs):
     """Generate bety_traits.json file"""
     query_data = query(endpoint="traits", limit='none', **kwargs)
     if query_data:
         cache_file = os.path.join(BETYDB_LOCAL_CACHE_FOLDER, "bety_traits.json")
-        with open(cache_file, 'w') as cf:
-            cf.write(json.dumps(query_data))
+        with open(cache_file, 'w') as cache_out:
+            cache_out.write(json.dumps(query_data))
 
 
 def get_site(site_id):
@@ -207,7 +215,7 @@ def get_site(site_id):
     query_data = get_sites(id=site_id)
     if query_data:
         return query_data[0]
-
+    return []
 
 def get_sites(filter_date='', include_halves=False, **kwargs):
     """Return a site array from query() from the sites table.
@@ -221,16 +229,14 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
     """
 
     if not filter_date:
-        """ SCENARIO I - NO FILTER DATE
-        Basic query, efficient even with 'containing' parameter.
-        """
+        # SCENARIO I - NO FILTER DATE
+        # Basic query, efficient even with 'containing' parameter.
         query_data = query(endpoint="sites", limit='none', **kwargs)
         if query_data:
             return [t["site"] for t in query_data['data']]
     else:
-        """ SCENARIO II - YES FILTER DATE
-        Get experiments by date and return all associated sites, optionally filtering by location.
-        """
+        # SCENARIO II - YES FILTER DATE
+        # Get experiments by date and return all associated sites, optionally filtering by location.
         targ_date = datetime.strptime(filter_date, '%Y-%m-%d')
         query_data = get_experiments(associations_mode='full_info', limit='none', **kwargs)
         if query_data:
@@ -238,29 +244,30 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
             for exp in query_data:
                 start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
                 end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
-                if start <= targ_date <= end:
-                    if 'sites' in exp:
-                        for t in exp['sites']:
-                            s = t['site']
-                            # TODO: Eventually find better solution for S4 half-plots - they are omitted here
-                            if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
-                                continue
-                            if 'containing' in kwargs:
-                                # Need to filter additionally by geometry
-                                site_geom = ogr.CreateGeometryFromWkt(s['geometry'])
-                                coords = kwargs['containing'].split(",")
-                                pt_geom = ogr.CreateGeometryFromWkt("POINT(%s %s)" % (coords[1], coords[0]))
-                                if site_geom.Intersects(pt_geom):
-                                    if s not in results:
-                                        results.append(s)
-                            else:
-                                # If no containing parameter, include all sites
-                                if s not in results:
-                                    results.append(s)
+                if start <= targ_date <= end and 'sites' in exp:
+                    for one_entry in exp['sites']:
+                        site = one_entry['site']
+                        # TODO: Eventually find better solution for S4 half-plots - they are omitted here
+                        if (site["sitename"].endswith(" W") or site["sitename"].endswith(" E")) \
+                                                                                    and not include_halves:
+                            continue
+                        if 'containing' in kwargs:
+                            # Need to filter additionally by geometry
+                            site_geom = ogr.CreateGeometryFromWkt(site['geometry'])
+                            coords = kwargs['containing'].split(",")
+                            pt_geom = ogr.CreateGeometryFromWkt("POINT(%s %s)" % (coords[1], coords[0]))
+                            if site_geom.Intersects(pt_geom):
+                                if site not in results:
+                                    results.append(site)
+                        else:
+                            # If no containing parameter, include all sites
+                            if site not in results:
+                                results.append(site)
             return results
         else:
             logging.error("No experiment data could be retrieved.")
 
+    return []
 
 def get_sites_by_latlon(latlon, filter_date='', **kwargs):
     """Gets list of sites from BETYdb, filtered by a contained point.
@@ -290,9 +297,24 @@ def get_site_boundaries(filter_date='', **kwargs):
     sitelist = get_sites(filter_date, **kwargs)
     bboxes = {}
 
-    for s in sitelist:
-        geom = ogr.CreateGeometryFromWkt(s['geometry'])
-        bboxes[s['sitename']] = geom.ExportToJson()
+    for site in sitelist:
+        geom = ogr.CreateGeometryFromWkt(site['geometry'])
+
+        # Setup a coordinate system for the shapes
+        ref_sys = geom.GetSpatialReference()
+        geom_json = json.loads(geom.ExportToJson())
+        if not ref_sys:
+            # Coming from BETYdb without a coordinate system we assume EPSG:4326
+            geom_json['crs'] = {'type':'EPSG', 'properties': {'code':'4326'}}
+        else:
+            geom_json['crs'] = {
+                'type': ref_sys.GetAttrValue("AUTHORITY", 0),
+                'properties': {
+                    'code': ref_sys.GetAttrValue("AUTHORITY", 1)
+                }
+            }
+
+        bboxes[site['sitename']] = json.dumps(geom_json)
 
     return bboxes
 
@@ -306,7 +328,7 @@ def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
     if not betyurl:
         betyurl = get_bety_api('traits')
 
-    request_payload = { 'key':betykey }
+    request_payload = {'key':betykey}
 
     if filetype == 'csv':
         content_type = 'text/csv'
@@ -316,15 +338,17 @@ def submit_traits(csv, filetype='csv', betykey='', betyurl=''):
         content_type = 'application/xml'
     else:
         logging.error("Unsupported file type.")
-        return
+        return None
 
     resp = requests.post("%s.%s" % (betyurl, filetype), params=request_payload,
-                    data=file(csv, 'rb').read(),
-                    headers={'Content-type': content_type})
+                         data=file(csv, 'rb').read(),
+                         headers={'Content-type': content_type})
 
-    if resp.status_code in [200,201]:
+    if resp.status_code in [200, 201]:
         logging.info("Data successfully submitted to BETYdb.")
         return resp.json()['data']['ids_of_new_traits']
     else:
-        logging.error("Error submitting data to BETYdb: %s -- %s" % (resp.status_code, resp.reason))
+        logging.error("Error submitting data to BETYdb: %s -- %s", resp.status_code, resp.reason)
         resp.raise_for_status()
+
+    return None
