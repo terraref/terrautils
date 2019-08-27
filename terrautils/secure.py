@@ -115,7 +115,7 @@ def _perform_decrypt(encrypted, plain_len, crypt_iv):
 
     # The key and iv needs to be byte-like and the right size
     key = _sized_byte_like(CRYPT_KEY, CRYPT_KEY_BYTE_LEN)
-    crypt_iv = _sized_byte_like(crypt_iv, CRYPT_KEY_BYTE_LEN)
+    crypt_iv = _sized_byte_like(crypt_iv, CRYPT_IV_BYTE_LEN)
 
     # Perform the decryption
     backend = default_backend()
