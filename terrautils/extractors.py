@@ -175,6 +175,16 @@ class TerrarefExtractor(Extractor):
         self.dataset_metadata = None
         self.terraref_metadata = None
         self.experiment_metadata = None
+        self.clowderspace = None
+        self.debug = None
+        self.overwrite = None
+        self.clowder_user = None
+        self.clowder_pass = None
+        self.experiment_json_file = None
+        self.logger = None
+        self.sensors = None
+        self.get_sensor_path = None
+        self.influx = None
 
     def setup(self, base='', site='', sensor=''):
 
@@ -695,7 +705,7 @@ class TerrarefExtractor(Extractor):
 
         return (ret_username, ret_password, ret_space)
 
-    def get_file_filters():
+    def get_file_filters(self):
         """Gets file filters from the experiment metadata
         Returns:
             Returns the list of file filters if they are found, or None

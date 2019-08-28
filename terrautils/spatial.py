@@ -39,8 +39,43 @@ def convert_geometry(geometry, new_spatialreference):
                 return_geometry = new_geom
     except Exception as ex:
         logging.warning("Exception caught while transforming geometries: " + str(ex))
+        logging.warning("    Returning original geometry")
 
     return return_geometry
+
+def convert_json_geometry(geojson, new_spatialreference):
+    """Converts geojson geometry to new spatial reference system and
+       returns the new geometry as geojson.
+
+    geojson(str): The geometry to transform
+    new_spatialreference - The spatial reference to change to
+
+    Returns:
+        The transformed geometry as geojson or the original geojson. If
+        either the new Spatial Reference parameter is None, or the geojson
+        doesn't have a spatial reference, or the geojson isn't a
+        valid geometry, then the original geojson is returned.
+    """
+    if not new_spatialreference or not geojson:
+        return geojson
+
+    geom_yaml = yaml.safe_load(geojson)
+    geometry = ogr.CreateGeometryFromJson(json.dumps(geom_yaml))
+
+    if not geometry:
+        return geojson
+
+    new_geometry = convert_geometry(geometry, new_spatialreference)
+    if not new_geometry:
+        return geojson
+
+    try:
+        return geometry_to_geojson(new_geometry)
+    except Exception as ex:
+        logging.warning("Exception caught while transforming geojson: " + str(ex))
+        logging.warning("    Returning original geojson")
+
+    return geojson
 
 def calculate_bounding_box(gps_bounds, z_value=0):
     """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
@@ -482,6 +517,35 @@ def tuples_to_utm(bounds):
 def wkt_to_geojson(wkt):
     geom = ogr.CreateGeometryFromWkt(wkt)
     return geom.ExportToJson()
+
+def geometry_to_geojson(geom, alt_coord_type=None, alt_coord_code=None):
+    """Converts a geometry to geojson.
+    Args:
+        geom(ogr geometry): The geometry to convert to JSON
+        alt_coord_type(str): the alternate geographic coordinate system type if geometry doesn't have one defined
+        alt_coord_code(str): the alternate geographic coordinate system associated with the type
+    Returns:
+        The geojson string for the geometry
+    Note:
+        If the geometry doesn't have a spatial reference associated with it, both the default
+        coordinate system type and code must be specified for a coordinate system to be assigned to
+        the returning JSON. The original geometry is left unaltered.
+    """
+    ref_sys = geom.GetSpatialReference()
+    geom_json = json.loads(geom.ExportToJson())
+    if not ref_sys:
+        if alt_coord_type and alt_coord_code:
+            # Coming from BETYdb without a coordinate system we assume EPSG:4326
+            geom_json['crs'] = {'type': str(alt_coord_type), 'properties': {'code': str(alt_coord_code)}}
+    else:
+        geom_json['crs'] = {
+            'type': ref_sys.GetAttrValue("AUTHORITY", 0),
+            'properties': {
+                'code': ref_sys.GetAttrValue("AUTHORITY", 1)
+            }
+        }
+
+    return json.dumps(geom_json)
 
 
 # PRIVATE -------------------------------------

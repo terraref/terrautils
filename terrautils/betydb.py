@@ -11,6 +11,7 @@ import json
 import requests
 from osgeo import ogr
 
+from terrautils.spatial import geometry_to_geojson
 
 BETYDB_URL = "https://terraref.ncsa.illinois.edu/bety"
 BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
@@ -300,21 +301,10 @@ def get_site_boundaries(filter_date='', **kwargs):
     for site in sitelist:
         geom = ogr.CreateGeometryFromWkt(site['geometry'])
 
-        # Setup a coordinate system for the shapes
-        ref_sys = geom.GetSpatialReference()
-        geom_json = json.loads(geom.ExportToJson())
-        if not ref_sys:
-            # Coming from BETYdb without a coordinate system we assume EPSG:4326
-            geom_json['crs'] = {'type':'EPSG', 'properties': {'code':'4326'}}
+        if geom:
+            bboxes[site['sitename']] = geometry_to_geojson(geom, 'EPSG', '4326')
         else:
-            geom_json['crs'] = {
-                'type': ref_sys.GetAttrValue("AUTHORITY", 0),
-                'properties': {
-                    'code': ref_sys.GetAttrValue("AUTHORITY", 1)
-                }
-            }
-
-        bboxes[site['sitename']] = json.dumps(geom_json)
+            logging.error("Site boundary geometry is invalid for site: %s", site['sitename'])
 
     return bboxes
 
