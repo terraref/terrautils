@@ -8,9 +8,13 @@ import logging
 from datetime import datetime
 
 import requests
+import urllib
 import json
 from osgeo import ogr
+import brapi
 
+BRAPI_URL="https://brapi.workbench.terraref.org/brapi"
+BRAPI_VERSION="v1"
 
 BETYDB_URL="https://terraref.ncsa.illinois.edu/bety"
 BETYDB_LOCAL_CACHE_FOLDER = os.environ.get('BETYDB_LOCAL_CACHE_FOLDER', '/home/extractor/')
@@ -236,12 +240,23 @@ def get_sites(filter_date='', include_halves=False, **kwargs):
         if query_data:
             results = []
             for exp in query_data:
+                exp_site_cultivar_map = brapi.get_site_id_cultivar_info_map(exp['id'])
                 start = datetime.strptime(exp['start_date'], '%Y-%m-%d')
                 end = datetime.strptime(exp['end_date'], '%Y-%m-%d')
                 if start <= targ_date <= end:
                     if 'sites' in exp:
                         for t in exp['sites']:
                             s = t['site']
+                            s['experiment_id'] = exp['id']
+                            current_site_id = s['id']
+                            if current_site_id in exp_site_cultivar_map:
+                                cultivar_info_for_site = exp_site_cultivar_map[s['id']]['cultivar']
+                                treatment_info_for_site = exp_site_cultivar_map[s['id']]['treatments']
+                                s['cultivar'] = cultivar_info_for_site
+                                s['treatments'] = treatment_info_for_site
+                            else:
+                                s['cultivar'] = 'no info'
+                                s['treatments'] = 'no info'
                             # TODO: Eventually find better solution for S4 half-plots - they are omitted here
                             if (s["sitename"].endswith(" W") or s["sitename"].endswith(" E")) and not include_halves:
                                 continue
