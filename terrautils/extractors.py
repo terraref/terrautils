@@ -7,12 +7,12 @@ import datetime
 import time
 import logging
 import json
+import copy
 import os
 import re
 import sys
 import requests
 import yaml
-import utm
 from urllib3.filepost import encode_multipart_formdata
 
 from pyclowder.extractors import Extractor
@@ -20,7 +20,7 @@ from pyclowder.datasets import get_file_list, download_metadata as download_data
 from terrautils.influx import Influx, add_arguments as add_influx_arguments
 from terrautils.metadata import get_terraref_metadata, pipeline_get_metadata, \
                 get_season_and_experiment
-from terrautils.sensors import Sensors, add_arguments as add_sensor_arguments
+from terrautils.sensors import Sensors, STATIONS, add_arguments as add_sensor_arguments
 from terrautils.users import get_dataset_username, find_user_name
 
 
@@ -84,7 +84,7 @@ class __internal__(object):
         def _recurse_item(item_old, item_new):
             """Internal function to merge_experiment_json() function"""
             # Use item types to decide what to do
-            if not type(item_old) == type(item_new):
+            if not isinstance(item_old, type(item_new)):
                 return item_new
             if not isinstance(item_old, dict):
                 return item_new
@@ -132,6 +132,26 @@ class __internal__(object):
                 return False
         return True
 
+    @staticmethod
+    def prep_string_for_filename(source):
+        """Perpares a string to be used as part of a file path or file name
+        Keyword Arguments:
+            source(str): the source string
+        Return:
+            Returns the formatting string. The original value is returned if
+            the parameter can't be formatted
+        """
+        try:
+            formatted = source.replace('/', '.').replace('\\', '.').replace('&', '.').replace('*', '.') \
+                              .replace("'", '.').replace('"', '.').replace('`', '.') \
+                              .replace(' ', '_').replace('\t', '_').replace('\r', '_')
+        except Exception as ex:
+            logging.warning("Exception caught while preparing filename: " + str(ex))
+            logging.warning("    returning original parameter")
+            formatted = source
+
+        return formatted
+
 def add_arguments(parser):
 
     # TODO: Move defaults into a level-based dict
@@ -160,7 +180,6 @@ def add_arguments(parser):
                         default=os.getenv('EXPERIMENT_CONFIG', DEFAULT_EXPERIMENT_JSON_FILENAME),
                         help='Default name of experiment configuration file used to' \
                              ' provide additional processing information')
-
 
 class TerrarefExtractor(Extractor):
 
@@ -408,6 +427,62 @@ class TerrarefExtractor(Extractor):
         except Exception as ex:
             self.log_error(resource, "Exception caught while loading dataset metadata: " + str(ex))
 
+    def setup_overrides(self, host, secret_key, resource):
+        """Sets up any overrides that may be been specified
+        Keyword arguments:
+            host(str): the URI of the host making the connection
+            secret_key(str): used with the host API
+            resource(dict): dictionary containing the resources associated with the request
+        Return:
+            A function that can be called to restore any modified class instance variables. None
+            is returned if a problem ocurrs and the class variables are unchanged
+        """
+        # Get the best username, password, and space
+        old_un, old_pw, old_space = (self.clowder_user, self.clowder_pass, self.clowderspace)
+        self.clowder_user, self.clowder_pass, self.clowderspace = \
+                                                    self.get_clowder_context(host, secret_key)
+
+        # Ensure that the clowder information is valid
+        if not confirm_clowder_info(host, secret_key, self.clowderspace, self.clowder_user,
+                                    self.clowder_pass):
+            self.log_error(resource, "Clowder configuration is invalid. Not processing " +\
+                                     "request")
+            self.clowder_user, self.clowder_pass, self.clowderspace = (old_un, old_pw, old_space)
+            return None
+
+        # Check for a configured sitename
+        old_station = self.sensors.station
+        added_station = False
+        sitename = None
+        if self.experiment_metadata:
+            sitename = self.find_sitename()
+            if sitename:
+                sitename = __internal__.prep_string_for_filename(sitename)
+                self.sensors.station = sitename
+                if not sitename in STATIONS:
+                    added_station = True
+                    STATIONS[sitename] = copy.deepcopy(STATIONS['ua-mac'])
+
+        # Change the base path of files to include the user by tweaking the sensor's value
+        _, new_base = self.get_username_with_base_path(host, secret_key, resource['id'],
+                                                       self.sensors.base)
+        sensor_old_base = self.sensors.base
+        self.sensors.base = new_base
+
+        def restore_func():
+            """Internal function for restoring class variables that's returned to caller
+            """
+            try:
+                self.clowder_user, self.clowder_pass, self.clowderspace = old_un, old_pw, old_space
+                self.sensors.base = sensor_old_base
+                self.sensors.station = old_station
+                if added_station and sitename and sitename in STATIONS:
+                    del STATIONS[sitename]
+            except Exception as ex:
+                logging.warning("Restoring Extractor class variables failed: " + str(ex))
+
+        return restore_func
+
     # pylint: disable=too-many-nested-blocks
     def extract_datestamp(self, date_string):
         """Extracts the datestamp from a string. The parts of a date can be separated by
@@ -565,6 +640,16 @@ class TerrarefExtractor(Extractor):
 
         return timestamp
 
+    def find_sitename(self):
+        """Peroforms a shallow search for a sitename in the experiment metadata
+        Return:
+            Returns a found sitename or None
+        """
+        if self.experiment_metadata:
+            return __internal__.case_insensitive_find(self.experiment_metadata, 'site')
+
+        return None
+
     def get_username_with_base_path(self, host, key, dataset_id, base_path=None):
         """Looks up the name of the user associated with the dataset. If unable to find
            the user's name from the dataset, the clowder_user variable is used instead.
@@ -609,8 +694,7 @@ class TerrarefExtractor(Extractor):
         # Clean up the string
         if not username is None:
             # pylint: disable=line-too-long
-            username = username.replace('/', '.').replace('\\', '.').replace('&', '.').replace('*', '.').replace("'", '.').replace('"', '.').replace('`', '.')
-            username = username.replace(' ', '_').replace('\t', '_').replace('\r', '_')
+            username = __internal__.prep_string_for_filename(username)
             # pylint: enable=line-too-long
         else:
             username = 'unknown'
@@ -747,7 +831,7 @@ def timestamp_to_terraref(timestamp):
 
     return return_ts
 
-def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='file', context=[]):
+def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='file', context=None):
     """Construct extractor metadata object ready for submission to a Clowder file/dataset.
 
         clowderhost -- root URL of Clowder target instance (before /api)
@@ -757,7 +841,7 @@ def build_metadata(clowderhost, extractorinfo, target_id, content, target_type='
         target_type -- type of target resource, 'file' or 'dataset'
         context -- (optional) list of JSON-LD contexts
     """
-    if context == []:
+    if context is None:
         context = ["https://clowder.ncsa.illinois.edu/contexts/metadata.jsonld"]
 
     content['extractor_version'] = extractorinfo['version']
@@ -1070,15 +1154,12 @@ def create_empty_collection(host, clowder_user, clowder_pass, collectionname, de
 
 def get_dataset_or_create(host, secret_key, clowder_user, clowder_pass, dsname, parent_colln=None, parent_space=None):
     # Fetch dataset from Clowder by name, or create it if not found
-    url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
-    result = requests.get(url)
-    result.raise_for_status()
+    ds_id = get_datasetid_by_name(host, secret_key, dsname)
 
-    if len(result.json()) == 0:
+    if not ds_id:
         return create_empty_dataset(host, clowder_user, clowder_pass, dsname, "",
                                     parent_colln, parent_space)
     else:
-        ds_id = result.json()[0]['id']
         if parent_colln:
             add_dataset_to_collection(host, secret_key, ds_id, parent_colln)
         if parent_space:
@@ -1289,6 +1370,36 @@ def delete_datasets_in_collection(host, clowder_user, clowder_pass, collectionid
     if delete_colls:
         logging.info("deleting collection %s" % collectionid)
         delete_collection(host, clowder_user, clowder_pass, collectionid)
+
+def get_datasetid_by_name(host, secret_key, dsname):
+    """Looks up the ID of a dataset by nanme
+
+    Args:
+        host(str): the URI of the host making the connection
+        secret_key(str): used with the host API
+        dsname(str): the dataset name to look up
+
+    Return:
+        Returns the ID of the dataset if it's found. Returns None if the dataset
+        isn't found
+    """
+    url = "%sapi/datasets?key=%s&title=%s&exact=true" % (host, secret_key, dsname)
+
+    try:
+        result = requests.get(url)
+        result.raise_for_status()
+
+        md = result.json()
+        md_len = len(md)
+    except Exception as ex:     # pylint: disable=broad-except
+        md = None
+        md_len = 0
+        logging.debug(ex.message)
+
+    if md and md_len > 0 and "id" in md[0]:
+        return md[0]["id"]
+
+    return None
 
 def create_empty_space(host, clowder_user, clowder_pass, space_name, description=""):
     """Create a new space in Clowder.
