@@ -1440,12 +1440,12 @@ def delete_file(host, secret_key, fileid):
     result = requests.delete(url)
     result.raise_for_status()
 
-def check_file_in_dataset(connector, host, secret_key, dsid, filepath, remove=False, forcepath=False, replacements=[]):
+def check_file_in_dataset(connector, host, secret_key, dsid, filepath, remove=False, forcepath=False, replacements=None):
     # Replacements = [("L2","L1")]
     # Each tuple is checked replacing first element in filepath with second element for existing
     dest_files = get_file_list(connector, host, secret_key, dsid)
 
-    if len(replacements) > 0:
+    if replacements and len(replacements) > 0:
         for r in replacements:
             filepath = filepath.replace(r[0], r[1])
 
