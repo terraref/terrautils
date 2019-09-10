@@ -5,6 +5,8 @@ This module provides useful reference methods for accessing and cleaning TERRA-R
 
 import terrautils.lemnatec
 
+from terrautils.secure import decrypt_pipeline_string
+
 def clean_metadata(json, sensorId, fixed=False):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
@@ -119,8 +121,6 @@ def pipeline_get_metadata(metadata):
             1) "content" -> "pipeline"
             2) "pipeline"
     """
-    from terrautils.secure import decrypt_pipeline_string
-
     found_metadata = None
 
     # Check the parameter
