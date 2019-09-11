@@ -26,7 +26,14 @@ from terrautils.users import get_dataset_username, find_user_name
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 
+# Experiment YAML file name
 DEFAULT_EXPERIMENT_JSON_FILENAME = 'experiment.yaml'
+
+# The name of the BETYdb URL environment variable
+BETYDB_URL_ENV_NAME = 'BETYDB_URL'
+
+# The name of the BETYDB key environment variable
+BETYDB_KEY_ENV_NAME = 'BETYDB_KEY'
 
 class __internal__(object):
     """Class for functions intended for internal use only for this file
@@ -151,6 +158,60 @@ class __internal__(object):
             formatted = source
 
         return formatted
+
+    @staticmethod
+    def find_betydb_config(metadata, key):
+        """Performs a shalow search for a key in the metadata and
+           returns it
+        Args:
+            metadata(dict): the metadata to search
+            key(str): the name of the key to find
+        Return:
+            The found value or None
+        """
+        if 'betydb' in metadata:
+            if key in metadata['betydb']:
+                return metadata['betydb'][key]
+        return None
+
+    @staticmethod
+    def setup_env_var(env_name, value):
+        """Sets up the environemt variable. Returns the old
+           value if it had been set
+        Args:
+            env_name(str): the name of the environment variable to set
+            value(str): the value to set the environment variable to
+        Return:
+            The current environment value or None if the variable was not
+            set. If the variable is currently not set an empty string is
+            returned.
+        Exceptions:
+            ValueError is thrown if a parameter is not a string
+        """
+        if not env_name or not value:
+            return None
+
+        if not isinstance(env_name, str):
+            if sys.version_info[0] < 3:
+                if isinstance(env_name, unicode):
+                    env_name = env_name.encode('ascii', 'ignore')
+                else:
+                    ValueError("Environment variable name is not a string")
+            else:
+                ValueError("Environment variable name is not a string")
+        if not isinstance(value, str):
+            if sys.version_info[0] < 3:
+                if isinstance(value, unicode):
+                    value = value.encode('ascii', 'ignore')
+                else:
+                    raise ValueError("Environment variable value is not a string")
+            else:
+                raise ValueError("Environment variable value is not a string")
+
+        old_value = os.environ.get(env_name, '')
+        os.environ[env_name] = value
+
+        return old_value
 
 def add_arguments(parser):
 
@@ -469,6 +530,18 @@ class TerrarefExtractor(Extractor):
         sensor_old_base = self.sensors.base
         self.sensors.base = new_base
 
+        # Check if a new BETYdb URL/KEY has been specified and set it
+        if self.experiment_metadata:
+            old_betydb_url = __internal__.setup_env_var(BETYDB_URL_ENV_NAME,
+                                                        __internal__.find_betydb_config(self.experiment_metadata,
+                                                                                        'url'))
+            old_betydb_key = __internal__.setup_env_var(BETYDB_KEY_ENV_NAME,
+                                                        __internal__.find_betydb_config(self.experiment_metadata,
+                                                                                        'key'))
+        else:
+            old_betydb_url = None
+            old_betydb_key = None
+
         def restore_func():
             """Internal function for restoring class variables that's returned to caller
             """
@@ -478,6 +551,10 @@ class TerrarefExtractor(Extractor):
                 self.sensors.station = old_station
                 if added_station and sitename and sitename in STATIONS:
                     del STATIONS[sitename]
+                if old_betydb_url:
+                    __internal__.setup_env_var(BETYDB_URL_ENV_NAME, old_betydb_url)
+                if old_betydb_key:
+                    __internal__.setup_env_var(BETYDB_KEY_ENV_NAME, old_betydb_key)
             except Exception as ex:
                 logging.warning("Restoring Extractor class variables failed: " + str(ex))
 
@@ -650,6 +727,20 @@ class TerrarefExtractor(Extractor):
 
         return None
 
+    def find_extractor_json(self, extractor=None):
+        """Finds extractor specific configuration in experiment data
+        Keyword Arguments:
+            extractor(str): the name of the extractor to find experiment data on. If not specified
+                the configured sensor name is used.
+        Return:
+            Returns the extractor JSON when found. None is returned otherwise
+        """
+        if self.experiment_metadata:
+            config_json = __internal__.case_insensitive_find(self.experiment_metadata, 'extractors')
+            if config_json:
+                return __internal__.case_insensitive_find(config_json, extractor if extractor else self.sensor_name)
+        return None
+
     def get_username_with_base_path(self, host, key, dataset_id, base_path=None):
         """Looks up the name of the user associated with the dataset. If unable to find
            the user's name from the dataset, the clowder_user variable is used instead.
@@ -796,15 +887,14 @@ class TerrarefExtractor(Extractor):
         """
         file_filters = None
         if self.get_terraref_metadata is None and self.experiment_metadata:
-            if 'extractors' in self.experiment_metadata:
-                extractor_json = self.experiment_metadata['extractors']
-                if self.sensor_name in extractor_json:
-                    if 'filters' in extractor_json[self.sensor_name]:
-                        file_filters = extractor_json[self.sensor_name]['filters']
-                        if ',' in file_filters:
-                            file_filters = file_filters.split(',')
-                        elif file_filters:
-                            file_filters = [file_filters]
+            extractor_json = self.find_extractor_json()
+            if extractor_json:
+                file_filters = __internal__.case_insensitive_find(extractor_json, 'filters')
+                if file_filters:
+                    if ',' in file_filters:
+                        file_filters = file_filters.split(',')
+                    elif file_filters:
+                        file_filters = [file_filters]
         return file_filters
 
 
@@ -828,6 +918,37 @@ def timestamp_to_terraref(timestamp):
         if res:
             return_ts = res.group(0)
             return_ts = return_ts.replace('T', '__').replace(':', '-')
+
+    return return_ts
+
+def terraref_timestamp_to_iso(timestamp):
+    """Converts a timestamp to ISO
+    Args:
+        timestamp(str): the terraref timestamp to convert
+    Return:
+        Returns the timestamp formatted to ISO standard. If the timestamp is in
+        TERRA REF format and a time is specified, the Maricopa, AZ time offset is
+        automatically added to the returned string
+    Exceptions:
+        RuntimeError is raised if a TERRA REF formatted timestamp can't be converted
+    Note:
+        Does a simple check for the TERRA REF date/time separator ('__') to determine
+        if a reformatting is needed. If that separator isn't found, the original string
+        is returned. If that separator is found and a time isn't specified, only the date
+        is returned.
+        No checks are made on the validity of the date & time
+    """
+    return_ts = timestamp
+
+    if '__' in timestamp:
+        (ts_date, ts_time) = timestamp.split('__')
+        if ts_date and ts_time:
+            # We have a TERRA REF date and a time, add Maricopa, AZ time adjustment
+            return_ts = ts_date + 'T' + ts_time.replace('-', ':') + '-07:00'
+        elif ts_date:
+            return_ts = ts_date
+        else:
+            raise RuntimeError('Unable to convert invalid date to ISO format: "' + timestamp + '"')
 
     return return_ts
 
