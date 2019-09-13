@@ -723,7 +723,7 @@ class TerrarefExtractor(Extractor):
             Returns a found sitename or None
         """
         if self.experiment_metadata:
-            return __internal__.case_insensitive_find(self.experiment_metadata, 'site')
+            return __internal__.case_insensitive_find(self.experiment_metadata, 'collectingSite')
 
         return None
 
