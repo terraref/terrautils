@@ -158,7 +158,7 @@ def polygon_to_tuples(polygon):
         if polygon.GetGeometryType() == ogr.wkbPolygon:
             ring = polygon.GetGeometryRef(0)
             point_count = ring.GetPointCount()
-            for point_idx in xrange(point_count):
+            for point_idx in range(point_count):
                 pt_x, pt_y, _ = ring.GetPoint(point_idx)
                 if min_x is None or pt_x < min_x:
                     min_x = pt_x

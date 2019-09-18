@@ -4,15 +4,78 @@ This module provides useful methods for spatial referencing.
 """
 
 import os
-import utm
-import yaml
 import json
+import logging
 import subprocess
 import numpy as np
+import yaml
 import laspy
-from osgeo import gdal, gdalnumeric, ogr
+import osr
+from osgeo import gdal, ogr
+import utm
 
+def convert_geometry(geometry, new_spatialreference):
+    """Converts the geometry to the new spatial reference if possible
 
+    geometry - The geometry to transform
+    new_spatialreference - The spatial reference to change to
+
+    Returns:
+        The transformed geometry or the original geometry. If either the
+        new Spatial Reference parameter is None, or the geometry doesn't
+        have a spatial reference, then the original geometry is returned.
+    """
+    if not new_spatialreference or not geometry:
+        return geometry
+
+    return_geometry = geometry
+    try:
+        geom_sr = geometry.GetSpatialReference()
+        if geom_sr and not new_spatialreference.IsSame(geom_sr):
+            transform = osr.CreateCoordinateTransformation(geom_sr, new_spatialreference)
+            new_geom = geometry.Clone()
+            if new_geom:
+                new_geom.Transform(transform)
+                return_geometry = new_geom
+    except Exception as ex:
+        logging.warning("Exception caught while transforming geometries: " + str(ex))
+        logging.warning("    Returning original geometry")
+
+    return return_geometry
+
+def convert_json_geometry(geojson, new_spatialreference):
+    """Converts geojson geometry to new spatial reference system and
+       returns the new geometry as geojson.
+
+    geojson(str): The geometry to transform
+    new_spatialreference - The spatial reference to change to
+
+    Returns:
+        The transformed geometry as geojson or the original geojson. If
+        either the new Spatial Reference parameter is None, or the geojson
+        doesn't have a spatial reference, or the geojson isn't a
+        valid geometry, then the original geojson is returned.
+    """
+    if not new_spatialreference or not geojson:
+        return geojson
+
+    geom_yaml = yaml.safe_load(geojson)
+    geometry = ogr.CreateGeometryFromJson(json.dumps(geom_yaml))
+
+    if not geometry:
+        return geojson
+
+    new_geometry = convert_geometry(geometry, new_spatialreference)
+    if not new_geometry:
+        return geojson
+
+    try:
+        return geometry_to_geojson(new_geometry)
+    except Exception as ex:
+        logging.warning("Exception caught while transforming geojson: " + str(ex))
+        logging.warning("    Returning original geojson")
+
+    return geojson
 
 def calculate_bounding_box(gps_bounds, z_value=0):
     """Given a set of GPS boundaries, return array of 4 vertices representing the polygon.
@@ -236,6 +299,7 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):
 
     """
     bbox_poly = ogr.CreateGeometryFromJson(str(bounding_box))
+    bb_sr = bbox_poly.GetSpatialReference()
     intersecting_plots = dict()
 
     for plotname in all_plots:
@@ -245,8 +309,22 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):
         bounds = all_plots[plotname]
 
         yaml_bounds = yaml.safe_load(bounds)
-        current_poly = ogr.CreateGeometryFromJson(str(yaml_bounds))
-        intersection_with_bounding_box = bbox_poly.Intersection(current_poly)
+        current_poly = ogr.CreateGeometryFromJson(json.dumps(yaml_bounds))
+
+        # Check for a need to convert coordinate systems
+        check_poly = current_poly
+        if bb_sr:
+            poly_sr = current_poly.GetSpatialReference()
+            if poly_sr and not bb_sr.IsSame(poly_sr):
+                # We need to convert to the same coordinate system before an intersection
+                check_poly = convert_geometry(current_poly, bb_sr)
+                transform = osr.CreateCoordinateTransformation(poly_sr, bb_sr)
+                new_poly = current_poly.Clone()
+                if new_poly:
+                    new_poly.Transform(transform)
+                    check_poly = new_poly
+
+        intersection_with_bounding_box = bbox_poly.Intersection(check_poly)
 
         if intersection_with_bounding_box is not None:
             intersection = json.loads(intersection_with_bounding_box.ExportToJson())
@@ -439,6 +517,35 @@ def tuples_to_utm(bounds):
 def wkt_to_geojson(wkt):
     geom = ogr.CreateGeometryFromWkt(wkt)
     return geom.ExportToJson()
+
+def geometry_to_geojson(geom, alt_coord_type=None, alt_coord_code=None):
+    """Converts a geometry to geojson.
+    Args:
+        geom(ogr geometry): The geometry to convert to JSON
+        alt_coord_type(str): the alternate geographic coordinate system type if geometry doesn't have one defined
+        alt_coord_code(str): the alternate geographic coordinate system associated with the type
+    Returns:
+        The geojson string for the geometry
+    Note:
+        If the geometry doesn't have a spatial reference associated with it, both the default
+        coordinate system type and code must be specified for a coordinate system to be assigned to
+        the returning JSON. The original geometry is left unaltered.
+    """
+    ref_sys = geom.GetSpatialReference()
+    geom_json = json.loads(geom.ExportToJson())
+    if not ref_sys:
+        if alt_coord_type and alt_coord_code:
+            # Coming from BETYdb without a coordinate system we assume EPSG:4326
+            geom_json['crs'] = {'type': str(alt_coord_type), 'properties': {'code': str(alt_coord_code)}}
+    else:
+        geom_json['crs'] = {
+            'type': ref_sys.GetAttrValue("AUTHORITY", 0),
+            'properties': {
+                'code': ref_sys.GetAttrValue("AUTHORITY", 1)
+            }
+        }
+
+    return json.dumps(geom_json)
 
 
 # PRIVATE -------------------------------------

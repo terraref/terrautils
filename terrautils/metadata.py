@@ -5,6 +5,8 @@ This module provides useful reference methods for accessing and cleaning TERRA-R
 
 import terrautils.lemnatec
 
+from terrautils.secure import decrypt_pipeline_string
+
 def clean_metadata(json, sensorId, fixed=False):
     """ Given a metadata object, returns a cleaned object with standardized structure 
         and names.
@@ -153,7 +155,37 @@ def pipeline_get_metadata(metadata):
     finally:
         pass
 
+    # Check if we need to perform additional actions on the metadata
+    if found_metadata and "clowder" in found_metadata:
+        if "password" in found_metadata["clowder"]:
+            clowder_pass = found_metadata["clowder"]["password"]
+            if clowder_pass.startswith("secured:"):
+                plain_pass = decrypt_pipeline_string(clowder_pass[8:])
+                if not plain_pass is None:
+                    found_metadata["clowder"]["password"] = plain_pass
+
     return found_metadata
+
+def prepare_pipeline_metadata(metadata):
+    """Fixes the metadata so that the drone pipeline easily reference it
+    Args:
+        metadata(JSON): the JSON object to format
+    Returns:
+        A deep copy of the metadata with any necessary changes made.
+    """
+    from copy import deepcopy
+    from terrautils.secure import encrypt_pipeline_string
+
+    return_metadata = deepcopy(metadata)
+    if "clowder" in return_metadata:
+        if "password" in return_metadata["clowder"]:
+            encrypted = encrypt_pipeline_string(return_metadata["clowder"]["password"])
+            if not encrypted is None:
+                return_metadata["clowder"]["password"] = "secured:" + encrypted
+            else:
+                return_metadata["clowder"]["password"] = "<removed>"
+            
+    return {"pipeline" : return_metadata}
 
 
 def get_season_and_experiment(timestamp, sensor, terra_md_full):
