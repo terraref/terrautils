@@ -874,7 +874,12 @@ class TerrarefExtractor(Extractor):
                     result.raise_for_status()
 
                     if not len(result.json()) == 0:
-                        ret_space = result.json()[0]['id']
+                        # Even though we ask for an exact match, it's possible to get more than one
+                        # space back if they start with the same characters
+                        for one_space in result.json():
+                            if one_space['name'] == cur_space:
+                                ret_space = one_space['id']
+                                break
                     else:
                         ret_space = cur_space
 
