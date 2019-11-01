@@ -3,7 +3,7 @@ influxdb==4.1.0
 matplotlib==1.5.1
 netCDF4==1.2.4
 numpy==1.11.0
-Pillow==5.2.0
+Pillow==6.2.0
 python-dateutil==2.5.1
 scipy==0.17.1
 utm==0.4.1
