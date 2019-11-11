@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 def description():
-    with open('readme.rst') as f:
+    with open('readme.rst', encoding="utf-8") as f:
          return f.read()
 
 setup(name='terrautils',
       packages=find_packages(),
-      version='1.5.4',
+      version='1.5.5',
       include_package_data=True,
       description='TERRA-REF workflow utilities',
       long_description=description(),
