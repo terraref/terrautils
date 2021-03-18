@@ -318,11 +318,6 @@ def find_plots_intersect_boundingbox(bounding_box, all_plots, fullmac=True):
             if poly_sr and not bb_sr.IsSame(poly_sr):
                 # We need to convert to the same coordinate system before an intersection
                 check_poly = convert_geometry(current_poly, bb_sr)
-                transform = osr.CreateCoordinateTransformation(poly_sr, bb_sr)
-                new_poly = current_poly.Clone()
-                if new_poly:
-                    new_poly.Transform(transform)
-                    check_poly = new_poly
 
         intersection_with_bounding_box = bbox_poly.Intersection(check_poly)
 

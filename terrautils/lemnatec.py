@@ -94,7 +94,7 @@ def _get_spatial_metadata(cleaned_md, sensorId):
     gps_bounds = calculate_gps_bounds(cleaned_md, sensorId) 
 
     spatial_metadata = {}
-    for label, bounds in gps_bounds.iteritems():
+    for label, bounds in gps_bounds.items():
         spatial_metadata[label] = {}
         spatial_metadata[label]["bounding_box"] = tuples_to_geojson(bounds)
         spatial_metadata[label]["centroid"] = calculate_centroid(bounds)
@@ -109,7 +109,7 @@ def _get_sites(cleaned_md, date, sensorId):
     gps_bounds = calculate_gps_bounds(cleaned_md, sensorId)
 
     sites = {}
-    for label, bounds in gps_bounds.iteritems():
+    for label, bounds in gps_bounds.items():
         centroid = calculate_centroid(bounds)
         bety_sites = terrautils.betydb.get_sites_by_latlon(centroid, date)
         for bety_site in bety_sites:
@@ -121,8 +121,7 @@ def _get_sites(cleaned_md, date, sensorId):
             else:
                 sites["url"] = ""
 
-    return sites
-
+    return list(sites.values())
 
 def _get_experiment_metadata(date, sensorId): 
     sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)
@@ -899,7 +898,7 @@ def read_scan_program_map():
 
     if not scan_programs:
         scan_path = os.path.join(os.path.dirname(__file__), "data/scan_programs.csv")
-        with open(scan_path, 'rb') as file:
+        with open(scan_path, 'r') as file:
             reader = csv.DictReader(file)
             for row in reader:
                 scan_programs[row["program_name"]] = {

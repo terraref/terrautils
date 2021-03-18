@@ -635,3 +635,13 @@ class Sensors():
                 return self.stations[self.station][self.sensor]['display']
             else:
                 return self.sensor
+
+    def get_pattern(self, sensor=''):
+        """Gets the pattern associated with the sensor"""
+        if not sensor:
+            sensor = self.sensor
+
+        if 'pattern' in self.stations[self.station][sensor]:
+            return self.stations[self.station][sensor]['pattern']
+
+        return ''
