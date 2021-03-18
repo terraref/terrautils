@@ -113,17 +113,15 @@ def _get_sites(cleaned_md, date, sensorId):
         centroid = calculate_centroid(bounds)
         bety_sites = terrautils.betydb.get_sites_by_latlon(centroid, date)
         for bety_site in bety_sites:
-            site_id = str(bety_site["id"])
-            sites[site_id] = {}
-            sites[site_id]["sitename"] = bety_site["sitename"]
+            sites['id'] = str(bety_site["id"])
+            sites['notes'] = "plot that contains the image centroid"
+            sites["sitename"] = bety_site["sitename"]
             if "view_url" in bety_site:
-                sites[site_id]["url"] = bety_site["view_url"]
+                sites["url"] = bety_site["view_url"]
             else:
-                sites[site_id]["url"] = ""
-            sites['notes'] = "sitename is the plot that contains the image centroid"
+                sites["url"] = ""
 
     return list(sites.values())
-
 
 def _get_experiment_metadata(date, sensorId): 
     sensors = Sensors(base="", station=STATION_NAME, sensor=sensorId)

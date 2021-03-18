@@ -123,7 +123,10 @@ STATIONS = {
         
         "ps2Top": {
             "fixed_metadata_json": "/sensors/ps2/sensor_fixed_metadata.json",
-            "fixed_metadata_datasetid": "5873a84b4f0cad7d8131a73d"
+            "fixed_metadata_datasetid": "5873a84b4f0cad7d8131a73d",
+            'template': '{base}/{station}/raw_data/' + \
+                        '{sensor}/{date}/{timestamp}/{filename}',
+            'pattern': 'hashid_rawData{opts}.bin'
         },
         
         "scanner3DTop": {
